@@ -1,0 +1,32 @@
+# Build artifacts
+/builds/*.zip
+/builds/zips/
+
+# Dependencies / tooling
+/node_modules/
+/vendor/bin/
+composer.lock
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+
+# Logs and dumps
+*.log
+*.sql
+*.sql.gz
+*.dump
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# PHPUnit / coverage (if added later)
+/phpunit.xml
+/.phpunit.result.cache
+/coverage/
