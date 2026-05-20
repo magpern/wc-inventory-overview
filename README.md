@@ -2,7 +2,8 @@
 
 Operational inventory, costing, and profitability dashboard for WooCommerce (HPOS-compatible).
 
-**Version:** 1.17.0 (see plugin header)  
+**Version:** 1.17.2 (see plugin header)  
+**Releases:** https://github.com/magpern/wc-inventory-overview/releases (tag `v*`)  
 **Requires:** WordPress 6.0+, PHP 7.4+, WooCommerce with HPOS supported
 
 ## Features
@@ -54,9 +55,9 @@ docker run --rm -v "$(pwd):/app" -w /app php:8.2-cli \
 
 ## Repository
 
-Standalone plugin repo: `git@github.com:magpern/wc-inventory-overview.git`
+**Canonical Git:** `git@github.com:magpern/wc-inventory-overview.git` — production ZIPs and GitHub Actions releases live here.
 
-Previously lived under `biopentra-custom-plugins/plugins/wc-inventory-overview/`.
+Development copy also exists under `biopentra-custom-plugins/plugins/wc-inventory-overview/` (rsync mirror; **do not** tag `wc-inventory-overview-v*` on the monorepo).
 
 ## License
 

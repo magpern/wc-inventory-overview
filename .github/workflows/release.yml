@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release ZIP
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Verify tag matches plugin version
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          HEADER="$(grep -E '^\s*\*\s*Version:\s*' wc-inventory-overview.php | head -n1 | sed -E 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//')"
+          CONST="$(grep -E "define\s*\(\s*'WC_INVENTORY_OVERVIEW_VERSION'" wc-inventory-overview.php | head -n1 | sed -E "s/.*'([^']+)'.*/\1/")"
+          if [[ "${HEADER}" != "${VERSION}" || "${CONST}" != "${VERSION}" ]]; then
+            echo "ERROR: tag ${TAG} != plugin ${HEADER}" >&2
+            exit 1
+          fi
+
+      - name: PHP syntax lint
+        run: |
+          set -euo pipefail
+          find . -name '*.php' -not -path './vendor/*' -print0 | while IFS= read -r -d '' f; do
+            php -l "$f"
+          done
+
+      - name: Build and audit
+        run: |
+          bash scripts/build-zip.sh
+          bash scripts/release-audit.sh
+
+      - name: Set release metadata
+        id: meta
+        run: |
+          VERSION="$(grep -E "define\s*\(\s*'WC_INVENTORY_OVERVIEW_VERSION'" wc-inventory-overview.php | head -n1 | sed -E "s/.*'([^']+)'.*/\1/")"
+          NOTES="docs/GITHUB_RELEASE_NOTES_${VERSION}.md"
+          [[ -f "${NOTES}" ]] || { echo "ERROR: Missing ${NOTES}" >&2; exit 1; }
+          echo "ZIP_PATH=${GITHUB_WORKSPACE}/builds/wc-inventory-overview-${VERSION}.zip" >> "${GITHUB_ENV}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "notes=${NOTES}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: WC Inventory Overview ${{ steps.meta.outputs.version }}
+          prerelease: false
+          generate_release_notes: false
+          body_path: ${{ steps.meta.outputs.notes }}
+          files: ${{ env.ZIP_PATH }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

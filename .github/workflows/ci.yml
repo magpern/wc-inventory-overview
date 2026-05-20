@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-build:
+    name: PHP lint and build ZIP
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: PHP syntax lint
+        run: |
+          set -euo pipefail
+          find . -name '*.php' -not -path './vendor/*' -print0 | while IFS= read -r -d '' f; do
+            php -l "$f"
+          done
+
+      - name: Build release zip
+        run: bash scripts/build-zip.sh
