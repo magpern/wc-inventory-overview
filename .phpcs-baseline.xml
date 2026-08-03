@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+PHPCS Baseline: Pre-existing violations
+
+This file records coding standard violations found in the legacy codebase
+as of the M0 milestone. These violations are excluded from CI failure;
+all new code must be compliant.
+
+This baseline is a ratchet: it never grows. Later milestones that touch
+files listed here are expected to fix violations in those files, shrinking
+the baseline over time.
+
+Generated: 2026-08-03
+Standard: WordPress-Extra
+-->
+<file></file>

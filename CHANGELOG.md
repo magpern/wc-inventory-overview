@@ -1,5 +1,32 @@
 # Changelog — WC Inventory Overview
 
+## [1.17.3] - 2026-08-03
+
+**Milestone M0 — Delivery Foundations** — automated test suite infrastructure and characterization tests (zero functional changes).
+
+### Added
+
+- **Test infrastructure**: PHPUnit, PHPCS, GitHub Actions CI/CD workflow.
+- **Docker-based test environment**: ephemeral WordPress+WooCommerce stack for isolated testing (`tests/docker/docker-compose.test.yml`).
+- **Golden fixtures and characterization tests**: Frozen behavior specifications for weighted-average costing, FX resolution, landed-cost allocation, batch preview/apply parity, movement records, and cost adjustments.
+- **DB-transaction helper**: Reusable database transaction wrapper with SAVEPOINT support (built in M0, integrated into M4+).
+- **Release rehearsal templates**: Release runbook, deployment, rollback, and validation checklists (reused by every future release).
+- **Test documentation**: Philosophy, fixture governance rule, running and extending tests.
+
+### Technical
+
+- `composer.json`, `composer.lock` — development dependencies (PHPUnit, PHPCS, WordPress coding standards).
+- `phpunit.xml.dist`, `phpcs.xml.dist`, `.phpcs-baseline.xml` — test configurations.
+- `.github/workflows/tests.yml` — CI workflow (PHPUnit + PHPCS + PHP Lint).
+- `includes/class-wc-inventory-overview-db-transaction.php` — transaction helper (inert until M4).
+- `docs/testing.md`, `docs/release-runbook.md`, `docs/checklists/` — documentation and reusable release templates.
+
+### Notes
+
+- **No plugin behavior changes** — version 1.17.3 functions identically to 1.17.2. Test infrastructure is a pure-tooling addition excluded from the release ZIP.
+- The test suite, while comprehensive, is **not** part of the distributed plugin; it ships only in the GitHub repository.
+- Golden fixtures lock current behavior as the regression baseline for all future milestones.
+
 ## [1.17.2] - 2026-05-19
 
 **Standalone repository releases** — canonical GitHub home is [magpern/wc-inventory-overview](https://github.com/magpern/wc-inventory-overview) with `v*` tags.

@@ -1,0 +1,89 @@
+# Ephemeral test stack for WC Inventory Overview PHPUnit suite
+# Fully isolated from production. Disposable, no persistent data.
+#
+# Pinned versions (matching apps/wordpress/compose.yml as of 2026-07-19):
+#   wordpress:7.0.2-php8.4-apache
+#   wordpress:cli-2.12.0-php8.4
+#   mariadb:11.8.8 (LTS until 2030)
+#
+# Network: ephemeral internal-only network (no published ports).
+# Data: tmpfs or ephemeral (destroyed on container teardown).
+
+version: '3.8'
+
+services:
+  db:
+    image: mariadb:11.8.8
+    container_name: wc-io-test-db
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-wordpress}
+    volumes:
+      # Ephemeral: tmpfs-backed temporary filesystem
+      - type: tmpfs
+        target: /var/lib/mysql
+    networks:
+      - test-internal
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  wordpress:
+    image: wordpress:7.0.2-php8.4-apache
+    container_name: wc-io-test-wordpress
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: ${MARIADB_PASSWORD:-wordpress}
+      WORDPRESS_TABLE_PREFIX: wp_
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_MEMORY_LIMIT', '512M');
+        define('WP_DEBUG', true);
+        define('WP_DEBUG_LOG', '/var/www/html/wp-content/debug.log');
+        define('WP_DEBUG_DISPLAY', false);
+    volumes:
+      # Plugin source mounted RW from host working tree
+      - ./../../:/var/www/html/wp-content/plugins/wc-inventory-overview:rw
+    networks:
+      - test-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  phpunit:
+    image: wordpress:cli-2.12.0-php8.4
+    container_name: wc-io-test-phpunit
+    depends_on:
+      wordpress:
+        condition: service_healthy
+    working_dir: /var/www/html
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: ${MARIADB_PASSWORD:-wordpress}
+    volumes:
+      # Mount plugin and WordPress core for test runner
+      - ./../../:/var/www/html/wp-content/plugins/wc-inventory-overview:ro
+      - wordpress-volume:/var/www/html:ro
+    networks:
+      - test-internal
+    entrypoint: ["php"]
+
+volumes:
+  wordpress-volume:
+    driver: local
+
+networks:
+  test-internal:
+    internal: true

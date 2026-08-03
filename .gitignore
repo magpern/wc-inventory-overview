@@ -4,7 +4,7 @@
 
 # Dependencies / tooling
 /node_modules/
-/vendor/bin/
+/vendor/
 composer.lock
 
 # Secrets and local env
@@ -26,7 +26,10 @@ Thumbs.db
 *.swp
 *~
 
-# PHPUnit / coverage (if added later)
+# PHPUnit / coverage / testing
 /phpunit.xml
 /.phpunit.result.cache
+/.phpunit.cache/
 /coverage/
+tests/docker/.env.test
+tests/.phpunit.result.cache

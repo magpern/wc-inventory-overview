@@ -1,0 +1,36 @@
+{
+  "name": "biopentra/wc-inventory-overview",
+  "description": "WC Inventory Overview — Operational inventory, purchasing, and profitability for WooCommerce",
+  "license": "GPL-2.0-or-later",
+  "type": "wordpress-plugin",
+  "require": {
+    "php": ">=7.4"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.5",
+    "phpunit/phpunit-polyfills": "^1.0",
+    "wp-coding-standards/wpcs": "^3.1",
+    "php-parallel-lint/php-parallel-lint": "^1.3",
+    "automattic/workaround-wordpress-github-actions": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "WC_Inventory_Overview_Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": [
+      "phpunit"
+    ],
+    "lint": [
+      "phpcs"
+    ],
+    "lint:fix": [
+      "phpcbf"
+    ],
+    "lint:parallel": [
+      "parallel-lint --exclude vendor --exclude .git ."
+    ]
+  },
+  "minimum-stability": "stable"
+}
