@@ -86,7 +86,27 @@ If the release has issues post-deployment:
 
 Each milestone may extend this runbook with additional steps (e.g., migration verification for M6, storefront-toggle validation for M7). Those additions are documented in the milestone's implementation plan and are called out in a milestone-specific section at the end of this runbook.
 
-**For M0:** No additional steps. The release is a pure-tooling change with no functional or database schema changes.
+### M0: Delivery Foundations
+
+No additional steps. The release is a pure-tooling change with no functional or database schema changes.
+
+### M1: Suppliers
+
+**Before tagging the release:**
+
+1. **Verify schema version bump:** Check that `DB_VERSION = '6'` in `includes/class-wc-inventory-overview-install.php`.
+2. **Test schema-shape assertion on a production-data copy:**
+   - Upgrade to the M1 release on a copy of production database.
+   - Verify `wp option get wc_io_db_version` returns `6`.
+   - Verify `wp option get wc_io_schema_v6_assertion --format=json` shows `ok: true`.
+3. **Review the seed migration report on the production-data copy:**
+   - Verify `wp option get wc_io_supplier_seed_migration_report --format=json` contains no errors.
+   - Cross-check `suppliers_created` + `suppliers_skipped_existing` against expected distinct supplier names.
+   - Ensure no data loss: `wc_io_purchase_batches` and `wc_io_inventory_movements` row counts are identical before/after.
+4. **Verify Purchasing menu availability:**
+   - Log in as a `manage_woocommerce` user.
+   - Confirm **WooCommerce → Purchasing** submenu appears.
+   - Confirm the **Suppliers** tab is accessible and fully functional.
 
 ## Post-release communication
 

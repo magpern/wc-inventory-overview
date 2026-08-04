@@ -1,7 +1,7 @@
-# Architecture audit — WC Inventory Overview 1.17.0
+# Architecture audit — WC Inventory Overview 1.18.0
 
-**Date:** 2026-05-15  
-**Scope:** Standalone repo `magpern/wc-inventory-overview` (copy of monorepo plugin, no behavior changes)
+**Date:** 2026-08-04  
+**Scope:** Standalone repo `magpern/wc-inventory-overview` with Milestone M1 implementation
 
 ---
 
@@ -33,17 +33,18 @@ If WooCommerce is missing, shows admin notice only.
 
 ## Custom database tables
 
-Created/upgraded via `WC_Inventory_Overview_Install` (`DB_VERSION = 5`, option `wc_io_db_version`):
+Created/upgraded via `WC_Inventory_Overview_Install` (`DB_VERSION = 6`, option `wc_io_db_version`):
 
-| Table | Purpose |
-|-------|---------|
-| `{prefix}wc_io_inventory_movements` | Stock/cost movement ledger |
-| `{prefix}wc_io_purchase_batches` | Batch purchase headers |
-| `{prefix}wc_io_purchase_batch_lines` | Per-SKU batch lines |
-| `{prefix}wc_io_purchase_batch_costs` | Landed cost lines per batch |
-| `{prefix}wc_io_exchange_rates` | FX rate history |
+| Table | Purpose | Version |
+|-------|---------|---------|
+| `{prefix}wc_io_suppliers` | **M1:** Supplier entity with contact info, currency, configured lead time | v6+ |
+| `{prefix}wc_io_inventory_movements` | Stock/cost movement ledger | v1+ |
+| `{prefix}wc_io_purchase_batches` | Batch purchase headers | v1+ |
+| `{prefix}wc_io_purchase_batch_lines` | Per-SKU batch lines | v1+ |
+| `{prefix}wc_io_purchase_batch_costs` | Landed cost lines per batch | v1+ |
+| `{prefix}wc_io_exchange_rates` | FX rate history | v2+ |
 
-Schema via `dbDelta()` on activate and version bump.
+Schema via `dbDelta()` on activate and version bump. M1 adds the `wc_io_suppliers` table; `inventory_movements` gains `reference_type`, `reference_id`, and `supplier_id` columns in M4.
 
 ---
 
@@ -78,12 +79,14 @@ Legacy slugs `wc-inventory-overview` and `wc-inventory-restock` redirect into th
 
 ## AJAX actions (`wp_ajax_*`)
 
-| Action | Handler | Capability + nonce |
-|--------|---------|-------------------|
-| `wc_io_save_inline_stock` | `ajax_save_inline_stock` | `edit_products` + `edit_product`; nonce `wc_io_inventory` |
-| `wc_io_get_cost_adjustment_preview` | `ajax_get_cost_adjustment_preview` | `manage_woocommerce`; nonce `wc_io_cost_adj_preview` |
-| `wc_io_batch_preview` | `ajax_batch_preview` | `manage_woocommerce`; nonce `wc_io_batch_preview` |
-| `wc_io_get_exchange_rate` | `ajax_get_exchange_rate` | `manage_woocommerce`; nonce `wc_io_get_exchange_rate` |
+| Action | Handler | Capability + nonce | Version |
+|--------|---------|--------------------|---------| 
+| `wc_io_search_suppliers` | **M1** Supplier autocomplete | `manage_woocommerce`; nonce `wc_io_search_suppliers` | v6+ |
+| `wc_io_quick_create_supplier` | **M1** Inline supplier creation | `manage_woocommerce`; nonce `wc_io_quick_create_supplier` | v6+ |
+| `wc_io_save_inline_stock` | Inline stock edit | `edit_products` + `edit_product`; nonce `wc_io_inventory` | v1+ |
+| `wc_io_get_cost_adjustment_preview` | Cost adjustment preview | `manage_woocommerce`; nonce `wc_io_cost_adj_preview` | v1+ |
+| `wc_io_batch_preview` | Batch intake preview | `manage_woocommerce`; nonce `wc_io_batch_preview` | v1+ |
+| `wc_io_get_exchange_rate` | FX rate lookup | `manage_woocommerce`; nonce `wc_io_get_exchange_rate` | v2+ |
 
 All are **admin-only** (`wp_ajax_*`, not `nopriv`).
 
@@ -91,16 +94,19 @@ All are **admin-only** (`wp_ajax_*`, not `nopriv`).
 
 ## admin_post actions
 
-| Hook | Purpose |
-|------|---------|
-| `wc_io_restock` | Quick restock line |
-| `wc_io_batch_apply` | Commit batch intake |
-| `wc_io_cost_adjustment` | Average cost adjustment |
-| `wc_io_save_settings` | Plugin settings |
-| `wc_io_add_exchange_rate` | Add FX row |
-| `wc_io_delete_exchange_rate` | Delete FX row |
-| `wc_io_danger_reset_preview` | Danger zone preview |
-| `wc_io_danger_reset_apply` | Danger zone delete |
+| Hook | Purpose | Version |
+|------|---------|---------|
+| `wc_io_supplier_save` | **M1** Create/update supplier | v6+ |
+| `wc_io_supplier_archive` | **M1** Archive supplier | v6+ |
+| `wc_io_supplier_reactivate` | **M1** Reactivate supplier | v6+ |
+| `wc_io_restock` | Quick restock line | v1+ |
+| `wc_io_batch_apply` | Commit batch intake | v1+ |
+| `wc_io_cost_adjustment` | Average cost adjustment | v1+ |
+| `wc_io_save_settings` | Plugin settings | v1+ |
+| `wc_io_add_exchange_rate` | Add FX row | v2+ |
+| `wc_io_delete_exchange_rate` | Delete FX row | v2+ |
+| `wc_io_danger_reset_preview` | Danger zone preview | v1+ |
+| `wc_io_danger_reset_apply` | Danger zone delete | v1+ |
 
 CSV exports use `admin_init` + `check_admin_referer` (movements, order profit, product profitability).
 
@@ -120,33 +126,38 @@ No public REST routes or storefront-facing hooks.
 
 ## Service / class map
 
-| Class | Responsibility |
-|-------|----------------|
-| `Repository` | Product list queries, `posts_clauses` |
-| `Costing` | Average cost meta |
-| `Movements` | Insert/query movement rows |
-| `Restock_Service` | Quick restock transactions |
-| `Batch_Intake_Service` / `Batch_Intake_UI` | Multi-line purchase batches |
-| `Cost_Adjustment_Service` | Manual avg cost changes |
-| `Exchange_Rates` | FX table CRUD + lookup |
-| `Order_Profit_Query` / `Product_Profitability_Query` | Reporting SQL |
-| `Data_Reset` | Scoped delete of plugin analytics data |
-| `Summary` | Hub totals |
-| `*List_Table` | WP_List_Table admin UIs |
+| Class | Responsibility | Version |
+|-------|----------------|---------|
+| `WC_Inventory_Overview_Suppliers` | **M1:** Supplier CRUD + normalization | v6+ |
+| `WC_Inventory_Overview_Suppliers_Migration` | **M1:** Seed migration from historical supplier strings | v6+ |
+| `WC_Inventory_Overview_Purchasing_Page` | **M1:** Admin page controller for Purchasing submenu | v6+ |
+| `WC_Inventory_Overview_Suppliers_List_Table` | **M1:** WP_List_Table for supplier list/detail | v6+ |
+| `Repository` | Product list queries, `posts_clauses` | v1+ |
+| `Costing` | Average cost meta | v1+ |
+| `Movements` | Insert/query movement rows | v1+ |
+| `Restock_Service` | Quick restock transactions | v1+ |
+| `Batch_Intake_Service` / `Batch_Intake_UI` | Multi-line purchase batches | v1+ |
+| `Cost_Adjustment_Service` | Manual avg cost changes | v1+ |
+| `Exchange_Rates` | FX table CRUD + lookup | v2+ |
+| `Order_Profit_Query` / `Product_Profitability_Query` | Reporting SQL | v1+ |
+| `Data_Reset` | Scoped delete of plugin analytics data | v1+ |
+| `Summary` | Hub totals | v1+ |
+| `*List_Table` | WP_List_Table admin UIs | v1+ |
 
 ---
 
 ## Assets
 
-| Path | Enqueued on |
-|------|-------------|
-| `assets/admin.css`, `admin.js` | Inventory hub (overview tab) |
-| `assets/batch-intake.js` | Restock batch view |
-| `assets/restock-cost-adj.js` | Restock quick/adjust views |
-| `assets/movements-table.js` | Movements tab |
-| `assets/settings-shipping-fx.js` | Settings |
-| `assets/dashboard-charts.js` | Dashboard |
-| `assets/vendor/chart.umd.min.js` | Dashboard (Chart.js, vendored) |
+| Path | Enqueued on | Version |
+|------|-------------|---------|
+| `assets/supplier-picker.js` | **M1** Restock (Batch Intake, Quick Restock) — Select2 autocomplete + inline supplier creation | v6+ |
+| `assets/admin.css`, `admin.js` | Inventory hub (overview tab) | v1+ |
+| `assets/batch-intake.js` | Restock batch view | v1+ |
+| `assets/restock-cost-adj.js` | Restock quick/adjust views | v1+ |
+| `assets/movements-table.js` | Movements tab | v1+ |
+| `assets/settings-shipping-fx.js` | Settings | v1+ |
+| `assets/dashboard-charts.js` | Dashboard | v1+ |
+| `assets/vendor/chart.umd.min.js` | Dashboard (Chart.js, vendored) | v1+ |
 
 Scripts receive localized nonces and AJAX URLs from `Plugin::enqueue_*`.
 
