@@ -51,6 +51,7 @@ register_activation_hook(
 	WC_INVENTORY_OVERVIEW_FILE,
 	static function () {
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-install.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers-migration.php';
 		WC_Inventory_Overview_Install::activate();
 	}
