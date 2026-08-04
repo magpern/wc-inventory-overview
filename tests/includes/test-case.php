@@ -176,4 +176,25 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 
 		$this->assertEquals( $expected_str, $actual_str, $message ?: "Decimal values do not match to {$decimals} places" );
 	}
+
+	/**
+	 * Create a supplier for testing.
+	 *
+	 * @param array $props Override properties (default: reasonable test values).
+	 * @return array The created supplier row.
+	 */
+	protected function create_supplier( array $props = array() ): array {
+		$defaults = array(
+			'name'             => 'Test Supplier ' . uniqid(),
+			'default_currency' => 'EUR',
+		);
+		$data = wp_parse_args( $props, $defaults );
+
+		$id = WC_Inventory_Overview_Suppliers::create( $data );
+		if ( is_wp_error( $id ) ) {
+			$this->fail( 'Failed to create supplier: ' . $id->get_error_message() );
+		}
+
+		return WC_Inventory_Overview_Suppliers::get( $id );
+	}
 }

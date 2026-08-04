@@ -52,6 +52,7 @@ class WC_Inventory_Overview_Plugin {
 	public function init() {
 		WC_Inventory_Overview_Order_Item_Snapshots::register();
 		WC_Inventory_Overview_Order_Shipping_Admin::register();
+		WC_Inventory_Overview_Purchasing_Page::instance()->init();
 
 		add_action( 'admin_init', array( $this, 'redirect_legacy_inventory_admin_pages' ), 1 );
 		add_action( 'admin_menu', array( $this, 'register_menu' ), 60 );
@@ -1603,6 +1604,27 @@ class WC_Inventory_Overview_Plugin {
 			'wc-enhanced-select',
 			'jQuery(function($){ $(document.body).trigger("wc-enhanced-select-init"); });',
 			'after'
+		);
+		wp_enqueue_script(
+			'wc-io-supplier-picker',
+			plugins_url( 'assets/supplier-picker.js', WC_INVENTORY_OVERVIEW_FILE ),
+			array( 'jquery', 'wc-enhanced-select' ),
+			WC_INVENTORY_OVERVIEW_VERSION,
+			true
+		);
+		wp_localize_script(
+			'wc-io-supplier-picker',
+			'wcIoSupplierPicker',
+			array(
+				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+				'nonce'        => wp_create_nonce( 'wc_io_search_suppliers' ),
+				'quickNonce'   => wp_create_nonce( 'wc_io_quick_create_supplier' ),
+				'strings'      => array(
+					'newSupplier' => __( '+ Create new supplier', 'wc-inventory-overview' ),
+					'loading'     => __( 'Loading…', 'wc-inventory-overview' ),
+					'error'       => __( 'Error creating supplier', 'wc-inventory-overview' ),
+				),
+			)
 		);
 	}
 

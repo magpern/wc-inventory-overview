@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Install {
 
-	const DB_VERSION = '5';
+	const DB_VERSION = '6';
 
 	/**
 	 * Register activation hook target.
@@ -21,6 +21,8 @@ class WC_Inventory_Overview_Install {
 		self::create_tables();
 		self::cleanup_legacy_fx_options();
 		update_option( 'wc_io_db_version', self::DB_VERSION );
+		self::assert_schema_shape();
+		WC_Inventory_Overview_Suppliers_Migration::run();
 	}
 
 	/**
@@ -32,6 +34,8 @@ class WC_Inventory_Overview_Install {
 			self::create_tables();
 			self::cleanup_legacy_fx_options();
 			update_option( 'wc_io_db_version', self::DB_VERSION );
+			self::assert_schema_shape();
+			WC_Inventory_Overview_Suppliers_Migration::run();
 		}
 	}
 
@@ -164,5 +168,103 @@ class WC_Inventory_Overview_Install {
 			KEY rate_date (rate_date)
 		) {$collate};";
 		dbDelta( $sql5 );
+
+		$suppliers = $wpdb->prefix . 'wc_io_suppliers';
+		$sql6      = "CREATE TABLE {$suppliers} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			name varchar(190) NOT NULL DEFAULT '',
+			normalized_name varchar(191) NOT NULL DEFAULT '',
+			default_currency char(3) NOT NULL DEFAULT 'EUR',
+			default_lead_time_days int NULL,
+			email varchar(190) NULL,
+			phone varchar(64) NULL,
+			supplier_reference varchar(100) NULL,
+			note text NULL,
+			status varchar(20) NOT NULL DEFAULT 'active',
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY normalized_name (normalized_name),
+			KEY status (status)
+		) {$collate};";
+		dbDelta( $sql6 );
+	}
+
+	/**
+	 * Verify expected schema shape; return true or WP_Error with specifics.
+	 * Extensible for future schema versions (expected_schema_v7, etc).
+	 */
+	public static function assert_schema_shape() {
+		global $wpdb;
+
+		$expected = self::expected_schema_v6();
+		$missing  = array();
+
+		// Check table existence.
+		foreach ( $expected['tables'] as $table_name ) {
+			$full_table = $wpdb->prefix . $table_name;
+			$exists     = $wpdb->query( $wpdb->prepare( 'SHOW TABLES LIKE %s', $full_table ) );
+			if ( ! $exists ) {
+				$missing[] = "Table missing: {$table_name}";
+			}
+		}
+
+		// Check column existence (sample: suppliers table).
+		$suppliers_table = $wpdb->prefix . 'wc_io_suppliers';
+		if ( ! empty( $expected['columns']['suppliers'] ) ) {
+			$columns = $wpdb->get_results( "SHOW COLUMNS FROM {$suppliers_table}" );
+			$col_map = array_column( $columns, 'Field' );
+			foreach ( $expected['columns']['suppliers'] as $col_name ) {
+				if ( ! in_array( $col_name, $col_map, true ) ) {
+					$missing[] = "Column missing on {$suppliers_table}: {$col_name}";
+				}
+			}
+		}
+
+		// Check unique index on normalized_name.
+		$indexes = $wpdb->get_results( "SHOW INDEX FROM {$suppliers_table} WHERE Column_name='normalized_name' AND Non_unique=0" );
+		if ( empty( $indexes ) ) {
+			$missing[] = "Unique index missing on {$suppliers_table}.normalized_name";
+		}
+
+		if ( ! empty( $missing ) ) {
+			update_option( 'wc_io_schema_v6_assertion', array( 'ok' => false, 'checked_at' => current_time( 'mysql', true ), 'missing' => $missing ) );
+			return new WP_Error( 'wc_io_schema_v6', implode( '; ', $missing ) );
+		}
+
+		update_option( 'wc_io_schema_v6_assertion', array( 'ok' => true, 'checked_at' => current_time( 'mysql', true ) ) );
+		return true;
+	}
+
+	/**
+	 * Expected schema shape for DB version 6.
+	 */
+	private static function expected_schema_v6() {
+		return array(
+			'tables'  => array(
+				'wc_io_inventory_movements',
+				'wc_io_purchase_batches',
+				'wc_io_purchase_batch_lines',
+				'wc_io_purchase_batch_costs',
+				'wc_io_exchange_rates',
+				'wc_io_suppliers',
+			),
+			'columns' => array(
+				'suppliers' => array(
+					'id',
+					'name',
+					'normalized_name',
+					'default_currency',
+					'default_lead_time_days',
+					'email',
+					'phone',
+					'supplier_reference',
+					'note',
+					'status',
+					'created_at',
+					'updated_at',
+				),
+			),
+		);
 	}
 }

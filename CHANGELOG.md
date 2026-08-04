@@ -1,5 +1,45 @@
 # Changelog — WC Inventory Overview
 
+## [1.18.0] - 2026-08-04
+
+**Milestone M1 — Suppliers** — first-class supplier entity, Purchasing admin page (Suppliers section), seed migration from historical supplier strings, schema v6.
+
+### Added
+
+- **Supplier entity**: new `wc_io_suppliers` table with name, normalized-name (dedupe key), default currency, configured lead time, contact fields, status (active/archived).
+- **Supplier service** (`WC_Inventory_Overview_Suppliers`): full CRUD, `get()`, `get_by_normalized_name()`, `list()`, `count()`, `create()`, `update()`, `archive()`, `reactivate()`. No hard-delete.
+- **Supplier normalization**: whitespace collapse + trim + casefold only (no punctuation stripping, no suffix removal, no accent folding).
+- **Schema-shape assertion** (`assert_schema_shape()`): generic mechanism checking table existence, column presence, unique index presence. Extends by milestone (e.g. M2 adds v7 assertion). Gating mechanism for new features.
+- **Purchasing admin page** (new submenu under WooCommerce, uniform `manage_woocommerce` capability):
+  - **Suppliers tab**: list with pagination, search, Active/Archived views; detail/create/edit with all §11.1 fields (name, currency, lead time, email, phone, supplier reference, note); archive/reactivate actions.
+  - **Tab structure**: extensible for M2+ (Purchase Orders, Receive Stock tabs).
+- **Idempotent seed migration** (`WC_Inventory_Overview_Suppliers_Migration`): distinct historical `supplier_name` strings from batches + movements → normalized → deduplicated supplier rows. Deterministic 3-step tie-break (most-frequent original string, earliest created_at, alphabetical strcmp). Persists report to `wc_io_supplier_seed_migration_report` option.
+- **Supplier autocomplete**: dedicated JS + own nonce on Batch Intake's `wc-io-batch-supplier` and Quick Restock's `wc-io-supplier` inputs; "+ create supplier" inline quick-create affordance; AJAX handlers `wc_io_search_suppliers`, `wc_io_quick_create_supplier`.
+- **Action hook**: `wc_io_supplier_created` (post-commit, full-row payload).
+
+### Modified
+
+- `DB_VERSION` '5' → '6' (first schema-bumping milestone).
+- `includes/class-wc-inventory-overview-install.php`: `create_tables()` adds `wc_io_suppliers` DDL; `activate()`/`maybe_upgrade()` call `assert_schema_shape()` + conditional `Migration::run()`.
+- `wc-inventory-overview.php`: require the four new classes (service, migration, list table, page controller).
+- `includes/class-wc-inventory-overview-plugin.php`: `init()` instantiates Purchasing_Page; `enqueue_restock_assets()` enqueues supplier-picker.js + localized data.
+- `includes/class-wc-inventory-overview-batch-intake-ui.php`: additive picker markup + quick-create modal.
+- `tests/includes/test-case.php`: additive `create_supplier()` helper.
+- `docs/architecture-audit.md`, `docs/release-runbook.md`, `docs/checklists/deployment-checklist.md`: M1-specific updates per §R6.
+
+### Technical
+
+- New files: `includes/class-wc-inventory-overview-suppliers.php`, `includes/class-wc-inventory-overview-suppliers-migration.php`, `includes/class-wc-inventory-overview-suppliers-list-table.php`, `includes/class-wc-inventory-overview-purchasing-page.php`, `assets/supplier-picker.js`, `docs/admin-guide-suppliers.md`.
+- Test files: `tests/unit/suppliers/test-normalization.php`, `tests/integration/suppliers/test-suppliers-crud.php`, `tests/integration/suppliers/test-suppliers-migration.php`, `tests/integration/suppliers/test-suppliers-autocomplete-ajax.php`, `tests/integration/suppliers/test-suppliers-capabilities.php`, `tests/integration/install/test-schema-shape-assertion.php`, `tests/fixtures/suppliers/fixture-migration-*.php`.
+- Test infrastructure: new test helpers in `tests/includes/test-case.php`.
+
+### Notes
+
+- **M0 golden suite regression**: Full M0 golden test suite (weighted-average, FX, allocation, movements, batch preview/apply) passes unmodified. Zero behavioral changes to existing costing/FX/allocation logic.
+- **Backward compatibility**: Legacy free-text supplier fields in Batch Intake/Quick Restock remain unchanged; no `$_POST` handling modification. Supplier autocomplete is purely additive (zero-named select element).
+- **No data loss**: Seed migration is idempotent (run twice = identical result); `wc_io_purchase_batches` and `wc_io_inventory_movements` tables untouched.
+- **Purchasing menu** only appears when schema assertion passes and user has `manage_woocommerce` capability.
+
 ## [1.17.3] - 2026-08-03
 
 **Milestone M0 — Delivery Foundations** — automated test suite infrastructure and characterization tests (zero functional changes).
