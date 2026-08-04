@@ -32,7 +32,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Run PHPCS
-        run: ./vendor/bin/phpcs --standard=phpcs.xml.dist -q
+        run: ./vendor/bin/phpcs --standard=phpcs.xml.dist --baseline=.phpcs-baseline.xml -q
 
   lint:
     name: PHP Parallel Lint
