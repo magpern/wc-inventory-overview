@@ -5,7 +5,7 @@
 # Dependencies / tooling
 /node_modules/
 /vendor/
-composer.lock
+# Note: composer.lock is committed for reproducible CI (see docs/testing.md)
 
 # Secrets and local env
 .env

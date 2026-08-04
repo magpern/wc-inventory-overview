@@ -8,14 +8,18 @@
   },
   "require-dev": {
     "phpunit/phpunit": "^9.5",
-    "phpunit/phpunit-polyfills": "^1.0",
     "wp-coding-standards/wpcs": "^3.1",
     "php-parallel-lint/php-parallel-lint": "^1.3",
-    "automattic/workaround-wordpress-github-actions": "^2.0"
+    "squizlabs/php_codesniffer": "^3.7"
   },
   "autoload": {
     "psr-4": {
       "WC_Inventory_Overview_Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
     }
   },
   "scripts": {
