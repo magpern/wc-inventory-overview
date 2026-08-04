@@ -29,15 +29,9 @@ Also update the `WC_INVENTORY_OVERVIEW_VERSION` constant to match.
 
 ### 2. Changelog entry
 
-Update `readme.txt` and/or `CHANGELOG.md` with a concise entry for this release:
+Update `readme.txt` and/or `CHANGELOG.md` with a concise entry for this release.
 
-```
-= 1.18.0 – 2026-08-XX =
-
-* Feature: [Description of major feature or fix]
-* Enhancement: [Secondary feature]
-* Internal: [Infrastructure changes, not user-visible]
-```
+Create `docs/GITHUB_RELEASE_NOTES_{VERSION}.md` before tagging — the Release workflow requires this file (see `.github/workflows/release.yml`). For **v1.18.0 (M1)**, use `docs/GITHUB_RELEASE_NOTES_1.18.0.md`.
 
 ### 3. Git commit and push
 
@@ -92,8 +86,9 @@ No additional steps. The release is a pure-tooling change with no functional or 
 
 ### M1: Suppliers
 
-**Before tagging the release:**
+**Before tagging v1.18.0:**
 
+0. **Release notes file:** Confirm `docs/GITHUB_RELEASE_NOTES_1.18.0.md` exists and matches `CHANGELOG.md` for 1.18.0.
 1. **Verify schema version bump:** Check that `DB_VERSION = '6'` in `includes/class-wc-inventory-overview-install.php`.
 2. **Test schema-shape assertion on a production-data copy:**
    - Upgrade to the M1 release on a copy of production database.

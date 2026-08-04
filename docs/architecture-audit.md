@@ -63,6 +63,8 @@ Exchange rates are **table-backed**; legacy FX options are deleted on upgrade.
 
 ## Admin pages and tabs
 
+### Inventory & Profit (`wc-inventory-profit`)
+
 | Tab | Capability | Primary classes |
 |-----|------------|-----------------|
 | Dashboard | `edit_products` | `Dashboard_Inventory_Metrics`, `Dashboard_Charts_Data` |
@@ -73,7 +75,13 @@ Exchange rates are **table-backed**; legacy FX options are deleted on upgrade.
 | Product Profitability | `manage_woocommerce` | `Product_Profitability_Query`, list table |
 | Settings | `manage_woocommerce` | `Settings`, `Exchange_Rates`, `Data_Reset` |
 
-Legacy slugs `wc-inventory-overview` and `wc-inventory-restock` redirect into the hub.
+### Purchasing (`wc-io-purchasing`, M1)
+
+| Section | Capability | Primary classes |
+|---------|------------|-----------------|
+| Suppliers | `manage_woocommerce` | `Purchasing_Page`, `Suppliers_List_Table`, `Suppliers` |
+
+Legacy slugs `wc-inventory-overview` and `wc-inventory-restock` redirect into the Inventory & Profit hub.
 
 ---
 
@@ -180,14 +188,12 @@ Operational only; not loaded by WordPress. Requires WP-CLI + WooCommerce.
 3. **`posts_clauses` filter:** Global filter at priority 999; scoped by query depth and admin context — avoid front-end product queries while filter is active.
 4. **Danger zone reset:** Can bulk-delete plugin tables/meta snapshots; gated by capability + nonces + preview token — still high impact for operators.
 5. **Inline stock AJAX:** Uses `edit_products` (broader than `manage_woocommerce`) with per-product `edit_product` — intentional for catalog editors.
-6. **No automated tests** in repo; PHP lint only.
-7. **Monorepo drift:** Production copy under `woocommerce/wp-content/plugins/` may diverge from this repo until deploy process is formalized.
+6. **Automated tests:** PHPUnit integration and unit suites, PHPCS, and GitHub Actions CI (M0/M1). Golden characterization tests lock costing, FX, allocation, and movement behaviour. See `docs/testing.md`.
+7. **Monorepo mirror:** A development copy may exist under `biopentra-custom-plugins/plugins/wc-inventory-overview/`; this standalone repo is canonical for releases.
 
 ---
 
 ## Recommended follow-ups (non-blocking)
 
 - Split `Plugin` into tab controllers or modules.
-- Add PHPUnit for costing math and batch allocation.
-- Add `readme.txt` for WordPress.org-style metadata if ever published.
-- CI: `php -l`, `build-zip.sh`, optional PHPCS WordPress ruleset.
+- Extend schema-shape assertion per milestone (M2+).
