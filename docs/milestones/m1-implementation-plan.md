@@ -1,6 +1,8 @@
 # Milestone M1 Implementation Plan — Suppliers (schema v6)
 
-**This is the comprehensive, implementation-ready specification for Milestone M1. For the complete context (Architecture v1.0 Parts I–III and M1.1–M1.21), refer to `/wc-inventory-overview/CLAUDE.md` in the repository root.**
+**Status: Complete — released as v1.18.0 on `main` (GitHub tag `v1.18.0` pending).**
+
+**This file is the canonical M1 specification.** Architecture context for purchasing and incoming inventory: [`CLAUDE.md`](../../CLAUDE.md) Part I §1–§5 (decisions, invariants, entity model).
 
 ## Summary
 
@@ -115,4 +117,6 @@ The M0 golden test suite must remain completely unmodified. All M1 tests must pa
 6. Run Q1–Q8 gates and document results
 7. Create logical commits and prepare for code review
 
-For complete implementation detail, method contracts, SQL patterns, and architectural justifications, **refer to `/wc-inventory-overview/CLAUDE.md` Part IV (M1 Implementation Plan sections M1.1–M1.21)**.
+---
+
+**Note:** Future milestone implementation plans (M2+) will be added under `docs/milestones/` when each milestone is approved for planning or implementation.

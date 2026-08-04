@@ -36,17 +36,17 @@ The plugin has grown beyond its name. **"WC Inventory Overview" is retained for 
 
 ## 2. Verified current-state context
 
-WC Inventory Overview v1.17.2 (`/opt/biopentra/dev/wc-inventory-overview`). Facts verified in source:
+WC Inventory Overview v1.18.0 (`/opt/biopentra/dev/wc-inventory-overview`). Facts verified in source:
 
 - **Batch Intake has no lifecycle** — no status column, no draft, no edit/void, no batch list/detail UI. Preview is pure computation; Apply writes batch header/lines/costs, mutates WooCommerce stock via `set_stock_quantity()`, updates `_wc_io_average_unit_cost` / `_wc_io_inventory_value` meta (weighted moving average, EUR), and inserts one `purchase_batch` movement per line. Rollback is a hand-rolled compensating undo, not a DB transaction.
 - **Batch lines already reject variable parent products** — line validation refuses variable/grouped/external parents and non-stock-managed items; costing meta is written only on simple products or variations, never parents. INV-8 formalizes what the code already practices.
 - **Batch↔movement linkage is a regex** over the movement note (`Batch ID: (\d+)`), not a reference column.
 - **The movement ledger is purchase-side only** — only `purchase`, `purchase_batch`, `cost_adjustment` are ever written; `sale`/`refund`/`return`/`adjustment` are declared but unused. Sales and inline stock edits bypass the ledger.
 - **Costing** is weighted moving average in EUR, stored in product meta on the simple product or variation. Batch lines are historical records, never consumed (no FIFO/lots). Landed costs (7 hardcoded type slugs, per-row currency+FX) are allocated proportionally to EUR line value, remainder to the last line.
-- **Suppliers are free text** in `purchase_batches.supplier_name` and `inventory_movements.supplier_name`.
+- **Suppliers (M1):** first-class `wc_io_suppliers` entity with Purchasing admin UI; Batch Intake and Quick Restock still accept legacy free-text supplier fields with additive autocomplete.
 - **Stock is WooCommerce-native** (`_stock`); no shadow table. Order-profit snapshots are frozen at order status change and never restated.
-- **Extensibility is near zero** — no `do_action` calls, ~3 trivial filters; the integration surface is public static service methods.
-- **UI**: one admin page (`wc-inventory-profit`) with tabs Dashboard, Inventory Overview, Restock/Cost Adjustment (sub-views Batch Intake / Quick Restock / Cost Adjustment), Inventory Movements, Order Profit, Product Profitability, Settings. Plain PHP + WP_List_Table + admin-post/AJAX. Legacy-URL redirect plumbing already exists.
+- **Extensibility is minimal** — one business hook (`wc_io_supplier_created`) plus a few trivial filters; the integration surface remains mostly public static service methods.
+- **UI**: **Inventory & Profit** hub (`wc-inventory-profit`) with tabs Dashboard, Inventory Overview, Restock/Cost Adjustment (sub-views Batch Intake / Quick Restock / Cost Adjustment), Inventory Movements, Order Profit, Product Profitability, Settings; plus **Purchasing** submenu (`wc-io-purchasing`, Suppliers tab, M1). Plain PHP + WP_List_Table + admin-post/AJAX. Legacy-URL redirect plumbing already exists.
 - **Business context**: single warehouse, small EU shop, EUR base, suppliers invoicing EUR/USD/SEK, 1–3 admin users. Sibling plugin Biopentra Storefront renders front-end stock text via a `woocommerce_get_availability` filter — the natural consumer for customer-facing expected dates.
 
 ---
@@ -165,15 +165,17 @@ This table is updated as each milestone is implemented. Each milestone links to 
 | # | Milestone | Status | Target Release | Plan | Notes |
 |---|---|---|---|---|---|
 | M0 | Delivery Foundations | ✅ Complete | 1.17.3 | [Part III above] | Golden suite, PHPUnit, PHPCS, CI, DB-transaction helper, release rehearsal |
-| M1 | Suppliers | 🔄 In Progress | 1.18.0 | [docs/milestones/m1-implementation-plan.md](docs/milestones/m1-implementation-plan.md) | Schema v6, `wc_io_suppliers`, Purchasing page, seed migration, schema-shape assertion |
-| M2 | Purchase Orders | ⏳ Planned | 1.19.0 | [docs/milestones/m2-implementation-plan.md](docs/milestones/m2-implementation-plan.md) | PO aggregate, lifecycle, events, expected dates, delayed detection |
-| M3 | Inventory Position | ⏳ Planned | 1.20.0 | [docs/milestones/m3-implementation-plan.md](docs/milestones/m3-implementation-plan.md) | Position service, resolver, incoming display |
-| M4 | Receipt Engine | ⏳ Planned | 1.21.0 | [docs/milestones/m4-implementation-plan.md](docs/milestones/m4-implementation-plan.md) | Goods Receipt as stock mutator, Quick Receive |
-| M5 | PO Receiving | ⏳ Planned | 1.22.0 | [docs/milestones/m5-implementation-plan.md](docs/milestones/m5-implementation-plan.md) | Receive-Against-PO, PO fulfillment |
-| M6 | Migration & Retirement | ⏳ Planned | 1.23.0 | [docs/milestones/m6-implementation-plan.md](docs/milestones/m6-implementation-plan.md) | Legacy batch→receipt migration, Batch Intake retired |
-| M7 | Storefront | ⏳ Planned | 1.24.0 | [docs/milestones/m7-implementation-plan.md](docs/milestones/m7-implementation-plan.md) | Expected date exposure, confidence-driven wording |
-| M8 | Hardening & GA | ⏳ Planned | 2.0.0 | [docs/milestones/m8-implementation-plan.md](docs/milestones/m8-implementation-plan.md) | Integrity checks, conformance audit, GA readiness |
+| M1 | Suppliers | ✅ Complete | 1.18.0 | [docs/milestones/m1-implementation-plan.md](docs/milestones/m1-implementation-plan.md) | Schema v6, `wc_io_suppliers`, Purchasing page, seed migration, schema-shape assertion |
+| M2 | Purchase Orders | ⏳ Planned (next) | 1.19.0 | docs/milestones/m2-implementation-plan.md *(M2 planning kickoff — not yet written)* | PO aggregate, lifecycle, events, expected dates, delayed detection |
+| M3 | Inventory Position | ⏳ Planned | 1.20.0 | docs/milestones/m3-implementation-plan.md *(not yet written)* | Position service, resolver, incoming display |
+| M4 | Receipt Engine | ⏳ Planned | 1.21.0 | docs/milestones/m4-implementation-plan.md *(not yet written)* | Goods Receipt as stock mutator, Quick Receive |
+| M5 | PO Receiving | ⏳ Planned | 1.22.0 | docs/milestones/m5-implementation-plan.md *(not yet written)* | Receive-Against-PO, PO line completion |
+| M6 | Migration & Retirement | ⏳ Planned | 1.23.0 | docs/milestones/m6-implementation-plan.md *(not yet written)* | Legacy batch→receipt migration, Batch Intake retired |
+| M7 | Storefront | ⏳ Planned | 1.24.0 | docs/milestones/m7-implementation-plan.md *(not yet written)* | Expected date exposure, confidence-driven wording |
+| M8 | Hardening & GA | ⏳ Planned | 2.0.0 | docs/milestones/m8-implementation-plan.md *(not yet written)* | Integrity checks, conformance audit, GA readiness |
+
+**Release note:** v1.18.0 (M1) is on `main`. GitHub tag **`v1.18.0` is pending** — see `docs/GITHUB_RELEASE_NOTES_1.18.0.md` before tagging.
 
 ---
 
-**Note:** The complete text of Parts I, II, and III is preserved in full verbatim form in the version history of this file. Sections M0.1–M0.24 are included above; sections 6–20 of Part I and sections R1–R9 of Part II are retained in full in the canonical source. Future milestones' detailed plans are maintained separately in `docs/milestones/` with compact reference links from this index.
+**Planning baseline:** Detailed bodies for Part I §6–§20, Delivery Roadmap R1–R9, and M0.1–M0.24 were **never committed to this repository** (the bracket placeholders above are stubs only). For milestone planning today, treat **Part I §1–§5** (executive summary, current state, decisions D1–D19, invariants INV-1–INV-8, entity model §5.1–§5.2) and **this status table** as the authoritative baseline. M1 detail: `docs/milestones/m1-implementation-plan.md`.
