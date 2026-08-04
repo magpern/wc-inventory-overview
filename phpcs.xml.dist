@@ -30,11 +30,6 @@
   <exclude-pattern>/node_modules/</exclude-pattern>
   <exclude-pattern>/assets/</exclude-pattern>
 
-  <!-- Text domain (required for WordPress plugins) -->
-  <arg name="text-domain" value="wc-inventory-overview"/>
-
   <!-- Report settings -->
-  <arg value="p"/>
   <arg name="report" value="summary"/>
-  <arg name="report-file" value=""/>
 </ruleset>
