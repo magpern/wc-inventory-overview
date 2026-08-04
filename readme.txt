@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.17.2
+Stable tag: 1.18.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,7 +12,7 @@ Operational inventory dashboard for WooCommerce products and variations (HPOS-co
 
 == Description ==
 
-WC Inventory Overview provides admin dashboards for inventory movements, costing, profitability views, and related operational tools for WooCommerce stores.
+WC Inventory Overview provides admin dashboards for inventory movements, costing, profitability views, purchasing (Suppliers), and related operational tools for WooCommerce stores.
 
 == Installation ==
 
@@ -21,6 +21,13 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.18.0 =
+* Milestone M1 — Suppliers: first-class supplier entity, Purchasing admin page, seed migration from historical supplier strings, schema v6.
+* Supplier autocomplete on Batch Intake and Quick Restock (additive; legacy free-text fields unchanged).
+
+= 1.17.3 =
+* Milestone M0 — Delivery Foundations: PHPUnit, PHPCS, CI, golden characterization tests, DB-transaction helper, release templates. No plugin behavior change vs 1.17.2.
 
 = 1.17.2 =
 * GitHub Release updater for production ZIP installs from biopentra-custom-plugins releases (tag wc-inventory-overview-v*).
