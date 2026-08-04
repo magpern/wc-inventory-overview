@@ -87,7 +87,7 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 	 * Render name column with edit link.
 	 */
 	public function column_name( $item ) {
-		$actions = $this->row_actions( $item );
+		$actions = $this->get_supplier_row_actions( $item );
 		return sprintf(
 			'<strong><a href="%s">%s</a></strong> %s',
 			esc_url( add_query_arg( array(
@@ -117,8 +117,11 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 
 	/**
 	 * Get row actions for the supplier.
+	 *
+	 * Named distinctly from WP_List_Table::row_actions() (protected) to avoid
+	 * PHP visibility/signature fatals on PHP 8+.
 	 */
-	private function row_actions( $item ) {
+	private function get_supplier_row_actions( $item ) {
 		$actions = array(
 			'edit' => sprintf(
 				'<a href="%s">%s</a>',
