@@ -221,7 +221,7 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 		);
 		$data = wp_parse_args( $props, $defaults );
 
-		$id = WC_Inventory_Overview_Purchase_Orders::create( $data );
+		$id = WC_Inventory_Overview_Purchase_Orders::create_draft( $data );
 		if ( is_wp_error( $id ) ) {
 			$this->fail( 'Failed to create purchase order: ' . $id->get_error_message() );
 		}
@@ -244,12 +244,12 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 		}
 
 		$defaults = array(
-			'qty_ordered'       => 1,
-			'unit_cost_entered' => 1,
+			'qty_ordered' => 1,
+			'unit_cost'   => 1,
 		);
 		$data = wp_parse_args( $props, $defaults );
 
-		$id = WC_Inventory_Overview_Purchase_Order_Lines::add( $po_id, $data );
+		$id = WC_Inventory_Overview_Purchase_Order_Lines::create( $po_id, $data );
 		if ( is_wp_error( $id ) ) {
 			$this->fail( 'Failed to add purchase order line: ' . $id->get_error_message() );
 		}
