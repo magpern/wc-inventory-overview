@@ -16,6 +16,10 @@ class Test_WC_IO_PO_Architecture extends WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
 		WC_Inventory_Overview_Install::create_tables();
+		global $wpdb;
+		$wpdb->query( 'DELETE FROM ' . WC_Inventory_Overview_PO_Events::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( 'DELETE FROM ' . WC_Inventory_Overview_Purchase_Order_Lines::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( 'DELETE FROM ' . WC_Inventory_Overview_Purchase_Orders::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		delete_option( WC_Inventory_Overview_PO_Numbering::OPTION_KEY );
 	}
 
@@ -70,16 +74,31 @@ class Test_WC_IO_PO_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Events API is append-only (no update/delete methods).
+	 * Events API is append-only (no generic update/delete methods).
+	 *
+	 * Delete_for_draft_aggregate() is allowed only as draft hard-delete cleanup;
+	 * it is not a generic mutation path.
 	 */
 	public function test_events_are_append_only_api() {
 		$methods = get_class_methods( 'WC_Inventory_Overview_PO_Events' );
 		$this->assertContains( 'add', $methods );
 		$this->assertContains( 'list_for_po', $methods );
+		$this->assertContains( 'list_by_po', $methods );
+		$this->assertContains( 'count_by_po', $methods );
 		$this->assertContains( 'get', $methods );
+		$this->assertContains( 'get_latest', $methods );
 		$this->assertNotContains( 'update', $methods );
 		$this->assertNotContains( 'delete', $methods );
 		$this->assertNotContains( 'remove', $methods );
+		$this->assertContains( 'delete_for_draft_aggregate', $methods );
+
+		$forbidden = array( 'update', 'delete', 'remove', 'erase', 'truncate' );
+		foreach ( $forbidden as $name ) {
+			$this->assertFalse(
+				method_exists( 'WC_Inventory_Overview_PO_Events', $name ),
+				"PO_Events must not expose generic {$name}()"
+			);
+		}
 	}
 
 	/**
@@ -133,13 +152,17 @@ class Test_WC_IO_PO_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Lifecycle service methods remain stubs in M2-A.
+	 * Lifecycle service methods are implemented in M2-C (missing PO → not-found, not stub).
 	 */
-	public function test_service_lifecycle_stubs_not_implemented() {
-		$this->assertWPError( WC_Inventory_Overview_PO_Service::place( 1 ) );
-		$this->assertWPError( WC_Inventory_Overview_PO_Service::cancel( 1 ) );
-		$this->assertWPError( WC_Inventory_Overview_PO_Service::close_short( 1 ) );
-		$this->assertWPError( WC_Inventory_Overview_PO_Service::duplicate( 1 ) );
+	public function test_service_lifecycle_methods_are_implemented() {
+		$this->assertFalse(
+			method_exists( 'WC_Inventory_Overview_PO_Service', 'not_implemented' ),
+			'PO_Service must not retain M2-A not_implemented stub'
+		);
+
+		$missing = WC_Inventory_Overview_PO_Service::place( 999999 );
+		$this->assertWPError( $missing );
+		$this->assertSame( 'wc_io_po_not_found', $missing->get_error_code() );
 	}
 
 	/**
