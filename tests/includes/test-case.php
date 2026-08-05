@@ -21,7 +21,7 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 		parent::setUp();
 
 		// Ensure database is fresh for each test.
-		$this->flush_cache();
+		self::flush_cache();
 	}
 
 	/**
@@ -31,7 +31,7 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 		parent::tearDown();
 
 		// Flush any remaining caches.
-		$this->flush_cache();
+		self::flush_cache();
 	}
 
 	/**
