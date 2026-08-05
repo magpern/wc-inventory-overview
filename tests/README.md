@@ -57,9 +57,9 @@ docker run --rm -u 1000:1000 -v "$(pwd):/plugin" -w /plugin wordpress:cli-2.12.0
 ```
 
 (Requires `vendor/` to already be populated — run the PHPUnit Quick Start
-above first, or `docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit true`
-to provision dependencies without running tests.) PHPCS reports a substantial
-number of pre-existing violations; see
+above first; any invocation of the `phpunit` service provisions Composer
+dependencies as a side effect before running tests.) PHPCS reports a
+substantial number of pre-existing violations; see
 [docs/testing.md](../docs/testing.md#phpcs-status). It is not currently a CI
 gate.
 
@@ -131,6 +131,14 @@ scratch temp table between test methods within the same PHP process. Logged
 by WordPress's error handler but does not fail any assertion (all
 `Test_DB_Transaction` tests pass). Not fixed here — it doesn't block
 reproducibility.
+
+**`WordPress database error Table '...wptests_woocommerce_attribute_taxonomies' doesn't exist`**
+Can appear once on the very first run against a genuinely fresh database:
+WooCommerce's own `init`-hooked taxonomy registration runs before its
+installer has finished creating its custom tables. Harmless and
+self-resolving — it does not recur on subsequent runs against the same
+database, and does not fail any assertion. Not caused by this
+infrastructure hotfix and not a sign of test failure.
 
 ## For more details
 

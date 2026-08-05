@@ -230,6 +230,17 @@ the affected files into per-file `<exclude-pattern>` entries by hand. Making
 the codebase PHPCS-clean, or actually implementing this baseline mechanism,
 is out of scope for infrastructure repair and is left as a follow-up.
 
+## Known harness limitations
+
+- **WooCommerce version is not pinned.** `tests/docker/run-phpunit.sh`
+  downloads WordPress core at a pinned version (`WP_VERSION`, default
+  `6.7.2`), but WooCommerce is always downloaded as
+  `woocommerce.latest-stable.zip`. This means the exact WooCommerce version
+  under test can silently change between runs as new WooCommerce releases
+  ship, independent of any change to this repository. Pre-existing (not
+  introduced by the Test Infrastructure Hotfix); pinning `WC_VERSION` the
+  same way `WP_VERSION` is pinned is a reasonable follow-up.
+
 ## Known test-content issues
 
 Because the documented PHPUnit workflow could not run to completion until
@@ -245,7 +256,7 @@ listed here so they are not mistaken for new regressions:
 
 | Test | Symptom | Root cause |
 |---|---|---|
-| `Test_FX_Characterization::test_latest_before_date_no_interpolation` | Returns a `WP_Error` instead of the expected rate | Fixture/lookup mismatch in FX rate resolution — needs investigation independent of this milestone. |
+| `Test_FX_Characterization::test_latest_before_date_no_interpolation` | Returns a `WP_Error` instead of the expected rate | The test's own seed step inserts the fixture row using column name `rate_value`, but the `wc_io_exchange_rates` table's actual column (per `class-wc-inventory-overview-install.php`) is `exchange_rate`. The insert silently matches no column, the seed row is never usable by the lookup, and the subsequent query finds no historical rate. Confirmed by reading the schema DDL directly; test-only, not a production defect. |
 | `Test_FX_Characterization::test_eur_to_eur_passthrough` | Asserts `1.0 === $result` | `Exchange_Rates::get_exchange_rate_to_eur()` returns an array (`rate`/`source`/`rate_date`), not a bare float — the test was written against a different return shape than the shipped implementation. |
 | `Test_Movements_Characterization` (3 tests) | `TypeError: Argument #1 ($r) must be of type array, int given` | Test fixture helper passes a product ID where the `Movements::insert_*()` methods expect an array. |
 | `Test_Costing_Characterization` (4 tests) | `TypeError` / assertion mismatches | Fixture/assertion values don't match current `Restock_Service`/costing behavior; needs investigation independent of this milestone. |
