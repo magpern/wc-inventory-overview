@@ -306,22 +306,36 @@ class WC_Inventory_Overview_Purchasing_Page {
 
 		if ( is_wp_error( $result ) ) {
 			set_transient( 'wc_io_supplier_save_err_' . get_current_user_id(), $result->get_error_message(), 120 );
-			wp_safe_remote_post( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&wc_io_supplier=err' ) );
-		} else {
-			$status = $supplier_id > 0 ? 'saved' : 'saved';
-			wp_safe_remote_post( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&wc_io_supplier=' . $status ) );
+			wp_safe_redirect(
+				admin_url(
+					'admin.php?page=' . self::PAGE_SLUG . '&tab=' . self::TAB_SUPPLIERS . '&wc_io_supplier=err'
+				)
+			);
+			exit;
 		}
+
+		$redirect_id = $supplier_id > 0 ? $supplier_id : absint( $result );
+		wp_safe_redirect(
+			admin_url(
+				'admin.php?page=' . self::PAGE_SLUG
+				. '&tab=' . self::TAB_SUPPLIERS
+				. '&action=edit'
+				. '&supplier_id=' . $redirect_id
+				. '&wc_io_supplier=saved'
+			)
+		);
+		exit;
 	}
 
 	/**
-	 * Handle supplier archive via admin-post.
+	 * Handle supplier archive via admin-post (POST form or nonce-safe GET row action).
 	 */
 	public function handle_supplier_archive() {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_die( 'Insufficient permissions.' );
 		}
 
-		$supplier_id = isset( $_POST['supplier_id'] ) ? absint( $_POST['supplier_id'] ) : 0;
+		$supplier_id = isset( $_REQUEST['supplier_id'] ) ? absint( $_REQUEST['supplier_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $supplier_id ) {
 			wp_die( 'Invalid supplier ID.' );
 		}
@@ -329,18 +343,27 @@ class WC_Inventory_Overview_Purchasing_Page {
 		check_admin_referer( 'wc_io_supplier_archive_' . $supplier_id, 'wc_io_supplier_archive_nonce' );
 
 		WC_Inventory_Overview_Suppliers::archive( $supplier_id );
-		wp_safe_remote_post( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&supplier_id=' . $supplier_id . '&action=edit&wc_io_supplier=archived' ) );
+		wp_safe_redirect(
+			admin_url(
+				'admin.php?page=' . self::PAGE_SLUG
+				. '&tab=' . self::TAB_SUPPLIERS
+				. '&action=edit'
+				. '&supplier_id=' . $supplier_id
+				. '&wc_io_supplier=archived'
+			)
+		);
+		exit;
 	}
 
 	/**
-	 * Handle supplier reactivate via admin-post.
+	 * Handle supplier reactivate via admin-post (POST form or nonce-safe GET row action).
 	 */
 	public function handle_supplier_reactivate() {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			wp_die( 'Insufficient permissions.' );
 		}
 
-		$supplier_id = isset( $_POST['supplier_id'] ) ? absint( $_POST['supplier_id'] ) : 0;
+		$supplier_id = isset( $_REQUEST['supplier_id'] ) ? absint( $_REQUEST['supplier_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $supplier_id ) {
 			wp_die( 'Invalid supplier ID.' );
 		}
@@ -348,7 +371,16 @@ class WC_Inventory_Overview_Purchasing_Page {
 		check_admin_referer( 'wc_io_supplier_reactivate_' . $supplier_id, 'wc_io_supplier_reactivate_nonce' );
 
 		WC_Inventory_Overview_Suppliers::reactivate( $supplier_id );
-		wp_safe_remote_post( admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&supplier_id=' . $supplier_id . '&action=edit&wc_io_supplier=reactivated' ) );
+		wp_safe_redirect(
+			admin_url(
+				'admin.php?page=' . self::PAGE_SLUG
+				. '&tab=' . self::TAB_SUPPLIERS
+				. '&action=edit'
+				. '&supplier_id=' . $supplier_id
+				. '&wc_io_supplier=reactivated'
+			)
+		);
+		exit;
 	}
 
 	/**
