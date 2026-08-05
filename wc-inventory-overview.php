@@ -55,6 +55,13 @@ register_activation_hook(
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers-migration.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-statuses.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-reason-codes.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-confidence.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-lifecycle.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-quantities.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-expected.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-product-validator.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-validation.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-delay.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-numbering.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-orders.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-order-lines.php';
@@ -96,6 +103,13 @@ add_action(
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-data-reset.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-statuses.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-reason-codes.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-confidence.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-lifecycle.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-quantities.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-expected.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-product-validator.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-validation.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-delay.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-numbering.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-orders.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-order-lines.php';

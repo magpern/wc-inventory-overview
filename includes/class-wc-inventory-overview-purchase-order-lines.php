@@ -71,6 +71,10 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 		if ( WC_Inventory_Overview_PO_Statuses::is_terminal( $po['status'] ) ) {
 			return new WP_Error( 'wc_io_po_terminal', 'Cannot add lines to a terminal purchase order' );
 		}
+		$editable = WC_Inventory_Overview_PO_Lifecycle::assert_editable( $po['status'] );
+		if ( is_wp_error( $editable ) ) {
+			return $editable;
+		}
 
 		$now = current_time( 'mysql', true );
 		$row = array(

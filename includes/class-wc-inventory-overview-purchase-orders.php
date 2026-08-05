@@ -177,6 +177,11 @@ class WC_Inventory_Overview_Purchase_Orders {
 			return new WP_Error( 'wc_io_po_terminal', 'Terminal purchase orders cannot be edited' );
 		}
 
+		$editable = WC_Inventory_Overview_PO_Lifecycle::assert_editable( $existing['status'] );
+		if ( is_wp_error( $editable ) ) {
+			return $editable;
+		}
+
 		$allowed = array(
 			'supplier_id',
 			'supplier_name_snapshot',
@@ -270,7 +275,7 @@ class WC_Inventory_Overview_Purchase_Orders {
 	 * @param float|string $qty_cancelled Cancelled.
 	 */
 	public static function qty_outstanding( $qty_ordered, $qty_cancelled ): float {
-		return max( 0.0, (float) $qty_ordered - (float) $qty_cancelled );
+		return WC_Inventory_Overview_PO_Quantities::outstanding( $qty_ordered, $qty_cancelled );
 	}
 
 	/**
