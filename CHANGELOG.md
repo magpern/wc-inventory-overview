@@ -1,5 +1,43 @@
 # Changelog — WC Inventory Overview
 
+## [1.19.0] - 2026-08-05
+
+**Milestone M2 — Purchase Orders** — PO aggregate, four-state lifecycle, events audit log, expected-receipt dates with confidence, delayed detection, Purchasing admin UI. Schema v7. **Prerequisite:** v1.18.1 (M1 Purchasing PRG hotfix). **No receiving** — stock and `qty_received` remain out of scope until M5.
+
+### Added
+
+- **Purchase Order aggregate** (schema v7): `wc_io_purchase_orders`, `wc_io_purchase_order_lines`, `wc_io_po_events` tables.
+- **Four-state lifecycle:** `draft` → `placed` → `cancelled` | `closed_short`; terminal statuses (`cancelled`, `closed_short`) are absorbing.
+- **PO numbering:** `PO-{YYYY}-{NNNN}` format, never reused; unique index on `po_number`. Concurrency model documented in ADR-0002.
+- **PO Service** (`WC_Inventory_Overview_PO_Service`): transactional create, update, place, cancel, close short, duplicate, line CRUD; all mutations via explicit DB transactions.
+- **PO events:** append-only audit log with optional reason codes (`supplier_change`, `price_change`, `quantity_change`, `schedule_change`, `manual`, `other`).
+- **Expected receipt:** header and optional line-level `expected_date` + confidence (`exact` / `estimated` / `unknown`).
+- **Delayed detection:** computed condition for placed POs past effective expected date + grace days (`WC_Inventory_Overview_PO_Delay`).
+- **Purchasing → Purchase Orders admin tab:** list (status views, delayed filter, search), create/edit detail, event timeline, PRG `admin-post` handlers (save, place, cancel, close short, delete draft, duplicate) with nonces and request tokens.
+- **Purchasing capabilities map** (`WC_Inventory_Overview_Purchasing_Caps`): filterable action→capability defaults (`manage_woocommerce`).
+- **Assets:** `assets/purchasing.css`, `assets/po-admin.js` (product line editor on PO detail).
+
+### Modified
+
+- `DB_VERSION` '6' → '7'.
+- `includes/class-wc-inventory-overview-install.php`: v7 DDL, `expected_schema_v7()`, canonical `wc_io_schema_assertion` option, forbidden-column guard (rejects `qty_received` on PO lines until M5).
+- `includes/class-wc-inventory-overview-purchasing-page.php`: Purchase Orders tab (default), delegates PO panel to `PO_Admin`.
+- `wc-inventory-overview.php`: require M2 PO classes (statuses, lifecycle, service, admin, list table, etc.).
+
+### Technical
+
+- New files: `includes/class-wc-inventory-overview-po-*.php`, `includes/class-wc-inventory-overview-purchase-orders.php`, `includes/class-wc-inventory-overview-purchase-order-lines.php`, `includes/class-wc-inventory-overview-purchase-orders-list-table.php`, `includes/class-wc-inventory-overview-purchasing-caps.php`, `assets/po-admin.js`, `assets/purchasing.css`, `docs/adr/0002-po-number-allocation-concurrency.md`, `docs/milestones/m2-implementation-plan.md`.
+- Test files: `tests/unit/purchase-orders/test-po-*.php` (lifecycle, numbering, service, validation, delay, admin, architecture); extended `tests/integration/install/test-schema-shape-assertion.php`.
+- Test harness: `tests/docker/docker-compose.phpunit.yml`, `tests/docker/run-phpunit.sh`.
+
+### Notes
+
+- **No stock or costing changes:** PO lifecycle actions do not mutate WooCommerce stock or weighted-average cost meta.
+- **No receiving:** `qty_received`, Goods Receipt, and Receive-Against-PO arrive in M5; schema assertion actively forbids premature receiving columns.
+- **No print hooks:** printable PO is a reserved future capability; no `wc_io_po_print_actions` or similar public hook added.
+- **M0 golden suite:** passes unmodified; zero fixture changes to costing/FX/allocation/movement characterization tests.
+- **Numbering concurrency:** duplicate-key failures under rare concurrent draft creates are a documented limitation (ADR-0002), not a correctness defect.
+
 ## [1.18.1] - 2026-08-05
 
 **M1 hotfix** — supplier Purchasing admin PRG and list-table fixes. No schema change (remains v6).

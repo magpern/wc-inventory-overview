@@ -1,7 +1,7 @@
-# Architecture audit — WC Inventory Overview 1.18.0
+# Architecture audit — WC Inventory Overview 1.19.0
 
-**Date:** 2026-08-04  
-**Scope:** Standalone repo `magpern/wc-inventory-overview` with Milestone M1 implementation
+**Date:** 2026-08-05  
+**Scope:** Standalone repo `magpern/wc-inventory-overview` with Milestone M2 implementation (Purchase Orders on schema v7)
 
 ---
 
@@ -33,10 +33,13 @@ If WooCommerce is missing, shows admin notice only.
 
 ## Custom database tables
 
-Created/upgraded via `WC_Inventory_Overview_Install` (`DB_VERSION = 6`, option `wc_io_db_version`):
+Created/upgraded via `WC_Inventory_Overview_Install` (`DB_VERSION = 7`, option `wc_io_db_version`):
 
 | Table | Purpose | Version |
 |-------|---------|---------|
+| `{prefix}wc_io_purchase_orders` | **M2:** PO header (number, supplier, currency, status, expected date/confidence) | v7+ |
+| `{prefix}wc_io_purchase_order_lines` | **M2:** PO lines (product/variation, qty_ordered, qty_cancelled, unit cost, line-level expected overrides) | v7+ |
+| `{prefix}wc_io_po_events` | **M2:** Append-only PO event audit log with optional reason_code | v7+ |
 | `{prefix}wc_io_suppliers` | **M1:** Supplier entity with contact info, currency, configured lead time | v6+ |
 | `{prefix}wc_io_inventory_movements` | Stock/cost movement ledger | v1+ |
 | `{prefix}wc_io_purchase_batches` | Batch purchase headers | v1+ |
@@ -44,7 +47,7 @@ Created/upgraded via `WC_Inventory_Overview_Install` (`DB_VERSION = 6`, option `
 | `{prefix}wc_io_purchase_batch_costs` | Landed cost lines per batch | v1+ |
 | `{prefix}wc_io_exchange_rates` | FX rate history | v2+ |
 
-Schema via `dbDelta()` on activate and version bump. M1 adds the `wc_io_suppliers` table; `inventory_movements` gains `reference_type`, `reference_id`, and `supplier_id` columns in M4.
+Schema via `dbDelta()` on activate and version bump. M2 adds three PO tables; `assert_schema_shape()` writes canonical `wc_io_schema_assertion` and forbids `qty_received` on PO lines until M5. M1 adds the `wc_io_suppliers` table; `inventory_movements` gains `reference_type`, `reference_id`, and `supplier_id` columns in M4.
 
 ---
 
@@ -75,10 +78,11 @@ Exchange rates are **table-backed**; legacy FX options are deleted on upgrade.
 | Product Profitability | `manage_woocommerce` | `Product_Profitability_Query`, list table |
 | Settings | `manage_woocommerce` | `Settings`, `Exchange_Rates`, `Data_Reset` |
 
-### Purchasing (`wc-io-purchasing`, M1)
+### Purchasing (`wc-io-purchasing`, M1 + M2)
 
 | Section | Capability | Primary classes |
 |---------|------------|-----------------|
+| Purchase Orders | `manage_woocommerce` (filterable via `Purchasing_Caps`) | `Purchasing_Page`, `PO_Admin`, `Purchase_Orders_List_Table`, `PO_Service` |
 | Suppliers | `manage_woocommerce` | `Purchasing_Page`, `Suppliers_List_Table`, `Suppliers` |
 
 Legacy slugs `wc-inventory-overview` and `wc-inventory-restock` redirect into the Inventory & Profit hub.
@@ -107,6 +111,12 @@ All are **admin-only** (`wp_ajax_*`, not `nopriv`).
 | `wc_io_supplier_save` | **M1** Create/update supplier | v6+ |
 | `wc_io_supplier_archive` | **M1** Archive supplier | v6+ |
 | `wc_io_supplier_reactivate` | **M1** Reactivate supplier | v6+ |
+| `wc_io_po_save` | **M2** Save draft/placed PO edits | v7+ |
+| `wc_io_po_place` | **M2** Place draft PO | v7+ |
+| `wc_io_po_cancel` | **M2** Cancel PO | v7+ |
+| `wc_io_po_close_short` | **M2** Close short (terminal) | v7+ |
+| `wc_io_po_delete_draft` | **M2** Hard-delete draft PO | v7+ |
+| `wc_io_po_duplicate` | **M2** Duplicate to new draft | v7+ |
 | `wc_io_restock` | Quick restock line | v1+ |
 | `wc_io_batch_apply` | Commit batch intake | v1+ |
 | `wc_io_cost_adjustment` | Average cost adjustment | v1+ |
@@ -136,6 +146,16 @@ No public REST routes or storefront-facing hooks.
 
 | Class | Responsibility | Version |
 |-------|----------------|---------|
+| `WC_Inventory_Overview_PO_Service` | **M2:** PO orchestration (create, place, cancel, close short, duplicate, line CRUD) in DB transactions | v7+ |
+| `WC_Inventory_Overview_Purchase_Orders` | **M2:** PO header persistence | v7+ |
+| `WC_Inventory_Overview_Purchase_Order_Lines` | **M2:** PO line persistence | v7+ |
+| `WC_Inventory_Overview_PO_Events` | **M2:** Append-only PO event log | v7+ |
+| `WC_Inventory_Overview_PO_Admin` | **M2:** PO list/detail UI, PRG handlers, timeline | v7+ |
+| `WC_Inventory_Overview_Purchase_Orders_List_Table` | **M2:** WP_List_Table for PO list/views | v7+ |
+| `WC_Inventory_Overview_PO_Lifecycle` | **M2:** Transition table and action availability | v7+ |
+| `WC_Inventory_Overview_PO_Numbering` | **M2:** `PO-{YYYY}-{NNNN}` allocation (ADR-0002) | v7+ |
+| `WC_Inventory_Overview_PO_Delay` | **M2:** Computed delayed detection | v7+ |
+| `WC_Inventory_Overview_Purchasing_Caps` | **M2:** Filterable purchasing capability map | v7+ |
 | `WC_Inventory_Overview_Suppliers` | **M1:** Supplier CRUD + normalization | v6+ |
 | `WC_Inventory_Overview_Suppliers_Migration` | **M1:** Seed migration from historical supplier strings | v6+ |
 | `WC_Inventory_Overview_Purchasing_Page` | **M1:** Admin page controller for Purchasing submenu | v6+ |
@@ -158,6 +178,8 @@ No public REST routes or storefront-facing hooks.
 
 | Path | Enqueued on | Version |
 |------|-------------|---------|
+| `assets/po-admin.js` | **M2** Purchasing → Purchase Orders detail (line editor) | v7+ |
+| `assets/purchasing.css` | **M2** Purchasing page (shared tab styling) | v7+ |
 | `assets/supplier-picker.js` | **M1** Restock (Batch Intake, Quick Restock) — Select2 autocomplete + inline supplier creation | v6+ |
 | `assets/admin.css`, `admin.js` | Inventory hub (overview tab) | v1+ |
 | `assets/batch-intake.js` | Restock batch view | v1+ |
@@ -188,7 +210,7 @@ Operational only; not loaded by WordPress. Requires WP-CLI + WooCommerce.
 3. **`posts_clauses` filter:** Global filter at priority 999; scoped by query depth and admin context — avoid front-end product queries while filter is active.
 4. **Danger zone reset:** Can bulk-delete plugin tables/meta snapshots; gated by capability + nonces + preview token — still high impact for operators.
 5. **Inline stock AJAX:** Uses `edit_products` (broader than `manage_woocommerce`) with per-product `edit_product` — intentional for catalog editors.
-6. **Automated tests:** PHPUnit integration and unit suites, PHPCS, and GitHub Actions CI (M0/M1). Golden characterization tests lock costing, FX, allocation, and movement behaviour. See `docs/testing.md`.
+6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders), PHPCS (local), and GitHub Actions CI (PHP lint + release ZIP). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
 7. **Monorepo mirror:** A development copy may exist under `biopentra-custom-plugins/plugins/wc-inventory-overview/`; this standalone repo is canonical for releases.
 
 ---
@@ -196,4 +218,4 @@ Operational only; not loaded by WordPress. Requires WP-CLI + WooCommerce.
 ## Recommended follow-ups (non-blocking)
 
 - Split `Plugin` into tab controllers or modules.
-- Extend schema-shape assertion per milestone (M2+).
+- Extend schema-shape assertion per milestone (M3+).

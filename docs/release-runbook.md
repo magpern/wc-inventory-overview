@@ -103,6 +103,29 @@ No additional steps. The release is a pure-tooling change with no functional or 
    - Confirm **WooCommerce → Purchasing** submenu appears.
    - Confirm the **Suppliers** tab is accessible and fully functional.
 
+### M2: Purchase Orders
+
+**Before tagging v1.19.0:**
+
+0. **Prerequisite:** Site is on **v1.18.1** (M1 Purchasing PRG hotfix). Do not skip the 1.18.1 patch when upgrading from 1.18.0.
+1. **Release notes file:** Confirm `docs/GITHUB_RELEASE_NOTES_1.19.0.md` exists and matches `CHANGELOG.md` for 1.19.0.
+2. **Verify schema version bump:** Check that `DB_VERSION = '7'` in `includes/class-wc-inventory-overview-install.php`.
+3. **Test schema-shape assertion on a production-data copy:**
+   - Upgrade to the M2 release on a copy of production database.
+   - Verify `wp option get wc_io_db_version` returns `7`.
+   - Verify `wp option get wc_io_schema_assertion --format=json` shows `ok: true` and `version: "7"`.
+   - Legacy mirror `wc_io_schema_v7_assertion` should match; `wc_io_schema_v6_assertion` is also updated for backward-compatible runbook snippets.
+4. **Verify Purchasing → Purchase Orders:**
+   - Log in as a `manage_woocommerce` user.
+   - Confirm **Purchase Orders** tab is the default Purchasing view.
+   - Walk through: create draft → add lines → place → cancel or close short; confirm event timeline records transitions.
+5. **No-stock-change check (mandatory):**
+   - Note a product's `_stock` and `_wc_io_average_unit_cost` before and after PO lifecycle actions (place, cancel, close short, duplicate).
+   - Values must be identical — PO actions must not mutate WooCommerce stock or costing meta in M2.
+6. **Confirm receiving is absent:**
+   - PO line schema must not include `qty_received` (assertion forbids it until M5).
+   - No Receive Stock tab or receiving UI should appear.
+
 ## Post-release communication
 
 After a successful release:

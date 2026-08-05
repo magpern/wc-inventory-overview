@@ -1,0 +1,77 @@
+/**
+ * Purchasing / Purchase Order admin styles (M2-D).
+ */
+
+.wc-io-po-status {
+	display: inline-block;
+	padding: 0.15em 0.55em;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.6;
+	background: #f0f0f1;
+	color: #1d2327;
+}
+
+.wc-io-po-status--draft {
+	background: #f0f6fc;
+	color: #135e96;
+}
+
+.wc-io-po-status--placed {
+	background: #edfaef;
+	color: #007017;
+}
+
+.wc-io-po-status--cancelled {
+	background: #fcf0f1;
+	color: #8a2424;
+}
+
+.wc-io-po-status--closed_short {
+	background: #fcf9e8;
+	color: #996800;
+}
+
+.wc-io-po-delayed {
+	display: inline-block;
+	margin-left: 0.35em;
+	padding: 0.15em 0.55em;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 600;
+	background: #fcf0f1;
+	color: #b32d2e;
+}
+
+.wc-io-po-field-error {
+	color: #b32d2e;
+	margin: 0.35em 0 0;
+}
+
+.wc-io-po-timeline-list {
+	margin-left: 1.25em;
+}
+
+.wc-io-po-timeline-list li {
+	margin-bottom: 0.5em;
+}
+
+.wc-io-po-actions {
+	margin: 1.5em 0;
+	padding-top: 1em;
+	border-top: 1px solid #c3c4c7;
+}
+
+.wc-io-po-list-header {
+	margin: 1em 0;
+}
+
+.wc-io-po-lines input[type="number"] {
+	width: 6.5em;
+}
+
+.form-invalid input,
+.form-invalid select {
+	border-color: #b32d2e;
+}

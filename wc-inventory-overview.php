@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WC Inventory Overview
  * Description:       Operational inventory dashboard for WooCommerce products and variations (HPOS-compatible).
- * Version:           1.18.1
+ * Version:           1.19.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            WC Inventory Overview
@@ -15,7 +15,7 @@
 defined( 'ABSPATH' ) || exit;
 
 if ( ! defined( 'WC_INVENTORY_OVERVIEW_VERSION' ) ) {
-	define( 'WC_INVENTORY_OVERVIEW_VERSION', '1.18.1' );
+	define( 'WC_INVENTORY_OVERVIEW_VERSION', '1.19.0' );
 }
 
 if ( ! defined( 'WC_INVENTORY_OVERVIEW_FILE' ) ) {
@@ -53,6 +53,20 @@ register_activation_hook(
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-install.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers-migration.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-statuses.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-reason-codes.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-confidence.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-lifecycle.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-quantities.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-expected.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-product-validator.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-validation.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-delay.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-numbering.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-orders.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-order-lines.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-events.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-service.php';
 		WC_Inventory_Overview_Install::activate();
 	}
 );
@@ -80,12 +94,29 @@ add_action(
 
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-repository.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-install.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-db-transaction.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-costing.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-settings.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-exchange-rates.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers-migration.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-data-reset.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-statuses.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-reason-codes.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-confidence.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-lifecycle.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-quantities.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-expected.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-product-validator.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-validation.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-delay.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-numbering.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-orders.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-order-lines.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-events.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-service.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchasing-caps.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-request-token.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-summary.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-dashboard-inventory-metrics.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-movements.php';
@@ -104,6 +135,8 @@ add_action(
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-product-profitability-query.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-product-profitability-list-table.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers-list-table.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-orders-list-table.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-admin.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchasing-page.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-plugin.php';
 

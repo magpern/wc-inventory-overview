@@ -12,11 +12,14 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Purchasing_Page {
 
-	const PAGE_SLUG = 'wc-io-purchasing';
+	const PAGE_SLUG     = 'wc-io-purchasing';
 	const TAB_SUPPLIERS = 'suppliers';
+	const TAB_ORDERS    = 'orders';
 
 	/**
 	 * Singleton instance.
+	 *
+	 * @var self|null
 	 */
 	private static $instance = null;
 
@@ -41,6 +44,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 		add_action( 'admin_post_wc_io_supplier_reactivate', array( $this, 'handle_supplier_reactivate' ) );
 		add_action( 'wp_ajax_wc_io_search_suppliers', array( $this, 'ajax_search_suppliers' ) );
 		add_action( 'wp_ajax_wc_io_quick_create_supplier', array( $this, 'ajax_quick_create_supplier' ) );
+		WC_Inventory_Overview_PO_Admin::init();
 	}
 
 	/**
@@ -51,8 +55,11 @@ class WC_Inventory_Overview_Purchasing_Page {
 			return;
 		}
 
-		// Check schema assertion.
-		$assertion = get_option( 'wc_io_schema_v6_assertion', array() );
+		// Check schema assertion: canonical option first, v6 fallback for upgrades in flight.
+		$assertion = get_option( 'wc_io_schema_assertion', null );
+		if ( ! is_array( $assertion ) ) {
+			$assertion = get_option( 'wc_io_schema_v6_assertion', array() );
+		}
 		if ( ! isset( $assertion['ok'] ) || ! $assertion['ok'] ) {
 			return;
 		}
@@ -87,7 +94,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 			wp_die( 'Insufficient permissions.' );
 		}
 
-		$tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : self::TAB_SUPPLIERS;
+		$tab    = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : self::TAB_ORDERS;
 		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list';
 
 		?>
@@ -95,15 +102,46 @@ class WC_Inventory_Overview_Purchasing_Page {
 			<h1><?php esc_html_e( 'Purchasing', 'wc-inventory-overview' ); ?></h1>
 
 			<nav class="nav-tab-wrapper">
-				<a href="<?php echo esc_url( add_query_arg( array( 'tab' => self::TAB_SUPPLIERS, 'action' => 'list' ), admin_url( 'admin.php?page=' . self::PAGE_SLUG ) ) ); ?>" class="nav-tab <?php echo self::TAB_SUPPLIERS === $tab ? 'nav-tab-active' : ''; ?>">
+				<a href="
+				<?php
+				echo esc_url(
+					add_query_arg(
+						array(
+							'tab'    => self::TAB_ORDERS,
+							'action' => 'list',
+						),
+						admin_url( 'admin.php?page=' . self::PAGE_SLUG )
+					)
+				);
+				?>
+							" class="nav-tab <?php echo self::TAB_ORDERS === $tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Purchase Orders', 'wc-inventory-overview' ); ?>
+				</a>
+				<a href="
+				<?php
+				echo esc_url(
+					add_query_arg(
+						array(
+							'tab'    => self::TAB_SUPPLIERS,
+							'action' => 'list',
+						),
+						admin_url( 'admin.php?page=' . self::PAGE_SLUG )
+					)
+				);
+				?>
+							" class="nav-tab <?php echo self::TAB_SUPPLIERS === $tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Suppliers', 'wc-inventory-overview' ); ?>
 				</a>
 			</nav>
 
 			<?php $this->render_notices(); ?>
+			<?php WC_Inventory_Overview_PO_Admin::render_notices(); ?>
 
 			<?php
 			switch ( $tab ) {
+				case self::TAB_ORDERS:
+					WC_Inventory_Overview_PO_Admin::render_panel( $action );
+					break;
 				case self::TAB_SUPPLIERS:
 					$this->render_suppliers_panel( $action );
 					break;
@@ -142,9 +180,11 @@ class WC_Inventory_Overview_Purchasing_Page {
 
 	/**
 	 * Render the Suppliers section (list or detail).
+	 *
+	 * @param string $action Panel action.
 	 */
 	private function render_suppliers_panel( string $action ) {
-		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list';
+		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		if ( 'edit' === $action || 'new' === $action ) {
 			$this->render_supplier_detail( $action );
@@ -162,7 +202,19 @@ class WC_Inventory_Overview_Purchasing_Page {
 
 		?>
 		<div class="alignright">
-			<a href="<?php echo esc_url( add_query_arg( array( 'tab' => self::TAB_SUPPLIERS, 'action' => 'new' ), admin_url( 'admin.php?page=' . self::PAGE_SLUG ) ) ); ?>" class="button button-primary">
+			<a href="
+			<?php
+			echo esc_url(
+				add_query_arg(
+					array(
+						'tab'    => self::TAB_SUPPLIERS,
+						'action' => 'new',
+					),
+					admin_url( 'admin.php?page=' . self::PAGE_SLUG )
+				)
+			);
+			?>
+						" class="button button-primary">
 				<?php esc_html_e( '+ New Supplier', 'wc-inventory-overview' ); ?>
 			</a>
 		</div>
@@ -175,9 +227,11 @@ class WC_Inventory_Overview_Purchasing_Page {
 
 	/**
 	 * Render supplier create/edit detail form.
+	 *
+	 * @param string $action new|edit.
 	 */
 	private function render_supplier_detail( string $action ) {
-		$supplier_id = isset( $_GET['supplier_id'] ) ? absint( $_GET['supplier_id'] ) : 0;
+		$supplier_id = isset( $_GET['supplier_id'] ) ? absint( $_GET['supplier_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$supplier    = null;
 
 		if ( $supplier_id > 0 ) {
@@ -189,7 +243,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 			$supplier = $result;
 		}
 
-		$is_new = ( 'new' === $action );
+		$is_new     = ( 'new' === $action );
 		$page_title = $is_new ? __( 'New Supplier', 'wc-inventory-overview' ) : __( 'Edit Supplier', 'wc-inventory-overview' );
 
 		?>
@@ -395,11 +449,13 @@ class WC_Inventory_Overview_Purchasing_Page {
 
 		$term = isset( $_POST['term'] ) ? sanitize_text_field( wp_unslash( $_POST['term'] ) ) : '';
 
-		$suppliers = WC_Inventory_Overview_Suppliers::list( array(
-			'status'   => 'active',
-			'search'   => $term,
-			'per_page' => 20,
-		) );
+		$suppliers = WC_Inventory_Overview_Suppliers::list(
+			array(
+				'status'   => 'active',
+				'search'   => $term,
+				'per_page' => 20,
+			)
+		);
 
 		$data = array();
 		foreach ( $suppliers as $supplier ) {
@@ -422,26 +478,30 @@ class WC_Inventory_Overview_Purchasing_Page {
 			wp_send_json_error( 'Insufficient permissions.' );
 		}
 
-		$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+		$name     = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
 		$currency = isset( $_POST['currency'] ) ? sanitize_key( wp_unslash( $_POST['currency'] ) ) : 'EUR';
 
 		if ( ! $name ) {
 			wp_send_json_error( 'Name is required.' );
 		}
 
-		$result = WC_Inventory_Overview_Suppliers::create( array(
-			'name'             => $name,
-			'default_currency' => $currency,
-		) );
+		$result = WC_Inventory_Overview_Suppliers::create(
+			array(
+				'name'             => $name,
+				'default_currency' => $currency,
+			)
+		);
 
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( $result->get_error_message() );
 		}
 
 		$supplier = WC_Inventory_Overview_Suppliers::get( $result );
-		wp_send_json_success( array(
-			'id'   => $result,
-			'name' => $supplier['name'],
-		) );
+		wp_send_json_success(
+			array(
+				'id'   => $result,
+				'name' => $supplier['name'],
+			)
+		);
 	}
 }

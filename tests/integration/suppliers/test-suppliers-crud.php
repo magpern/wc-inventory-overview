@@ -10,6 +10,8 @@ class Test_WC_IO_Suppliers_CRUD extends WP_UnitTestCase {
 	public function setUp(): void {
 		parent::setUp();
 		WC_Inventory_Overview_Install::create_tables();
+		global $wpdb;
+		$wpdb->query( 'DELETE FROM ' . WC_Inventory_Overview_Suppliers::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/**

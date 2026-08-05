@@ -1,0 +1,45 @@
+# Ephemeral PHPUnit stack for M2-A validation.
+# Usage:
+#   docker compose -f tests/docker/docker-compose.phpunit.yml up -d db
+#   docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit
+
+services:
+  db:
+    image: mariadb:11.8.8
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: wordpress_test
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  phpunit:
+    image: wordpress:cli-2.12.0-php8.4
+    user: "1000:1000"
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /plugin
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: wordpress_test
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WP_TESTS_DIR: /tmp/wordpress-tests-lib
+      WP_CORE_DIR: /tmp/wordpress
+      WP_TESTS_PHPUNIT_POLYFILLS_PATH: /tmp/phpunit-polyfills/phpunit-polyfills-vendor/yoast/phpunit-polyfills
+    volumes:
+      - ../../:/plugin:rw
+      - phpunit-tmp:/tmp
+    entrypoint: ["/bin/bash", "/plugin/tests/docker/run-phpunit.sh"]
+    networks:
+      - default
+
+volumes:
+  phpunit-tmp:
