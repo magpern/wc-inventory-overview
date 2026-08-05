@@ -103,8 +103,8 @@ export WP_TESTS_PHPUNIT_POLYFILLS_PATH=/tmp/phpunit-polyfills/vendor/yoast/phpun
 cd "${PLUGIN_DIR}"
 FILTER_ARGS=("$@")
 if [[ ${#FILTER_ARGS[@]} -eq 0 ]]; then
-	# Default: M2-A focused suites plus existing unit/integration smoke.
-	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_Suppliers_|Test_DB_Transaction' )
+	# Default: M1/M2 focused suites, M3 Inventory Position, plus existing unit/integration smoke.
+	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_' )
 fi
 
 echo "Running PHPUnit ${FILTER_ARGS[*]}..."
