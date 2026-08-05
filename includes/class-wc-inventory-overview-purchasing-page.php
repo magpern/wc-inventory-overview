@@ -51,8 +51,11 @@ class WC_Inventory_Overview_Purchasing_Page {
 			return;
 		}
 
-		// Check schema assertion.
-		$assertion = get_option( 'wc_io_schema_v6_assertion', array() );
+		// Check schema assertion: canonical option first, v6 fallback for upgrades in flight.
+		$assertion = get_option( 'wc_io_schema_assertion', null );
+		if ( ! is_array( $assertion ) ) {
+			$assertion = get_option( 'wc_io_schema_v6_assertion', array() );
+		}
 		if ( ! isset( $assertion['ok'] ) || ! $assertion['ok'] ) {
 			return;
 		}
