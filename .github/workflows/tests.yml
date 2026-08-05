@@ -41,6 +41,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Export host uid/gid for the phpunit container
+        run: |
+          echo "DOCKER_UID=$(id -u)" >> "${GITHUB_ENV}"
+          echo "DOCKER_GID=$(id -g)" >> "${GITHUB_ENV}"
+
       - name: Validate Docker Compose config
         run: docker compose -f tests/docker/docker-compose.phpunit.yml config --quiet
 

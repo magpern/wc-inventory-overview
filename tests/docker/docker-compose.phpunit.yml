@@ -26,7 +26,15 @@ services:
 
   phpunit:
     image: wordpress:cli-2.12.0-php8.4
-    user: "1000:1000"
+    # Must match the uid:gid that owns the bind-mounted repo checkout on the
+    # host, or composer/PHPUnit can't write vendor/ into it. Hardcoding
+    # "1000:1000" works on this VPS (host user is uid 1000) but breaks on
+    # GitHub Actions hosted runners, whose checkout is owned by a different
+    # uid -- surfaced the first time CI actually ran this harness (Test
+    # Infrastructure Hotfix, v1.19.1). DOCKER_UID/DOCKER_GID let each
+    # environment supply its own values; unset locally, both default to
+    # 1000 (unchanged behavior for this VPS).
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
     depends_on:
       db:
         condition: service_healthy
