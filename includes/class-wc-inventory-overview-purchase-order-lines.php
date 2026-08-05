@@ -1,8 +1,9 @@
 <?php
 /**
- * Purchase Order line repository (M2-A architecture skeleton).
+ * Purchase Order line repository (M2-C).
  *
- * No qty_received column. Outstanding = ordered − cancelled (M2 form of INV-4).
+ * Persistence only — no lifecycle policy. No qty_received column.
+ * Outstanding = ordered − cancelled (M2 form of INV-4).
  *
  * @package WC_Inventory_Overview
  */
@@ -39,6 +40,25 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	}
 
 	/**
+	 * Get a line by ID with a row lock. Must be called inside a transaction.
+	 *
+	 * @param int $id Line id.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	public static function get_for_update( int $id ) {
+		global $wpdb;
+		$table = self::table_name();
+		$row   = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d FOR UPDATE", $id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			ARRAY_A
+		);
+		if ( ! $row ) {
+			return new WP_Error( 'wc_io_po_line_not_found', sprintf( 'Purchase order line %d not found', $id ) );
+		}
+		return $row;
+	}
+
+	/**
 	 * List lines for a PO, ordered by line_index.
 	 *
 	 * @param int $po_id PO id.
@@ -55,7 +75,17 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	}
 
 	/**
-	 * Insert a line.
+	 * Alias for list_for_po().
+	 *
+	 * @param int $po_id PO id.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function list_by_po( int $po_id ): array {
+		return self::list_for_po( $po_id );
+	}
+
+	/**
+	 * Insert a line. Caller (PO_Service) enforces lifecycle and validation.
 	 *
 	 * @param int                 $po_id PO id.
 	 * @param array<string,mixed> $data  Line fields.
@@ -67,13 +97,6 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 		$po = WC_Inventory_Overview_Purchase_Orders::get( $po_id );
 		if ( is_wp_error( $po ) ) {
 			return $po;
-		}
-		if ( WC_Inventory_Overview_PO_Statuses::is_terminal( $po['status'] ) ) {
-			return new WP_Error( 'wc_io_po_terminal', 'Cannot add lines to a terminal purchase order' );
-		}
-		$editable = WC_Inventory_Overview_PO_Lifecycle::assert_editable( $po['status'] );
-		if ( is_wp_error( $editable ) ) {
-			return $editable;
 		}
 
 		$now = current_time( 'mysql', true );
@@ -108,6 +131,135 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	}
 
 	/**
+	 * Update a line. No lifecycle policy — PO_Service enforces.
+	 *
+	 * @param int                 $id   Line id.
+	 * @param array<string,mixed> $data Fields to update.
+	 * @return true|WP_Error
+	 */
+	public static function update( int $id, array $data ) {
+		global $wpdb;
+
+		$existing = self::get( $id );
+		if ( is_wp_error( $existing ) ) {
+			return $existing;
+		}
+
+		$allowed = array(
+			'line_index',
+			'product_id',
+			'variation_id',
+			'sku_snapshot',
+			'name_snapshot',
+			'supplier_sku',
+			'qty_ordered',
+			'qty_cancelled',
+			'unit_cost',
+			'currency',
+			'expected_date',
+			'expected_confidence',
+			'status',
+			'note',
+		);
+
+		$update  = array();
+		$formats = array();
+		foreach ( $allowed as $key ) {
+			if ( ! array_key_exists( $key, $data ) ) {
+				continue;
+			}
+			switch ( $key ) {
+				case 'line_index':
+				case 'product_id':
+				case 'variation_id':
+					$update[ $key ] = absint( $data[ $key ] );
+					$formats[]      = '%d';
+					break;
+				case 'qty_ordered':
+				case 'qty_cancelled':
+				case 'unit_cost':
+					$update[ $key ] = (float) $data[ $key ];
+					$formats[]      = '%f';
+					break;
+				case 'expected_date':
+					$update[ $key ] = ( null === $data[ $key ] || '' === $data[ $key ] ) ? null : sanitize_text_field( (string) $data[ $key ] );
+					$formats[]      = '%s';
+					break;
+				case 'expected_confidence':
+					$update[ $key ] = ( null === $data[ $key ] || '' === $data[ $key ] ) ? null : sanitize_key( (string) $data[ $key ] );
+					$formats[]      = '%s';
+					break;
+				case 'note':
+					$update[ $key ] = null === $data[ $key ] ? null : sanitize_textarea_field( (string) $data[ $key ] );
+					$formats[]      = '%s';
+					break;
+				case 'currency':
+					$update[ $key ] = strtoupper( sanitize_text_field( (string) $data[ $key ] ) );
+					$formats[]      = '%s';
+					break;
+				default:
+					$update[ $key ] = null === $data[ $key ] ? null : sanitize_text_field( (string) $data[ $key ] );
+					$formats[]      = '%s';
+					break;
+			}
+		}
+
+		if ( empty( $update ) ) {
+			return true;
+		}
+
+		$update['updated_at'] = current_time( 'mysql', true );
+		$formats[]            = '%s';
+
+		$result = $wpdb->update( self::table_name(), $update, array( 'id' => $id ), $formats, array( '%d' ) );
+		if ( false === $result ) {
+			return new WP_Error( 'wc_io_po_line_update_failed', 'Failed to update purchase order line', array( 'db_error' => $wpdb->last_error ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Delete a single line by id.
+	 *
+	 * @param int $id Line id.
+	 * @return true|WP_Error
+	 */
+	public static function delete( int $id ) {
+		global $wpdb;
+		$existing = self::get( $id );
+		if ( is_wp_error( $existing ) ) {
+			return $existing;
+		}
+		$deleted = $wpdb->delete( self::table_name(), array( 'id' => $id ), array( '%d' ) );
+		if ( false === $deleted ) {
+			return new WP_Error( 'wc_io_po_line_delete_failed', 'Failed to delete purchase order line' );
+		}
+		return true;
+	}
+
+	/**
+	 * Resequence line_index to 0..n-1 in current id order for a PO.
+	 *
+	 * @param int $po_id PO id.
+	 * @return true|WP_Error
+	 */
+	public static function resequence( int $po_id ) {
+		$lines = self::list_for_po( $po_id );
+		$index = 0;
+		foreach ( $lines as $line ) {
+			if ( (int) $line['line_index'] !== $index ) {
+				$updated = self::update( (int) $line['id'], array( 'line_index' => $index ) );
+				if ( is_wp_error( $updated ) ) {
+					return $updated;
+				}
+			}
+			++$index;
+		}
+		return true;
+	}
+
+	/**
 	 * Delete all lines for a PO (used by draft hard-delete).
 	 *
 	 * @param int $po_id PO id.
@@ -134,7 +286,7 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	 *
 	 * @param int $po_id PO id.
 	 */
-	private static function next_line_index( int $po_id ): int {
+	public static function next_line_index( int $po_id ): int {
 		global $wpdb;
 		$table = self::table_name();
 		$max   = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(line_index) FROM {$table} WHERE po_id = %d", $po_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

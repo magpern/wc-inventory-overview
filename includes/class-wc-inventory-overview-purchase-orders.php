@@ -1,8 +1,8 @@
 <?php
 /**
- * Purchase Order header repository (M2-A architecture skeleton).
+ * Purchase Order header repository (M2-C).
  *
- * Persistence only. Lifecycle transitions (place/cancel/close_short) belong to M2-C.
+ * Persistence only. Lifecycle transitions belong to WC_Inventory_Overview_PO_Service.
  * Never touches WooCommerce stock (INV-2).
  *
  * @package WC_Inventory_Overview
@@ -159,38 +159,48 @@ class WC_Inventory_Overview_Purchase_Orders {
 	}
 
 	/**
-	 * Update mutable header fields. Refuses terminal statuses (architecture guard for M2-B/C).
+	 * Get a PO by ID with a row lock (SELECT ... FOR UPDATE). Must be called inside a transaction.
+	 *
+	 * @param int $id PO id.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	public static function get_for_update( int $id ) {
+		global $wpdb;
+		$table = self::table_name();
+		$row   = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d FOR UPDATE", $id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			ARRAY_A
+		);
+		if ( ! $row ) {
+			return new WP_Error( 'wc_io_po_not_found', sprintf( 'Purchase order %d not found', $id ) );
+		}
+		return $row;
+	}
+
+	/**
+	 * Persist arbitrary allowed columns. No lifecycle policy — caller (PO_Service) enforces rules.
 	 *
 	 * @param int                 $id   PO id.
 	 * @param array<string,mixed> $data Fields to update.
 	 * @return true|WP_Error
 	 */
-	public static function update( int $id, array $data ) {
+	public static function update_fields( int $id, array $data ) {
 		global $wpdb;
-
-		$existing = self::get( $id );
-		if ( is_wp_error( $existing ) ) {
-			return $existing;
-		}
-
-		if ( WC_Inventory_Overview_PO_Statuses::is_terminal( $existing['status'] ) ) {
-			return new WP_Error( 'wc_io_po_terminal', 'Terminal purchase orders cannot be edited' );
-		}
-
-		$editable = WC_Inventory_Overview_PO_Lifecycle::assert_editable( $existing['status'] );
-		if ( is_wp_error( $editable ) ) {
-			return $editable;
-		}
 
 		$allowed = array(
 			'supplier_id',
 			'supplier_name_snapshot',
 			'currency',
+			'status',
 			'order_date',
 			'expected_date',
 			'expected_confidence',
 			'supplier_reference',
 			'note',
+			'placed_at',
+			'closed_at',
+			'updated_by',
+			'updated_at',
 		);
 
 		$update  = array();
@@ -201,11 +211,14 @@ class WC_Inventory_Overview_Purchase_Orders {
 			}
 			switch ( $key ) {
 				case 'supplier_id':
+				case 'updated_by':
 					$update[ $key ] = absint( $data[ $key ] );
 					$formats[]      = '%d';
 					break;
 				case 'order_date':
 				case 'expected_date':
+				case 'placed_at':
+				case 'closed_at':
 					$update[ $key ] = self::nullable_date( $data[ $key ] );
 					$formats[]      = '%s';
 					break;
@@ -215,6 +228,10 @@ class WC_Inventory_Overview_Purchase_Orders {
 					break;
 				case 'currency':
 					$update[ $key ] = strtoupper( sanitize_text_field( (string) $data[ $key ] ) );
+					$formats[]      = '%s';
+					break;
+				case 'status':
+					$update[ $key ] = sanitize_key( (string) $data[ $key ] );
 					$formats[]      = '%s';
 					break;
 				default:
@@ -228,10 +245,14 @@ class WC_Inventory_Overview_Purchase_Orders {
 			return true;
 		}
 
-		$update['updated_by'] = get_current_user_id();
-		$formats[]            = '%d';
-		$update['updated_at'] = current_time( 'mysql', true );
-		$formats[]            = '%s';
+		if ( ! isset( $update['updated_at'] ) ) {
+			$update['updated_at'] = current_time( 'mysql', true );
+			$formats[]            = '%s';
+		}
+		if ( ! isset( $update['updated_by'] ) ) {
+			$update['updated_by'] = get_current_user_id();
+			$formats[]            = '%d';
+		}
 
 		$result = $wpdb->update( self::table_name(), $update, array( 'id' => $id ), $formats, array( '%d' ) );
 		if ( false === $result ) {
@@ -242,14 +263,48 @@ class WC_Inventory_Overview_Purchase_Orders {
 	}
 
 	/**
-	 * Hard-delete a draft only (§5.2). Does not recycle the PO number.
+	 * Alias for create_draft — header insert only.
+	 *
+	 * @param array<string,mixed> $data Header fields.
+	 * @return int|WP_Error
+	 */
+	public static function create( array $data ) {
+		return self::create_draft( $data );
+	}
+
+	/**
+	 * Delete a draft header row only (lines/events must already be removed by the service).
+	 *
+	 * @param int $id PO id.
+	 * @return true|WP_Error
+	 */
+	public static function delete_draft_record( int $id ) {
+		global $wpdb;
+		$deleted = $wpdb->delete( self::table_name(), array( 'id' => $id ), array( '%d' ) );
+		if ( false === $deleted ) {
+			return new WP_Error( 'wc_io_po_delete_failed', 'Failed to delete purchase order' );
+		}
+		return true;
+	}
+
+	/**
+	 * Persist mutable header fields (no lifecycle policy — PO_Service enforces).
+	 *
+	 * @param int                 $id   PO id.
+	 * @param array<string,mixed> $data Fields to update.
+	 * @return true|WP_Error
+	 */
+	public static function update( int $id, array $data ) {
+		return self::update_fields( $id, $data );
+	}
+
+	/**
+	 * Hard-delete a draft header and its lines. Prefer PO_Service::delete_draft() for event cleanup.
 	 *
 	 * @param int $id PO id.
 	 * @return true|WP_Error
 	 */
 	public static function delete_draft( int $id ) {
-		global $wpdb;
-
 		$existing = self::get( $id );
 		if ( is_wp_error( $existing ) ) {
 			return $existing;
@@ -259,13 +314,17 @@ class WC_Inventory_Overview_Purchase_Orders {
 		}
 
 		WC_Inventory_Overview_Purchase_Order_Lines::delete_for_po( $id );
+		return self::delete_draft_record( $id );
+	}
 
-		$deleted = $wpdb->delete( self::table_name(), array( 'id' => $id ), array( '%d' ) );
-		if ( false === $deleted ) {
-			return new WP_Error( 'wc_io_po_delete_failed', 'Failed to delete purchase order' );
-		}
-
-		return true;
+	/**
+	 * Alias for get_by_number().
+	 *
+	 * @param string $po_number PO number.
+	 * @return array<string,mixed>|null
+	 */
+	public static function find_by_number( string $po_number ) {
+		return self::get_by_number( $po_number );
 	}
 
 	/**

@@ -1,8 +1,14 @@
 <?php
 /**
- * Purchase Order events repository — append-only (M2-A).
+ * Purchase Order events repository — append-only (M2-C).
  *
- * No update or delete methods. Receipt-linked event types are not declared (M5).
+ * Public mutation surface is add() only. There is no update() or delete() API.
+ *
+ * Draft hard-delete (before placement) may remove a draft's event rows via the
+ * narrowly named delete_for_draft_aggregate() method, which exists solely so
+ * PO_Service::delete_draft() can remove the aggregate as one transaction without
+ * weakening append-only semantics for placed/terminal POs. Placed and terminal
+ * PO events are never deleted.
  *
  * @package WC_Inventory_Overview
  */
@@ -15,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
 class WC_Inventory_Overview_PO_Events {
 
 	/**
-	 * Event types written by M2 (lifecycle emitters arrive in M2-C).
+	 * Event types written by M2.
 	 */
 	const TYPE_CREATED               = 'po_created';
 	const TYPE_DUPLICATED            = 'po_duplicated';
@@ -61,7 +67,7 @@ class WC_Inventory_Overview_PO_Events {
 	}
 
 	/**
-	 * Append an event. Never updates or deletes.
+	 * Append an event. Never updates or deletes existing rows.
 	 *
 	 * @param array{po_id:int,event_type:string,summary?:string,data?:array|string|null,po_line_id?:int|null,reason_code?:string|null,user_id?:int} $args Event payload.
 	 * @return int|WP_Error New event id.
@@ -93,7 +99,11 @@ class WC_Inventory_Overview_PO_Events {
 		$data = null;
 		if ( array_key_exists( 'data', $args ) && null !== $args['data'] ) {
 			if ( is_array( $args['data'] ) ) {
-				$data = wp_json_encode( $args['data'] );
+				$encoded = wp_json_encode( $args['data'] );
+				if ( false === $encoded ) {
+					return new WP_Error( 'wc_io_po_event_json', 'Failed to encode event data as JSON' );
+				}
+				$data = $encoded;
 			} else {
 				$data = (string) $args['data'];
 			}
@@ -146,6 +156,64 @@ class WC_Inventory_Overview_PO_Events {
 	}
 
 	/**
+	 * Alias for list_for_po().
+	 *
+	 * @param int $po_id PO id.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function list_by_po( int $po_id ): array {
+		return self::list_for_po( $po_id );
+	}
+
+	/**
+	 * Count events for a PO.
+	 *
+	 * @param int $po_id PO id.
+	 */
+	public static function count_by_po( int $po_id ): int {
+		global $wpdb;
+		$table = self::table_name();
+		return absint(
+			$wpdb->get_var(
+				$wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE po_id = %d", $po_id ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			)
+		);
+	}
+
+	/**
+	 * Latest event for a PO (newest first), or null.
+	 *
+	 * @param int         $po_id      PO id.
+	 * @param string|null $event_type Optional type filter.
+	 * @return array<string,mixed>|null
+	 */
+	public static function get_latest( int $po_id, $event_type = null ) {
+		global $wpdb;
+		$table = self::table_name();
+
+		if ( null !== $event_type && '' !== $event_type ) {
+			$row = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$table} WHERE po_id = %d AND event_type = %s ORDER BY created_at DESC, id DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$po_id,
+					sanitize_key( (string) $event_type )
+				),
+				ARRAY_A
+			);
+		} else {
+			$row = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$table} WHERE po_id = %d ORDER BY created_at DESC, id DESC LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$po_id
+				),
+				ARRAY_A
+			);
+		}
+
+		return is_array( $row ) ? $row : null;
+	}
+
+	/**
 	 * Get a single event by id.
 	 *
 	 * @param int $id Event id.
@@ -159,5 +227,31 @@ class WC_Inventory_Overview_PO_Events {
 			return new WP_Error( 'wc_io_po_event_not_found', sprintf( 'PO event %d not found', $id ) );
 		}
 		return $row;
+	}
+
+	/**
+	 * Remove all events belonging to a draft PO during aggregate hard-delete.
+	 *
+	 * This is not a generic delete API. PO_Service::delete_draft() is the only
+	 * intended caller, and only after verifying the PO is still draft. Placed
+	 * and terminal PO events must never be removed.
+	 *
+	 * @param int $po_id Draft PO id.
+	 * @return true|WP_Error
+	 */
+	public static function delete_for_draft_aggregate( int $po_id ) {
+		global $wpdb;
+
+		$po_id = absint( $po_id );
+		if ( $po_id <= 0 ) {
+			return new WP_Error( 'wc_io_po_event_po_id', 'po_id is required' );
+		}
+
+		$result = $wpdb->delete( self::table_name(), array( 'po_id' => $po_id ), array( '%d' ) );
+		if ( false === $result ) {
+			return new WP_Error( 'wc_io_po_event_draft_cleanup_failed', 'Failed to remove draft PO events', array( 'db_error' => $wpdb->last_error ) );
+		}
+
+		return true;
 	}
 }

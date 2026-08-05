@@ -3,10 +3,10 @@
  * Database transaction helper for WC Inventory Overview
  *
  * Provides a safe, reusable wrapper for MySQL/MariaDB transactions with SAVEPOINT support.
- * Designed to be composed by services that require atomic multi-statement mutations (e.g., receipts).
+ * Designed to be composed by services that require atomic multi-statement mutations.
  *
- * This helper is introduced in M0 and validated in isolation; it is NOT called by any existing code path.
- * It remains inert until M4, which wires it into GoodsReceiptService for atomic receipt posting.
+ * First real consumer: M2 Purchase Order service (create/place/cancel/close/duplicate and
+ * line mutations). Goods receipts (M4/M5) will reuse the same helper.
  *
  * @package WC_Inventory_Overview
  */
