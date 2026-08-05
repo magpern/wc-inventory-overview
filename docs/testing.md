@@ -33,20 +33,37 @@ Since M0 touches no production code, this rule has an absolute form:
 
 ### Prerequisites
 
-- Docker and Docker Compose (all testing runs in containers).
-- `cp tests/docker/.env.test.example tests/docker/.env.test` and customize if needed.
+- Docker and Docker Compose (required for PHPUnit).
+- For PHPCS: `composer install` in the plugin root.
 
-### Full test suite
+### PHPUnit (Docker harness — primary)
+
+M2+ uses the dedicated PHPUnit stack under `tests/docker/`:
+
+```bash
+cd tests/docker
+docker compose -f docker-compose.phpunit.yml up -d db
+docker compose -f docker-compose.phpunit.yml run --rm phpunit
+```
+
+The default run filters M2-focused suites plus schema/supplier smoke tests. Pass explicit PHPUnit args to override:
+
+```bash
+docker compose -f docker-compose.phpunit.yml run --rm phpunit --testsuite=unit
+docker compose -f docker-compose.phpunit.yml run --rm phpunit --filter='Test_WC_IO_PO_Lifecycle'
+```
+
+Bootstrap script `tests/docker/run-phpunit.sh` downloads WordPress, WooCommerce, and PHPUnit polyfills into ephemeral container volumes.
+
+### PHPUnit (legacy full-stack compose)
+
+An older WordPress+WooCommerce compose file remains for manual integration work:
 
 ```bash
 cd tests/docker
 docker compose -f docker-compose.test.yml up -d
-
-# Wait for services to be healthy (5-10 seconds).
 docker compose -f docker-compose.test.yml run --rm wordpress \
   wp plugin activate wc-inventory-overview
-
-# Run PHPUnit
 docker compose -f docker-compose.test.yml run --rm phpunit \
   /var/www/html/wp-content/plugins/wc-inventory-overview/vendor/bin/phpunit
 ```
@@ -62,10 +79,8 @@ composer install
 ### Run specific test suite
 
 ```bash
-# Run only costing tests.
-docker compose -f docker-compose.test.yml run --rm phpunit \
-  /var/www/html/wp-content/plugins/wc-inventory-overview/vendor/bin/phpunit \
-  --testsuite=integration --filter='Test_Costing_Characterization'
+# From tests/docker — M2 purchase-order unit tests only.
+docker compose -f docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_PO_'
 ```
 
 ## Extending the test suite
@@ -130,34 +145,46 @@ tests/
 │   ├── fixtures.php          # Fixture loader and helpers
 │   └── assertions.php        # Custom domain-specific assertions
 ├── unit/
-│   └── db-transaction/       # Pure-logic tests (DB-transaction helper only)
-│       └── test-db-transaction.php
+│   ├── db-transaction/       # Pure-logic tests (DB-transaction helper only)
+│   │   └── test-db-transaction.php
+│   └── purchase-orders/      # M2 PO lifecycle, numbering, service, validation, admin
 ├── integration/
 │   ├── costing/              # Weighted-average costing characterization
 │   ├── exchange-rates/       # FX rate resolution characterization
 │   ├── batch-intake/         # Batch preview/apply parity and rollback
 │   ├── movements/            # Ledger record creation characterization
-│   └── cost-adjustment/      # Cost-adjustment (average/value without stock change)
+│   ├── cost-adjustment/      # Cost-adjustment (average/value without stock change)
+│   ├── suppliers/              # M1 supplier CRUD, migration, admin PRG
+│   └── install/                # Schema-shape assertion (v6/v7)
 ├── fixtures/
 │   ├── costing/              # Golden fixture data
 │   ├── exchange-rates/
 │   ├── batch-intake/
-│   └── movements/
+│   ├── movements/
+│   └── suppliers/
 └── docker/
-    ├── docker-compose.test.yml
+    ├── docker-compose.phpunit.yml   # M2+ primary PHPUnit harness
+    ├── docker-compose.test.yml      # Legacy full WP stack
+    ├── run-phpunit.sh               # Bootstrap + default filter
     ├── .env.test.example
-    └── seed.sh               # WordPress bootstrap script
+    └── seed.sh                      # WordPress bootstrap script
 ```
 
 ## CI/CD Integration
 
-GitHub Actions workflow (`.github/workflows/tests.yml`) runs on every push and PR:
+GitHub Actions workflows:
 
-1. **PHPUnit** — Full golden suite against a fresh MariaDB test container.
-2. **PHPCS** — WordPress coding standards + baseline exclusions.
-3. **PHP Lint** — Syntax check via parallel-lint.
+| Workflow | Trigger | Gates |
+|----------|---------|-------|
+| `.github/workflows/ci.yml` | push/PR to `main` | PHP syntax lint on all `.php` files; release ZIP build via `scripts/build-zip.sh` |
+| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | PHP Parallel Lint via Composer (`parallel-lint`) |
 
-All three must pass for a PR to merge. The golden suite is the regression spine and is never made optional.
+**PHPUnit and PHPCS are not CI-gated today** — run locally before merge:
+
+- **PHPUnit:** `tests/docker/docker-compose.phpunit.yml` (see above).
+- **PHPCS:** `./vendor/bin/phpcs --standard=phpcs.xml.dist` after `composer install`.
+
+The golden characterization suite remains the regression spine for costing/FX/allocation/movement behavior; M2 adds PO unit tests that must pass in the Docker harness.
 
 ## Debugging a failing test
 

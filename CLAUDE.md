@@ -166,7 +166,7 @@ This table is updated as each milestone is implemented. Each milestone links to 
 |---|---|---|---|---|---|
 | M0 | Delivery Foundations | ✅ Complete | 1.17.3 | [Part III above] | Golden suite, PHPUnit, PHPCS, CI, DB-transaction helper, release rehearsal |
 | M1 | Suppliers | ✅ Complete | 1.18.0 | [docs/milestones/m1-implementation-plan.md](docs/milestones/m1-implementation-plan.md) | Schema v6, `wc_io_suppliers`, Purchasing page, seed migration, schema-shape assertion |
-| M2 | Purchase Orders | ⏳ Planned (next) | 1.19.0 | docs/milestones/m2-implementation-plan.md *(M2 planning kickoff — not yet written)* | PO aggregate, lifecycle, events, expected dates, delayed detection |
+| M2 | Purchase Orders | ✅ Complete | 1.19.0 | [docs/milestones/m2-implementation-plan.md](docs/milestones/m2-implementation-plan.md) | Schema v7, four-state lifecycle, PO events, expected dates/confidence, delayed detection, Purchasing → Purchase Orders admin; no receiving until M5 |
 | M3 | Inventory Position | ⏳ Planned | 1.20.0 | docs/milestones/m3-implementation-plan.md *(not yet written)* | Position service, resolver, incoming display |
 | M4 | Receipt Engine | ⏳ Planned | 1.21.0 | docs/milestones/m4-implementation-plan.md *(not yet written)* | Goods Receipt as stock mutator, Quick Receive |
 | M5 | PO Receiving | ⏳ Planned | 1.22.0 | docs/milestones/m5-implementation-plan.md *(not yet written)* | Receive-Against-PO, PO line completion |
