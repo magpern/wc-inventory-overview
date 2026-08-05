@@ -36,8 +36,13 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 
 	/**
 	 * Flush all WordPress caches (object cache, transients, etc.).
+	 *
+	 * Static to match WP_UnitTestCase_Base::flush_cache()'s signature in
+	 * current WordPress core -- PHP does not allow narrowing a static parent
+	 * method to non-static in a subclass. $this->flush_cache() calls below
+	 * remain valid (PHP permits calling a static method via $this->).
 	 */
-	protected function flush_cache(): void {
+	public static function flush_cache(): void {
 		wp_cache_flush();
 
 		// Also flush product-specific transients if WooCommerce is active.
@@ -196,5 +201,59 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 		}
 
 		return WC_Inventory_Overview_Suppliers::get( $id );
+	}
+
+	/**
+	 * Create a draft purchase order for testing. Creates a supplier first if
+	 * none given, following create_supplier()'s fail-fast pattern.
+	 *
+	 * @param array $props Override properties (default: reasonable test values).
+	 * @return array The created PO row.
+	 */
+	protected function create_purchase_order( array $props = array() ): array {
+		if ( ! isset( $props['supplier_id'] ) ) {
+			$supplier             = $this->create_supplier();
+			$props['supplier_id'] = $supplier['id'];
+		}
+
+		$defaults = array(
+			'currency' => 'EUR',
+		);
+		$data = wp_parse_args( $props, $defaults );
+
+		$id = WC_Inventory_Overview_Purchase_Orders::create( $data );
+		if ( is_wp_error( $id ) ) {
+			$this->fail( 'Failed to create purchase order: ' . $id->get_error_message() );
+		}
+
+		return WC_Inventory_Overview_Purchase_Orders::get( $id );
+	}
+
+	/**
+	 * Add a line to a purchase order for testing. Creates a fresh simple,
+	 * stock-managed product if none given.
+	 *
+	 * @param int   $po_id PO ID.
+	 * @param array $props Override properties (default: reasonable test values).
+	 * @return array The created line row.
+	 */
+	protected function add_po_line( int $po_id, array $props = array() ): array {
+		if ( ! isset( $props['product_id'] ) ) {
+			$product             = $this->create_simple_product();
+			$props['product_id'] = $product->get_id();
+		}
+
+		$defaults = array(
+			'qty_ordered'       => 1,
+			'unit_cost_entered' => 1,
+		);
+		$data = wp_parse_args( $props, $defaults );
+
+		$id = WC_Inventory_Overview_Purchase_Order_Lines::add( $po_id, $data );
+		if ( is_wp_error( $id ) ) {
+			$this->fail( 'Failed to add purchase order line: ' . $id->get_error_message() );
+		}
+
+		return WC_Inventory_Overview_Purchase_Order_Lines::get( $id );
 	}
 }
