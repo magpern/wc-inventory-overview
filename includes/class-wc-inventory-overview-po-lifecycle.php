@@ -188,4 +188,31 @@ class WC_Inventory_Overview_PO_Lifecycle {
 	public static function has_reopen(): bool {
 		return false;
 	}
+
+	/**
+	 * Human-readable labels for lifecycle actions (admin buttons).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function action_labels(): array {
+		return array(
+			self::ACTION_PLACE        => __( 'Place', 'wc-inventory-overview' ),
+			self::ACTION_CANCEL       => __( 'Cancel', 'wc-inventory-overview' ),
+			self::ACTION_CLOSE_SHORT  => __( 'Close Short', 'wc-inventory-overview' ),
+			self::ACTION_EDIT         => __( 'Save', 'wc-inventory-overview' ),
+			self::ACTION_DELETE_DRAFT => __( 'Delete Draft', 'wc-inventory-overview' ),
+			self::ACTION_DUPLICATE    => __( 'Duplicate', 'wc-inventory-overview' ),
+			self::ACTION_READ         => __( 'View', 'wc-inventory-overview' ),
+		);
+	}
+
+	/**
+	 * Label for an action key.
+	 *
+	 * @param string $action Action.
+	 */
+	public static function action_label( string $action ): string {
+		$labels = self::action_labels();
+		return isset( $labels[ $action ] ) ? $labels[ $action ] : $action;
+	}
 }

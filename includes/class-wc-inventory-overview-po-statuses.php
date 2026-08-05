@@ -62,4 +62,28 @@ class WC_Inventory_Overview_PO_Statuses {
 	public static function is_terminal( string $status ): bool {
 		return in_array( $status, self::terminal(), true );
 	}
+
+	/**
+	 * Human-readable labels for admin UI.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function labels(): array {
+		return array(
+			self::DRAFT        => __( 'Draft', 'wc-inventory-overview' ),
+			self::PLACED       => __( 'Placed', 'wc-inventory-overview' ),
+			self::CANCELLED    => __( 'Cancelled', 'wc-inventory-overview' ),
+			self::CLOSED_SHORT => __( 'Closed Short', 'wc-inventory-overview' ),
+		);
+	}
+
+	/**
+	 * Label for a status key.
+	 *
+	 * @param string $status Status.
+	 */
+	public static function label( string $status ): string {
+		$labels = self::labels();
+		return isset( $labels[ $status ] ) ? $labels[ $status ] : $status;
+	}
 }

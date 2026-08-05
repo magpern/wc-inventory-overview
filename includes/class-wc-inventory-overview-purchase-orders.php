@@ -58,7 +58,7 @@ class WC_Inventory_Overview_Purchase_Orders {
 	/**
 	 * List purchase orders.
 	 *
-	 * @param array{status?:string,supplier_id?:int,search?:string,orderby?:string,order?:string,per_page?:int,offset?:int} $args Args.
+	 * @param array{status?:string,supplier_id?:int,search?:string,delayed?:bool,orderby?:string,order?:string,per_page?:int,offset?:int} $args Args.
 	 * @return array<int,array<string,mixed>>
 	 */
 	public static function list( array $args = array() ): array {
@@ -68,14 +68,14 @@ class WC_Inventory_Overview_Purchase_Orders {
 		list( $where, $params ) = self::build_where( $args );
 
 		$orderby  = isset( $args['orderby'] ) ? sanitize_key( $args['orderby'] ) : 'created_at';
-		$allowed  = array( 'id', 'po_number', 'status', 'expected_date', 'created_at', 'updated_at' );
+		$allowed  = array( 'id', 'po_number', 'status', 'expected_date', 'created_at', 'updated_at', 'supplier_name_snapshot', 'order_date', 'currency' );
 		$orderby  = in_array( $orderby, $allowed, true ) ? $orderby : 'created_at';
 		$order    = isset( $args['order'] ) ? strtoupper( sanitize_key( $args['order'] ) ) : 'DESC';
 		$order    = in_array( $order, array( 'ASC', 'DESC' ), true ) ? $order : 'DESC';
 		$per_page = isset( $args['per_page'] ) ? absint( $args['per_page'] ) : 20;
 		$offset   = isset( $args['offset'] ) ? absint( $args['offset'] ) : 0;
 
-		$sql      = "SELECT * FROM {$table} WHERE {$where} ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
+		$sql      = "SELECT po.* FROM {$table} po WHERE {$where} ORDER BY po.{$orderby} {$order} LIMIT %d OFFSET %d";
 		$params[] = $per_page;
 		$params[] = $offset;
 
@@ -87,19 +87,36 @@ class WC_Inventory_Overview_Purchase_Orders {
 	/**
 	 * Count purchase orders.
 	 *
-	 * @param array{status?:string,supplier_id?:int,search?:string} $args Args.
+	 * @param array{status?:string,supplier_id?:int,search?:string,delayed?:bool} $args Args.
 	 */
 	public static function count( array $args = array() ): int {
 		global $wpdb;
 		$table                  = self::table_name();
 		list( $where, $params ) = self::build_where( $args );
-		$sql                    = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
+		$sql                    = "SELECT COUNT(*) FROM {$table} po WHERE {$where}";
 		if ( empty( $params ) ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			return absint( $wpdb->get_var( $sql ) );
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return absint( $wpdb->get_var( $wpdb->prepare( $sql, $params ) ) );
+	}
+
+	/**
+	 * Sum of ordered line totals (qty_ordered × unit_cost) for a PO.
+	 *
+	 * @param int $po_id PO id.
+	 */
+	public static function line_total( int $po_id ): float {
+		global $wpdb;
+		$lines = WC_Inventory_Overview_Purchase_Order_Lines::table_name();
+		$sum   = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COALESCE( SUM( qty_ordered * unit_cost ), 0 ) FROM {$lines} WHERE po_id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$po_id
+			)
+		);
+		return (float) $sum;
 	}
 
 	/**
@@ -350,19 +367,23 @@ class WC_Inventory_Overview_Purchase_Orders {
 		$params = array();
 
 		if ( ! empty( $args['status'] ) ) {
-			$where   .= ' AND status = %s';
+			$where   .= ' AND po.status = %s';
 			$params[] = sanitize_key( (string) $args['status'] );
 		}
 		if ( ! empty( $args['supplier_id'] ) ) {
-			$where   .= ' AND supplier_id = %d';
+			$where   .= ' AND po.supplier_id = %d';
 			$params[] = absint( $args['supplier_id'] );
 		}
 		if ( ! empty( $args['search'] ) ) {
 			$like     = '%' . $wpdb->esc_like( sanitize_text_field( (string) $args['search'] ) ) . '%';
-			$where   .= ' AND ( po_number LIKE %s OR supplier_name_snapshot LIKE %s OR supplier_reference LIKE %s )';
+			$where   .= ' AND ( po.po_number LIKE %s OR po.supplier_name_snapshot LIKE %s OR po.supplier_reference LIKE %s )';
 			$params[] = $like;
 			$params[] = $like;
 			$params[] = $like;
+		}
+		if ( ! empty( $args['delayed'] ) ) {
+			$grace  = WC_Inventory_Overview_PO_Delay::grace_days_from_option();
+			$where .= ' AND ' . WC_Inventory_Overview_PO_Delay::sql_po_is_delayed_exists( 'po', $grace );
 		}
 
 		return array( $where, $params );
