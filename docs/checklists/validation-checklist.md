@@ -43,6 +43,33 @@ These checks are added by each milestone's implementation plan based on its scop
   ```
   (Should match the prior release's version.)
 
+### For M3 (Inventory Position, v1.20.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `7`:
+  ```bash
+  wp option get wc_io_db_version
+  ```
+
+- [ ] **No `qty_received` column**: still absent from `wc_io_purchase_order_lines`:
+  ```bash
+  wp db query "SHOW COLUMNS FROM \`$(wp config get table_prefix)wc_io_purchase_order_lines\` LIKE 'qty_received'"
+  ```
+  (Empty result.)
+
+- [ ] **Incoming/Position columns visible** to a `manage_woocommerce` user on Inventory Overview, adjacent to Stock.
+
+- [ ] **Incoming/Position columns absent** for an `edit_products`-only user (no new capability was introduced).
+
+- [ ] **Drill-down works**: expanding a product/variation's Details panel shows each open PO line independently (PO number links to the PO detail screen, outstanding quantity, expected date, confidence, delayed indication where applicable).
+
+- [ ] **Variable-parent rollup**: a variable product's parent row shows the sum of its variations' Incoming/Position; each variation still shows its own figures and its own drill-down.
+
+- [ ] **Composable states**: a low-stock or out-of-stock product with open incoming supply shows its existing stock badge *and* the Incoming/Position values simultaneously (not one replacing the other).
+
+- [ ] **No write side effects**: viewing Inventory Overview does not change any product stock quantity, PO, or PO line record.
+
+- [ ] **No receiving surface**: no Goods Receipt, Quick Receive, or "Receive Against PO" UI exists anywhere in the plugin.
+
 ## Sign-off
 
 Once all checks pass:

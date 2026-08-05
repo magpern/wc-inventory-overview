@@ -46,11 +46,12 @@ docker compose -f docker-compose.phpunit.yml up -d db
 docker compose -f docker-compose.phpunit.yml run --rm phpunit
 ```
 
-The default run filters M2-focused suites plus schema/supplier smoke tests. Pass explicit PHPUnit args to override:
+The default run filters M1/M2/M3-focused suites plus schema/supplier smoke tests. Pass explicit PHPUnit args to override:
 
 ```bash
 docker compose -f docker-compose.phpunit.yml run --rm phpunit --testsuite=unit
 docker compose -f docker-compose.phpunit.yml run --rm phpunit --filter='Test_WC_IO_PO_Lifecycle'
+docker compose -f docker-compose.phpunit.yml run --rm phpunit --filter='Test_WC_IO_Inventory_Position_'
 ```
 
 Bootstrap script `tests/docker/run-phpunit.sh` downloads WordPress, WooCommerce, and PHPUnit polyfills into ephemeral container volumes.
@@ -147,7 +148,8 @@ tests/
 ├── unit/
 │   ├── db-transaction/       # Pure-logic tests (DB-transaction helper)
 │   ├── purchase-orders/      # M2 PO lifecycle, numbering, service, validation, admin
-│   └── suppliers/            # Supplier value-normalization tests
+│   ├── suppliers/            # Supplier value-normalization tests
+│   └── inventory-position/   # M3 Resolver unit tests + D12 architecture guards
 ├── integration/
 │   ├── costing/              # Weighted-average costing characterization
 │   ├── exchange-rates/       # FX rate resolution characterization
@@ -155,7 +157,8 @@ tests/
 │   ├── movements/            # Ledger record creation characterization
 │   ├── cost-adjustment/      # Cost-adjustment (average/value without stock change)
 │   ├── suppliers/            # M1 supplier CRUD, migration, admin PRG
-│   └── install/              # Schema-shape assertion (v6/v7)
+│   ├── install/              # Schema-shape assertion (v6/v7)
+│   └── inventory-position/   # M3 open-line repository, Service, Inventory Overview list-table, query-scaling
 ├── fixtures/
 │   ├── costing/              # Golden fixture data
 │   └── exchange-rates/
@@ -186,7 +189,7 @@ The `phpunit` CI job runs three PHPUnit invocations against the same
 so CI and local results are identical by construction:
 
 1. **Unit suite** (`--testsuite unit`) — must pass.
-2. **M2-focused suite** (default filter: PO, schema assertion, suppliers, DB-transaction) — must pass; this is the suite that gates M2 changes specifically.
+2. **M1/M2/M3-focused suite** (default filter: PO, schema assertion, suppliers, DB-transaction, Inventory Position) — must pass; this is the suite that gates M1/M2/M3 changes specifically.
 3. **Cumulative integration suite** (`--testsuite integration`) — executed and its full output kept visible in the Actions log, but marked `continue-on-error: true` so it doesn't block the job. This is a **temporary, documented exception**: the suite currently carries pre-existing failures in M0-era golden characterization tests (see [Known test-content issues](#known-test-content-issues) below), unrelated to M2 or to this infrastructure hotfix. The suite is never silently reported as green — its real pass/fail result and output remain visible, flagged with a warning in the Actions UI. Removing this exception (making the full suite blocking) is a follow-up once the itemized issues below are fixed.
 
 The golden characterization suite remains the regression spine for costing/FX/allocation/movement behavior; M2 adds PO unit tests that must pass in the Docker harness.
@@ -275,12 +278,15 @@ Separately, `Test_DB_Transaction`'s `setUp()` logs (but does not fail on) a
 warning on tests after the first, within the same PHPUnit process — harmless
 and pre-existing; see [tests/README.md](../tests/README.md#troubleshooting).
 
-The M2-focused suite (default `run-phpunit.sh` filter: PO lifecycle,
-schema assertion, suppliers, DB-transaction — 106 tests) and the full unit
-suite (84 tests) pass cleanly under the fixed infrastructure. The cumulative
-integration suite (35 tests) has 22 passing and the 4 errors + 7 failures +
-2 skips itemized above — see the Test Infrastructure Hotfix milestone record
-for exact executed counts and commands.
+The M1/M2/M3-focused suite (default `run-phpunit.sh` filter: PO lifecycle,
+schema assertion, suppliers, DB-transaction, Inventory Position — 150 tests
+as of M3/v1.20.0) and the full unit suite (97 tests, including the M3
+Resolver/architecture-guard tests) pass cleanly under the fixed
+infrastructure. The cumulative integration suite (66 tests, including the
+31 M3 Inventory Position integration tests) has 53 passing and the same
+4 errors + 7 failures + 2 skips itemized above, unchanged by M3 — see the
+Test Infrastructure Hotfix milestone record for exact executed counts and
+commands as of v1.19.1.
 
 ## See also
 

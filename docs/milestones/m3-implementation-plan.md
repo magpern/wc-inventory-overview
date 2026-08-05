@@ -1,6 +1,6 @@
 # Milestone M3 Implementation Plan — Inventory Position
 
-**Status: Approved — target release v1.20.0. Implementation not started.**
+**Status: Complete — target release v1.20.0 on `feature/m3-inventory-position`.**
 
 **Prerequisite:** v1.19.1 (M2 test-infrastructure hotfix) on schema v7.
 
