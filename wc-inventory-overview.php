@@ -115,6 +115,8 @@ add_action(
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-order-lines.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-events.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-service.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchasing-caps.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-request-token.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-summary.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-dashboard-inventory-metrics.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-movements.php';
@@ -133,6 +135,8 @@ add_action(
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-product-profitability-query.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-product-profitability-list-table.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers-list-table.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-orders-list-table.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-admin.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchasing-page.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-plugin.php';
 
