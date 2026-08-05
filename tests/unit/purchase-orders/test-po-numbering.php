@@ -187,6 +187,54 @@ class Test_WC_IO_PO_Numbering extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Unique index rejects a duplicate po_number at commit (concurrency safety net).
+	 *
+	 * True multi-process races are not exercised in PHPUnit; this proves the DB
+	 * UNIQUE KEY prevents two rows from sharing a number even if allocate() raced.
+	 */
+	public function test_unique_index_rejects_duplicate_po_number_insert() {
+		global $wpdb;
+
+		$id = WC_Inventory_Overview_Purchase_Orders::create_draft(
+			array(
+				'supplier_id'            => 1,
+				'supplier_name_snapshot' => 'Unique Seed',
+			)
+		);
+		$this->assertIsInt( $id );
+		$po     = WC_Inventory_Overview_Purchase_Orders::get( $id );
+		$number = $po['po_number'];
+		$table  = WC_Inventory_Overview_Purchase_Orders::table_name();
+
+		$now = current_time( 'mysql', true );
+		$wpdb->suppress_errors( true );
+		$wpdb->hide_errors();
+		$inserted = $wpdb->insert(
+			$table,
+			array(
+				'po_number'              => $number,
+				'supplier_id'            => 2,
+				'supplier_name_snapshot' => 'Collision',
+				'currency'               => 'EUR',
+				'status'                 => WC_Inventory_Overview_PO_Statuses::DRAFT,
+				'expected_confidence'    => 'unknown',
+				'created_by'             => 0,
+				'updated_by'             => 0,
+				'created_at'             => $now,
+				'updated_at'             => $now,
+			),
+			array( '%s', '%d', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s' )
+		);
+		$last_error = (string) $wpdb->last_error;
+		$wpdb->show_errors();
+		$wpdb->suppress_errors( false );
+
+		$this->assertFalse( $inserted, 'Duplicate po_number insert must fail' );
+		$this->assertStringContainsStringIgnoringCase( 'Duplicate', $last_error );
+		$this->assertSame( 1, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE po_number = %s", $number ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	}
+
+	/**
 	 * Empty filtered numbers are rejected without consuming infinite retries.
 	 */
 	public function test_empty_filtered_number_rejected() {
