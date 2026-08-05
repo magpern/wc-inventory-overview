@@ -145,29 +145,26 @@ tests/
 │   ├── fixtures.php          # Fixture loader and helpers
 │   └── assertions.php        # Custom domain-specific assertions
 ├── unit/
-│   ├── db-transaction/       # Pure-logic tests (DB-transaction helper only)
-│   │   └── test-db-transaction.php
-│   └── purchase-orders/      # M2 PO lifecycle, numbering, service, validation, admin
+│   ├── db-transaction/       # Pure-logic tests (DB-transaction helper)
+│   ├── purchase-orders/      # M2 PO lifecycle, numbering, service, validation, admin
+│   └── suppliers/            # Supplier value-normalization tests
 ├── integration/
 │   ├── costing/              # Weighted-average costing characterization
 │   ├── exchange-rates/       # FX rate resolution characterization
 │   ├── batch-intake/         # Batch preview/apply parity and rollback
 │   ├── movements/            # Ledger record creation characterization
 │   ├── cost-adjustment/      # Cost-adjustment (average/value without stock change)
-│   ├── suppliers/              # M1 supplier CRUD, migration, admin PRG
-│   └── install/                # Schema-shape assertion (v6/v7)
+│   ├── suppliers/            # M1 supplier CRUD, migration, admin PRG
+│   └── install/              # Schema-shape assertion (v6/v7)
 ├── fixtures/
 │   ├── costing/              # Golden fixture data
-│   ├── exchange-rates/
-│   ├── batch-intake/
-│   ├── movements/
-│   └── suppliers/
+│   └── exchange-rates/
 └── docker/
-    ├── docker-compose.phpunit.yml   # M2+ primary PHPUnit harness
-    ├── docker-compose.test.yml      # Legacy full WP stack
-    ├── run-phpunit.sh               # Bootstrap + default filter
-    ├── .env.test.example
-    └── seed.sh                      # WordPress bootstrap script
+    ├── docker-compose.phpunit.yml   # Primary PHPUnit harness (M2+)
+    ├── run-phpunit.sh               # Provisioning + default filter
+    ├── docker-compose.test.yml      # Legacy full-WP-stack setup -- not functional
+    │                                 # for automated validation, kept for manual reference only
+    └── seed.sh                      # Legacy setup script for docker-compose.test.yml
 ```
 
 ## CI/CD Integration
@@ -177,12 +174,20 @@ GitHub Actions workflows:
 | Workflow | Trigger | Gates |
 |----------|---------|-------|
 | `.github/workflows/ci.yml` | push/PR to `main` | PHP syntax lint on all `.php` files; release ZIP build via `scripts/build-zip.sh` |
-| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | PHP Parallel Lint via Composer (`parallel-lint`) |
+| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | `lint`: PHP Parallel Lint (blocking). `phpunit`: unit suite (blocking) + M2-focused suite (blocking) + cumulative integration suite (visible, non-blocking — see below). |
 
-**PHPUnit and PHPCS are not CI-gated today** — run locally before merge:
+**PHPCS is not CI-gated today** — run locally before merge:
+`./vendor/bin/phpcs --standard=phpcs.xml.dist` after `composer install` (or
+see [tests/README.md](../tests/README.md#phpcs) for the Docker invocation
+that doesn't require PHP on the host).
 
-- **PHPUnit:** `tests/docker/docker-compose.phpunit.yml` (see above).
-- **PHPCS:** `./vendor/bin/phpcs --standard=phpcs.xml.dist` after `composer install`.
+The `phpunit` CI job runs three PHPUnit invocations against the same
+`tests/docker/docker-compose.phpunit.yml` stack a developer runs locally,
+so CI and local results are identical by construction:
+
+1. **Unit suite** (`--testsuite unit`) — must pass.
+2. **M2-focused suite** (default filter: PO, schema assertion, suppliers, DB-transaction) — must pass; this is the suite that gates M2 changes specifically.
+3. **Cumulative integration suite** (`--testsuite integration`) — executed and its full output kept visible in the Actions log, but marked `continue-on-error: true` so it doesn't block the job. This is a **temporary, documented exception**: the suite currently carries pre-existing failures in M0-era golden characterization tests (see [Known test-content issues](#known-test-content-issues) below), unrelated to M2 or to this infrastructure hotfix. The suite is never silently reported as green — its real pass/fail result and output remain visible, flagged with a warning in the Actions UI. Removing this exception (making the full suite blocking) is a follow-up once the itemized issues below are fixed.
 
 The golden characterization suite remains the regression spine for costing/FX/allocation/movement behavior; M2 adds PO unit tests that must pass in the Docker harness.
 
@@ -202,6 +207,69 @@ If the production code changed intentionally (a new milestone), the fixture's ex
 - Fixture changes must cite the authorizing milestone/architecture/ADR (M0.14 rule).
 - Characterization tests run forever, never scoped down or made optional.
 - New milestones extend the suite but never delete prior milestones' tests (cumulative regression coverage).
+
+## PHPCS status
+
+PHPCS runs successfully (verified in the Test Infrastructure Hotfix, v1.19.1)
+but is **not** a CI merge gate. Running it against this codebase currently
+reports approximately 559 errors and 634 warnings across 47 files —
+pre-existing violations that predate this fix. Because WordPress core and
+WooCommerce are provisioned into a container-only Docker volume rather than
+a host-visible directory under `tests/`, PHPCS never scans them; no
+`phpcs.xml.dist` exclude pattern is needed for this on `main` (unlike some
+Docker test-harness designs where a host-bind-mounted WordPress core tree
+would need to be explicitly excluded).
+
+A `.phpcs-baseline.xml` already exists in the repository root, dated
+2026-08-03, describing a ratchet mechanism — but it is **empty**
+(`<file></file>`) and **not referenced anywhere in `phpcs.xml.dist`**, so it
+currently suppresses nothing. Standard PHP_CodeSniffer has no built-in
+baseline-file feature (unlike e.g. PHPStan/ESLint); populating and wiring
+this up would mean either adopting a third-party baseline tool or converting
+the affected files into per-file `<exclude-pattern>` entries by hand. Making
+the codebase PHPCS-clean, or actually implementing this baseline mechanism,
+is out of scope for infrastructure repair and is left as a follow-up.
+
+## Known test-content issues
+
+Because the documented PHPUnit workflow could not run to completion until
+the Test Infrastructure Hotfix (v1.19.1) fixed a missing `composer install`
+step in `tests/docker/run-phpunit.sh`, several tests in the cumulative
+integration suite had — as far as can be determined — never actually
+executed successfully in CI or from a clean checkout. Running them for the
+first time surfaced pre-existing defects in the *test code itself* (not in
+production `includes/` code, and not in M2/Purchase-Orders code). Per this
+document's own governance rule, fixing test-content bugs is not an
+infrastructure change and is deliberately left to a future fix pass —
+listed here so they are not mistaken for new regressions:
+
+| Test | Symptom | Root cause |
+|---|---|---|
+| `Test_FX_Characterization::test_latest_before_date_no_interpolation` | Returns a `WP_Error` instead of the expected rate | Fixture/lookup mismatch in FX rate resolution — needs investigation independent of this milestone. |
+| `Test_FX_Characterization::test_eur_to_eur_passthrough` | Asserts `1.0 === $result` | `Exchange_Rates::get_exchange_rate_to_eur()` returns an array (`rate`/`source`/`rate_date`), not a bare float — the test was written against a different return shape than the shipped implementation. |
+| `Test_Movements_Characterization` (3 tests) | `TypeError: Argument #1 ($r) must be of type array, int given` | Test fixture helper passes a product ID where the `Movements::insert_*()` methods expect an array. |
+| `Test_Costing_Characterization` (4 tests) | `TypeError` / assertion mismatches | Fixture/assertion values don't match current `Restock_Service`/costing behavior; needs investigation independent of this milestone. |
+| `Test_Cost_Adjustment_Characterization` (2 tests) | Assertion mismatches (average cost not updated) | Same category as above. |
+| `Test_Batch_Intake_Characterization` (2 tests, skipped) | `Batch_Intake_Service class not found` | The actual class is `WC_Inventory_Overview_Batch_Intake_Service`; the test's guard check uses the unprefixed name. |
+
+These are the same failure categories (same tests, same root causes) found
+independently while auditing a separate, non-released M2 implementation
+branch — since all of these tests live in the M0-era golden characterization
+suite that predates the M2 fork entirely, this is strong evidence they are
+pre-existing defects in shared test content, not regressions introduced by
+M2 or by this infrastructure hotfix.
+
+Separately, `Test_DB_Transaction`'s `setUp()` logs (but does not fail on) a
+`WordPress database error: Table 'wp_test_txn_scratch' already exists`
+warning on tests after the first, within the same PHPUnit process — harmless
+and pre-existing; see [tests/README.md](../tests/README.md#troubleshooting).
+
+The M2-focused suite (default `run-phpunit.sh` filter: PO lifecycle,
+schema assertion, suppliers, DB-transaction — 106 tests) and the full unit
+suite (84 tests) pass cleanly under the fixed infrastructure. The cumulative
+integration suite (35 tests) has 22 passing and the 4 errors + 7 failures +
+2 skips itemized above — see the Test Infrastructure Hotfix milestone record
+for exact executed counts and commands.
 
 ## See also
 
