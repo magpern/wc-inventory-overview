@@ -1,5 +1,26 @@
 # Changelog — WC Inventory Overview
 
+## [1.18.1] - 2026-08-05
+
+**M1 hotfix** — supplier Purchasing admin PRG and list-table fixes. No schema change (remains v6).
+
+### Fixed
+
+- Supplier save / archive / reactivate admin-post handlers now call `wp_safe_redirect()` + `exit` (were incorrectly calling `wp_safe_remote_post()`, leaving a blank `admin-post.php` page).
+- List-table Archive / Reactivate row actions use nonce-checked `admin-post` URLs and are handled by the same handlers (previously unnonced GET links that never routed).
+- Active / Archived / All views from `get_views()` are rendered on the suppliers list.
+- Create/update success redirect lands on the edit screen with a `saved` notice (removed dead identical ternary).
+- Supplier `default_currency` validation accepts form values after `sanitize_key()` (uppercase EUR/USD/SEK).
+
+### Technical
+
+- Touched: `includes/class-wc-inventory-overview-purchasing-page.php`, `includes/class-wc-inventory-overview-suppliers-list-table.php`, `includes/class-wc-inventory-overview-suppliers.php`.
+- Tests: `tests/integration/suppliers/test-suppliers-admin-prg.php`; `tests/includes/test-case.php` `flush_cache()` visibility for modern WP PHPUnit.
+
+### Notes
+
+- Patch release on the M1 baseline. Distinct from M2 / v1.19.0 Purchase Orders work.
+
 ## [1.18.0] - 2026-08-04
 
 **Milestone M1 — Suppliers** — first-class supplier entity, Purchasing admin page (Suppliers section), seed migration from historical supplier strings, schema v6.

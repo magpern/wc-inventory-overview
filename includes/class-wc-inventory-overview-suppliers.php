@@ -265,7 +265,7 @@ class WC_Inventory_Overview_Suppliers {
 			return new WP_Error( 'wc_io_supplier_name', 'Supplier name is required and must be <= 190 characters.' );
 		}
 
-		$currency = isset( $data['default_currency'] ) ? sanitize_key( $data['default_currency'] ) : 'EUR';
+		$currency = isset( $data['default_currency'] ) ? strtoupper( sanitize_key( $data['default_currency'] ) ) : 'EUR';
 		$valid_currencies = array( 'EUR', 'USD', 'SEK' );
 		if ( ! in_array( $currency, $valid_currencies, true ) ) {
 			return new WP_Error( 'wc_io_supplier_currency', 'Invalid currency. Must be EUR, USD, or SEK.' );

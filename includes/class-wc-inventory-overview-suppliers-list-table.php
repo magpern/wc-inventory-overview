@@ -97,7 +97,7 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 				'supplier_id' => $item['id'],
 			), admin_url( 'admin.php' ) ) ),
 			esc_html( $item['name'] ),
-			$actions
+			$this->row_actions( $actions )
 		);
 	}
 
@@ -136,26 +136,30 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 		);
 
 		if ( 'active' === $item['status'] ) {
+			$archive_url = wp_nonce_url(
+				admin_url(
+					'admin-post.php?action=wc_io_supplier_archive&supplier_id=' . absint( $item['id'] )
+				),
+				'wc_io_supplier_archive_' . absint( $item['id'] ),
+				'wc_io_supplier_archive_nonce'
+			);
 			$actions['archive'] = sprintf(
 				'<a href="%s" onclick="return confirm(\'%s\')">%s</a>',
-				esc_url( add_query_arg( array(
-					'page'        => WC_Inventory_Overview_Purchasing_Page::PAGE_SLUG,
-					'tab'         => WC_Inventory_Overview_Purchasing_Page::TAB_SUPPLIERS,
-					'action'      => 'archive',
-					'supplier_id' => $item['id'],
-				), admin_url( 'admin.php' ) ) ),
+				esc_url( $archive_url ),
 				esc_attr( __( 'Archive this supplier?', 'wc-inventory-overview' ) ),
 				__( 'Archive', 'wc-inventory-overview' )
 			);
 		} else {
+			$reactivate_url = wp_nonce_url(
+				admin_url(
+					'admin-post.php?action=wc_io_supplier_reactivate&supplier_id=' . absint( $item['id'] )
+				),
+				'wc_io_supplier_reactivate_' . absint( $item['id'] ),
+				'wc_io_supplier_reactivate_nonce'
+			);
 			$actions['reactivate'] = sprintf(
 				'<a href="%s">%s</a>',
-				esc_url( add_query_arg( array(
-					'page'        => WC_Inventory_Overview_Purchasing_Page::PAGE_SLUG,
-					'tab'         => WC_Inventory_Overview_Purchasing_Page::TAB_SUPPLIERS,
-					'action'      => 'reactivate',
-					'supplier_id' => $item['id'],
-				), admin_url( 'admin.php' ) ) ),
+				esc_url( $reactivate_url ),
 				__( 'Reactivate', 'wc-inventory-overview' )
 			);
 		}
@@ -173,6 +177,7 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 
 		echo '<hr class="wp-header-end">';
 
+		$this->views();
 		parent::display();
 	}
 
