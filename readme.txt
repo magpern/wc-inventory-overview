@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.19.1
+Stable tag: 1.20.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,15 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.20.0 =
+* Milestone M3 — Inventory Position: read-only Position ({On Hand, Incoming, Position}) for every simple product and variation, computed from open (placed-PO) purchase order lines. No schema change, no migration, DB_VERSION remains 7.
+* New Incoming and Position columns on Inventory Overview, next to Stock, visible to manage_woocommerce users only (same tier as average cost / inventory value; no new capability).
+* Per-supply drill-down (existing details-toggle pattern): each contributing PO line shown independently with PO number/link, outstanding quantity, expected date, confidence, and delayed indication.
+* Variable-parent rows show a presentation-only sum of child-variation Incoming/Position; child variations retain individual figures and drill-downs. No incoming is ever recorded against a variable parent.
+* Delayed-incoming reuses the existing M2 line-level delay predicate; no new delay logic.
+* Bulk-fetch sequencing: Position is fetched in exactly one call after the complete product/variation group structure is built (no per-row queries, no N+1) -- verified by a query-scaling regression test over 20+ mixed items.
+* No receiving, no stock/cost mutation, no qty_received, no Goods Receipts -- M3 is entirely read-only (M4/M5 will extend the Incoming formula once receiving exists).
 
 = 1.19.1 =
 * Test/CI infrastructure repair only -- no database schema, business-behavior, or UI changes. DB_VERSION remains 7.

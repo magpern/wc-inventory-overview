@@ -1,5 +1,27 @@
 # Changelog — WC Inventory Overview
 
+## [1.20.0] - 2026-08-05
+
+**Milestone M3 — Inventory Position** — a first-class, read-only Inventory Position ({On Hand, Incoming, Position}, D11) for every simple product and variation, surfaced on Inventory Overview. **No schema change, no migration** — `DB_VERSION` remains `7`. **No receiving** — no Goods Receipts, no stock/cost mutation, no `qty_received`; M4/M5 will extend the Incoming formula once receiving exists. **Prerequisite:** v1.19.1 (M2 test-infrastructure hotfix).
+
+### Added
+
+- **Inventory Position Resolver** (`WC_Inventory_Overview_Inventory_Position_Resolver`): stateless, read-only calculator — `Position = On Hand + Incoming` — independent of `$wpdb`, WooCommerce product loading, and PO repositories.
+- **Inventory Position Service** (`WC_Inventory_Overview_Inventory_Position_Service`): the sole authoritative calculator (D12), single (`get_position()`) and bulk (`get_positions_bulk()`); aggregates independent contributing PO lines in PHP, retains them individually (`incoming_lines`) for drill-down, and never refetches WooCommerce products or writes data.
+- **Bulk open-line repository reads** on `WC_Inventory_Overview_Purchase_Order_Lines`: `list_open_lines_for_product_ids()` and `list_open_lines_for_variation_ids()` — two separate, safely-prepared queries (never one OR-based query), qualifying on PO header `status = placed` only, reusing `WC_Inventory_Overview_PO_Delay::sql_line_delayed_predicate()` for the delayed flag.
+- **Incoming and Position columns** on Inventory Overview, next to Stock, gated to `manage_woocommerce` at the same sensitivity tier as average cost / inventory value (no new capability).
+- **Per-supply drill-down**: reuses the existing details-toggle/expandable-details pattern (including a new expandable detail row per variation, completing that pattern for variation rows). Each contributing PO line renders independently — PO number/link, outstanding quantity, expected date, confidence, delayed indication — never merged, even when two lines share a date or supplier (INV-1/INV-7).
+- **Variable-parent presentation rollup**: parent Incoming/Position are a presentation-only sum of child-variation figures; no incoming record is ever created against a variable parent (INV-8). Child variations retain individual figures and drill-downs.
+- **Composable states**: low/out-of-stock badges, Incoming, Position, and delayed indication all display simultaneously — never mutually exclusive.
+- **Bulk-fetch sequencing**: `get_positions_bulk()` is called exactly once, after the complete product/variation groups structure (including variations discovered by the later per-parent query) is built — no per-row Position queries, verified by a query-scaling regression test over 20+ mixed simple/variation items.
+- **Tests:** `tests/unit/inventory-position/` (resolver, D12 architecture guards) and `tests/integration/inventory-position/` (repository, service, list table) — 44 tests / 137 assertions. `tests/docker/run-phpunit.sh`'s blocking filter now includes the `Test_WC_IO_Inventory_Position_` prefix alongside the existing M1/M2 prefixes.
+
+### Verified unchanged
+
+- No schema change; `DB_VERSION` remains `'7'`; `qty_received` still absent from `wc_io_purchase_order_lines`.
+- Supplier behavior, PO lifecycle/mutation behavior, Purchase Order admin screens, and `WC_Inventory_Overview_PO_Delay` / `PO_Quantities` / `PO_Expected` behavior are unmodified.
+- M0 golden suite and existing characterization fixtures unchanged; the cumulative integration suite's pre-existing failures (documented in `docs/testing.md`) are unchanged by this milestone.
+
 ## [1.19.1] - 2026-08-05
 
 **Test Infrastructure Hotfix** — test/CI infrastructure repair only. No database schema, migration, business-behavior, or UI changes. `DB_VERSION` remains `7`.
