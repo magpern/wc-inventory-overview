@@ -63,6 +63,17 @@ function wc_io_tests_manually_load_plugins() {
 		exit( 1 );
 	}
 	require $plugin_file;
+
+	// WooCommerce is `require`d directly above rather than activated through
+	// WordPress's normal activate_plugin() flow, so its own activation
+	// routine (WC_Install::install(), which grants the `manage_woocommerce`
+	// capability to the administrator role) never runs. Without this, every
+	// PO-admin capability check fails for the test suite's own administrator
+	// user. Standard, widely-used workaround in third-party WooCommerce
+	// extension test suites; not a plugin or test-content change.
+	if ( class_exists( 'WC_Install' ) ) {
+		WC_Install::create_roles();
+	}
 }
 tests_add_filter( 'muplugins_loaded', 'wc_io_tests_manually_load_plugins' );
 

@@ -2,6 +2,11 @@
 # Usage:
 #   docker compose -f tests/docker/docker-compose.phpunit.yml up -d db
 #   docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit
+#
+# name: explicit, so the Compose project doesn't default to the generic
+# directory name "docker" and collide with other ephemeral stacks on a
+# shared host.
+name: wc-io-phpunit
 
 services:
   db:
@@ -33,7 +38,6 @@ services:
       WORDPRESS_DB_PASSWORD: wordpress
       WP_TESTS_DIR: /tmp/wordpress-tests-lib
       WP_CORE_DIR: /tmp/wordpress
-      WP_TESTS_PHPUNIT_POLYFILLS_PATH: /tmp/phpunit-polyfills/phpunit-polyfills-vendor/yoast/phpunit-polyfills
     volumes:
       - ../../:/plugin:rw
       - phpunit-tmp:/tmp

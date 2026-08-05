@@ -46,6 +46,16 @@ if [[ ! -x /tmp/bin/composer ]]; then
 fi
 export PATH="/tmp/bin:${PATH}"
 
+# Install the plugin's own dev dependencies (PHPUnit, PHPCS...) declared in
+# composer.json/composer.lock. Previously missing here entirely, so
+# vendor/bin/phpunit never existed and every run of this script failed at
+# the final step with "Could not open input file: vendor/bin/phpunit" --
+# discovered running this from a genuinely clean checkout.
+if [[ ! -x "${PLUGIN_DIR}/vendor/bin/phpunit" ]]; then
+	echo "Installing plugin Composer dependencies..."
+	( cd "${PLUGIN_DIR}" && composer install --no-interaction --prefer-dist )
+fi
+
 # Polyfills required by modern WP test bootstrap.
 if [[ ! -d /tmp/phpunit-polyfills/vendor/yoast/phpunit-polyfills ]]; then
 	echo "Installing yoast/phpunit-polyfills..."
