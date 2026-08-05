@@ -1,5 +1,25 @@
 # Changelog — WC Inventory Overview
 
+## [1.19.1] - 2026-08-05
+
+**Test Infrastructure Hotfix** — test/CI infrastructure repair only. No database schema, migration, business-behavior, or UI changes. `DB_VERSION` remains `7`.
+
+### Fixed
+
+- `tests/docker/run-phpunit.sh` never ran `composer install` for the plugin's own `composer.json` (which already declares `phpunit/phpunit`, PHPCS, etc. as dev dependencies), so `vendor/bin/phpunit` never existed and every run failed immediately with `Could not open input file: vendor/bin/phpunit`. Added the missing install step.
+- `tests/bootstrap.php` loads WooCommerce via a direct `require` rather than WordPress's normal `activate_plugin()` flow, so WooCommerce's own activation routine (which grants the `manage_woocommerce` capability to the administrator role) never ran. Every Purchase Orders admin-handler test failed with "Insufficient permissions." as a result. Added an explicit `WC_Install::create_roles()` call in the test bootstrap (standard practice in third-party WooCommerce extension test suites).
+- `phpunit.xml.dist` declared `failOnDeprecated="true"`, an attribute that does not exist in any PHPUnit 9.x schema (confirmed against the installed `vendor/phpunit/phpunit/schema/*.xsd`); PHPUnit silently ignored it. Removed as a no-op cleanup.
+- `tests/docker/docker-compose.phpunit.yml` had no explicit Compose project `name:`, defaulting to the generic directory name `docker` and risking collisions with other ephemeral stacks on a shared host. Added `name: wc-io-phpunit`. Also removed a stale, already-overridden `WP_TESTS_PHPUNIT_POLYFILLS_PATH` environment value that pointed at a path the provisioning script never actually uses.
+
+### Added
+
+- `.github/workflows/tests.yml` gained a `phpunit` job that runs the unit suite and the M2-focused suite (both blocking) plus the cumulative integration suite (visible in the Actions log, `continue-on-error: true` pending the known pre-existing test-content issues below — never silently reported as green).
+
+### Documentation
+
+- `tests/README.md` rewritten — it previously documented an old, non-functional `docker-compose.test.yml`/`seed.sh` workflow instead of the actual `docker-compose.phpunit.yml`/`run-phpunit.sh` harness.
+- `docs/testing.md` updated: corrected CI/CD table, added PHPCS status section, added an itemized "Known test-content issues" section for pre-existing failures surfaced now that the suite can finally execute to completion (all in M0-era golden characterization tests -- costing, FX, movements, cost-adjustment, batch-intake -- none in M2/Purchase Orders code).
+
 ## [1.19.0] - 2026-08-05
 
 **Milestone M2 — Purchase Orders** — PO aggregate, four-state lifecycle, events audit log, expected-receipt dates with confidence, delayed detection, Purchasing admin UI. Schema v7. **Prerequisite:** v1.18.1 (M1 Purchasing PRG hotfix). **No receiving** — stock and `qty_received` remain out of scope until M5.
