@@ -292,4 +292,118 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 		$max   = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(line_index) FROM {$table} WHERE po_id = %d", $po_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return null === $max ? 0 : ( (int) $max + 1 );
 	}
+
+	/**
+	 * List open PO lines for simple products (M3 — Inventory Position).
+	 *
+	 * "Open" qualification is PO header status = placed only; the PO-line
+	 * status column is not consulted (M3 plan §6). Outstanding uses the
+	 * M2-era formula GREATEST(0, qty_ordered - qty_cancelled) — no
+	 * qty_received anywhere in schema v7. Lines are never aggregated in
+	 * SQL: each row is an independent line so the caller (the Inventory
+	 * Position Service) can retain per-line identity for drill-down
+	 * (INV-1, INV-7).
+	 *
+	 * Deliberately a separate query from list_open_lines_for_variation_ids()
+	 * rather than one OR-based query (M3 plan §6).
+	 *
+	 * @param int[] $product_ids Product IDs (variation_id = 0 rows only).
+	 * @return array<int,array<string,mixed>> Line rows: line_id, po_id, po_number,
+	 *         product_id, variation_id, outstanding, expected_date,
+	 *         expected_confidence, is_delayed.
+	 */
+	public static function list_open_lines_for_product_ids( array $product_ids ): array {
+		$product_ids = self::normalize_ids( $product_ids );
+		if ( empty( $product_ids ) ) {
+			return array();
+		}
+		return self::query_open_lines(
+			'pol.variation_id = 0 AND pol.product_id IN (' . self::placeholders( $product_ids ) . ')',
+			$product_ids
+		);
+	}
+
+	/**
+	 * List open PO lines for variations (M3 — Inventory Position).
+	 *
+	 * See list_open_lines_for_product_ids() for qualification rules; this
+	 * is its variation-scoped counterpart and shares the same query shape.
+	 *
+	 * @param int[] $variation_ids Variation IDs.
+	 * @return array<int,array<string,mixed>> Line rows, same shape as
+	 *         list_open_lines_for_product_ids().
+	 */
+	public static function list_open_lines_for_variation_ids( array $variation_ids ): array {
+		$variation_ids = self::normalize_ids( $variation_ids );
+		if ( empty( $variation_ids ) ) {
+			return array();
+		}
+		return self::query_open_lines(
+			'pol.variation_id IN (' . self::placeholders( $variation_ids ) . ')',
+			$variation_ids
+		);
+	}
+
+	/**
+	 * Shared open-line SELECT for the two M3 bulk methods above.
+	 *
+	 * @param string $qualifier_sql Additional WHERE fragment (product_id/variation_id IN (...)) with %d placeholders.
+	 * @param int[]  $ids           IDs to bind into the qualifier's placeholders, in order.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function query_open_lines( string $qualifier_sql, array $ids ): array {
+		global $wpdb;
+
+		$lines  = self::table_name();
+		$orders = WC_Inventory_Overview_Purchase_Orders::table_name();
+
+		$delayed_predicate = WC_Inventory_Overview_PO_Delay::sql_line_delayed_predicate(
+			WC_Inventory_Overview_PO_Delay::grace_days_from_option()
+		);
+
+		$outstanding_expr   = 'GREATEST(0, pol.qty_ordered - pol.qty_cancelled)';
+		$expected_date_expr = "COALESCE(NULLIF(pol.expected_date, '0000-00-00'), NULLIF(po.expected_date, '0000-00-00'))";
+		$expected_conf_expr = "COALESCE(NULLIF(pol.expected_confidence, ''), NULLIF(po.expected_confidence, ''), 'unknown')";
+
+		$sql = "SELECT
+				pol.id AS line_id,
+				pol.po_id AS po_id,
+				po.po_number AS po_number,
+				pol.product_id AS product_id,
+				pol.variation_id AS variation_id,
+				{$outstanding_expr} AS outstanding,
+				{$expected_date_expr} AS expected_date,
+				{$expected_conf_expr} AS expected_confidence,
+				({$delayed_predicate}) AS is_delayed
+			FROM {$lines} pol
+			INNER JOIN {$orders} po ON po.id = pol.po_id
+			WHERE po.status = 'placed'
+				AND {$qualifier_sql}
+			HAVING outstanding > 0
+			ORDER BY pol.po_id ASC, pol.line_index ASC, pol.id ASC";
+
+		$prepared = $wpdb->prepare( $sql, ...$ids ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is built entirely from %d placeholders, no interpolated values.
+		$rows     = $wpdb->get_results( $prepared, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared is the $wpdb->prepare() result from the line above.
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Sanitize a list of IDs to positive unique integers.
+	 *
+	 * @param array $ids Raw IDs.
+	 * @return int[]
+	 */
+	private static function normalize_ids( array $ids ): array {
+		return array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+	}
+
+	/**
+	 * Build a comma-separated list of %d placeholders, one per ID.
+	 *
+	 * @param array $ids IDs (only the count is used).
+	 */
+	private static function placeholders( array $ids ): string {
+		return implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+	}
 }
