@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WC Inventory Overview
  * Description:       Operational inventory dashboard for WooCommerce products and variations (HPOS-compatible).
- * Version:           1.19.1
+ * Version:           1.20.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            WC Inventory Overview
@@ -15,7 +15,7 @@
 defined( 'ABSPATH' ) || exit;
 
 if ( ! defined( 'WC_INVENTORY_OVERVIEW_VERSION' ) ) {
-	define( 'WC_INVENTORY_OVERVIEW_VERSION', '1.19.1' );
+	define( 'WC_INVENTORY_OVERVIEW_VERSION', '1.20.0' );
 }
 
 if ( ! defined( 'WC_INVENTORY_OVERVIEW_FILE' ) ) {
@@ -115,6 +115,8 @@ add_action(
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-order-lines.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-events.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-service.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-inventory-position-resolver.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-inventory-position-service.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchasing-caps.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-request-token.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-summary.php';
