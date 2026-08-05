@@ -52,6 +52,16 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 	 */
 	protected $current_variable_aggregate = null;
 
+	/**
+	 * M3: Inventory Position results keyed by item (product or variation) ID,
+	 * populated once per request by prepare_items() after the complete
+	 * groups structure — including later-discovered variations — is built.
+	 * Empty for users without manage_woocommerce.
+	 *
+	 * @var array<int, array<string, mixed>>
+	 */
+	public $position_map = array();
+
 	public function __construct() {
 		parent::__construct(
 			array(
@@ -88,6 +98,11 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			'stock'    => __( 'Stock', 'wc-inventory-overview' ),
 		);
 		if ( current_user_can( 'manage_woocommerce' ) ) {
+			// M3: Incoming/Position sit at the same sensitivity tier as average
+			// cost and inventory value below them (not the broader Stock
+			// column precedent) — manage_woocommerce only, no new capability.
+			$cols['incoming']        = __( 'Incoming', 'wc-inventory-overview' );
+			$cols['position']        = __( 'Position', 'wc-inventory-overview' );
 			$cols['avg_cost']        = __( 'Average unit cost', 'wc-inventory-overview' );
 			$cols['inventory_value'] = __( 'Inventory value', 'wc-inventory-overview' );
 		}
@@ -227,6 +242,105 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 		);
 	}
 
+	/**
+	 * M3: Incoming column. Variable-parent rows show a presentation-only sum
+	 * of child variation Incoming (never a real parent-level supply, INV-8).
+	 *
+	 * @param WC_Product $item Row product.
+	 */
+	protected function column_incoming( WC_Product $item ) {
+		$agg = $this->get_variable_position_aggregate_for_row( $item );
+		if ( null !== $agg ) {
+			return self::render_incoming_cell( (float) $agg['incoming'], ! empty( $agg['incoming_delayed'] ) );
+		}
+
+		$pos = $this->position_map[ $item->get_id() ] ?? null;
+		if ( null === $pos ) {
+			return '<span class="wc-io-muted">—</span>';
+		}
+
+		return self::render_incoming_cell( (float) $pos['incoming'], ! empty( $pos['incoming_delayed'] ) );
+	}
+
+	/**
+	 * M3: Position column (On Hand + Incoming). Variable-parent rows show a
+	 * presentation-only sum of child variation Position.
+	 *
+	 * @param WC_Product $item Row product.
+	 */
+	protected function column_position( WC_Product $item ) {
+		$agg = $this->get_variable_position_aggregate_for_row( $item );
+		if ( null !== $agg ) {
+			return '<span class="wc-io-position-qty">' . esc_html( self::format_position_qty( (float) $agg['position'] ) ) . '</span>';
+		}
+
+		$pos = $this->position_map[ $item->get_id() ] ?? null;
+		if ( null === $pos ) {
+			return '<span class="wc-io-muted">—</span>';
+		}
+
+		return '<span class="wc-io-position-qty">' . esc_html( self::format_position_qty( (float) $pos['position'] ) ) . '</span>';
+	}
+
+	/**
+	 * Variable-parent presentation aggregate for the current row, or null when
+	 * the row is not a variable parent (simple product, variation, or no
+	 * aggregate computed for this request).
+	 *
+	 * @param WC_Product $item Row product.
+	 * @return array<string, mixed>|null
+	 */
+	protected function get_variable_position_aggregate_for_row( WC_Product $item ) {
+		if ( 'parent' !== $this->row_role || ! $item->is_type( 'variable' ) ) {
+			return null;
+		}
+		if ( ! is_array( $this->current_variable_aggregate ) || ! array_key_exists( 'incoming', $this->current_variable_aggregate ) ) {
+			return null;
+		}
+		return $this->current_variable_aggregate;
+	}
+
+	/**
+	 * Incoming cell markup: quantity plus an optional delayed badge.
+	 *
+	 * @param float $incoming Incoming quantity.
+	 * @param bool  $delayed  Whether at least one contributing line is delayed.
+	 */
+	protected static function render_incoming_cell( float $incoming, bool $delayed ): string {
+		if ( $incoming <= 0 ) {
+			return '<span class="wc-io-muted">—</span>';
+		}
+		$html = '<span class="wc-io-incoming-qty">' . esc_html( self::format_position_qty( $incoming ) ) . '</span>';
+		if ( $delayed ) {
+			$html .= ' <span class="wc-io-badge wc-io-badge-delayed">' . esc_html__( 'Delayed', 'wc-inventory-overview' ) . '</span>';
+		}
+		return $html;
+	}
+
+	/**
+	 * Format a quantity for display using WooCommerce's stock-amount rules.
+	 *
+	 * @param float $value Raw quantity.
+	 */
+	protected static function format_position_qty( float $value ): string {
+		return (string) wc_stock_amount( $value );
+	}
+
+	/**
+	 * On Hand quantity supplied to the Inventory Position Service for one
+	 * purchasable item (M3). Unmanaged-stock items contribute 0 On Hand —
+	 * WooCommerce has no quantity to report for them.
+	 *
+	 * @param WC_Product $item Simple product or variation.
+	 */
+	protected static function item_on_hand_qty( WC_Product $item ): float {
+		if ( ! $item->managing_stock() ) {
+			return 0.0;
+		}
+		$qty = $item->get_stock_quantity();
+		return ( null === $qty || '' === $qty ) ? 0.0 : (float) $qty;
+	}
+
 	protected function column_status( WC_Product $item ) {
 		if ( 'parent' === $this->row_role && $item->is_type( 'variable' ) && is_array( $this->current_variable_aggregate ) ) {
 			$inner  = self::render_publish_visibility_badges_inner( $item );
@@ -327,12 +441,20 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 	/**
 	 * Build variation aggregate metrics for a variable parent row.
 	 *
-	 * @param WC_Product           $parent   Variable parent.
-	 * @param array<int, WC_Product> $children Variation products on this page.
+	 * @param WC_Product              $parent       Variable parent.
+	 * @param array<int, WC_Product>  $children     Variation products on this page.
+	 * @param array<int, array<string, mixed>> $position_map M3: Inventory Position results keyed by
+	 *        item ID, used only to sum presentation-only Incoming/Position
+	 *        totals for the parent row (INV-8: never a real parent-level
+	 *        incoming record). Empty when the viewer lacks manage_woocommerce.
 	 * @return array<string, mixed>
 	 */
-	public static function compute_variable_aggregate( WC_Product $parent, array $children ) {
+	public static function compute_variable_aggregate( WC_Product $parent, array $children, array $position_map = array() ) {
 		$total = count( $children );
+
+		$incoming_total   = 0.0;
+		$position_total   = 0.0;
+		$incoming_delayed = false;
 
 		$n_managed   = 0;
 		$n_unmanaged = 0;
@@ -345,6 +467,16 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			if ( ! $v instanceof WC_Product || ! $v->is_type( 'variation' ) ) {
 				continue;
 			}
+
+			$child_pos = $position_map[ $v->get_id() ] ?? null;
+			if ( null !== $child_pos ) {
+				$incoming_total += (float) $child_pos['incoming'];
+				$position_total += (float) $child_pos['position'];
+				if ( ! empty( $child_pos['incoming_delayed'] ) ) {
+					$incoming_delayed = true;
+				}
+			}
+
 			if ( ! $v->managing_stock() ) {
 				++$n_unmanaged;
 				continue;
@@ -493,6 +625,9 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			'summary_html'      => $summary_html,
 			'stock_column_html' => $stock_column_html,
 			'badges_inner_html' => implode( '', $badges ),
+			'incoming'          => $incoming_total,
+			'position'          => $position_total,
+			'incoming_delayed'  => $incoming_delayed,
 		);
 	}
 
@@ -607,6 +742,93 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 		echo '</dl>';
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * M3: per-supply drill-down. Renders each independent contributing PO
+	 * line as its own row (never merged or collapsed, INV-1/INV-7) with PO
+	 * number/link, outstanding quantity, expected date, confidence, and
+	 * delayed indication. Reuses this list table's existing mini-table
+	 * markup convention; no AJAX, no REST, no new modal framework.
+	 *
+	 * @param WC_Product $item Simple product or variation (never a variable parent).
+	 * @return string
+	 */
+	protected function render_position_drilldown_section( WC_Product $item ): string {
+		$pos = $this->position_map[ $item->get_id() ] ?? null;
+		if ( null === $pos ) {
+			return '';
+		}
+
+		ob_start();
+		echo '<div class="wc-io-detail-position">';
+		echo '<h4 class="wc-io-detail-heading">' . esc_html__( 'Incoming supply', 'wc-inventory-overview' ) . '</h4>';
+
+		$lines = is_array( $pos['incoming_lines'] ?? null ) ? $pos['incoming_lines'] : array();
+
+		if ( empty( $lines ) ) {
+			echo '<p class="wc-io-muted">' . esc_html__( 'No open purchase order lines.', 'wc-inventory-overview' ) . '</p>';
+			echo '</div>';
+			return (string) ob_get_clean();
+		}
+
+		echo '<table class="widefat striped wc-io-mini-table wc-io-position-drilldown"><thead><tr>';
+		echo '<th>' . esc_html__( 'PO number', 'wc-inventory-overview' ) . '</th>';
+		echo '<th>' . esc_html__( 'Outstanding', 'wc-inventory-overview' ) . '</th>';
+		echo '<th>' . esc_html__( 'Expected date', 'wc-inventory-overview' ) . '</th>';
+		echo '<th>' . esc_html__( 'Confidence', 'wc-inventory-overview' ) . '</th>';
+		echo '<th>' . esc_html__( 'Delayed', 'wc-inventory-overview' ) . '</th>';
+		echo '</tr></thead><tbody>';
+
+		foreach ( $lines as $line ) {
+			$po_url = WC_Inventory_Overview_PO_Admin::detail_url( (int) ( $line['po_id'] ?? 0 ) );
+			echo '<tr>';
+			echo '<td><a href="' . esc_url( $po_url ) . '">' . esc_html( (string) ( $line['po_number'] ?? '' ) ) . '</a></td>';
+			echo '<td>' . esc_html( self::format_position_qty( (float) ( $line['outstanding'] ?? 0 ) ) ) . '</td>';
+			echo '<td>' . esc_html( ! empty( $line['expected_date'] ) ? (string) $line['expected_date'] : '—' ) . '</td>';
+			echo '<td>' . esc_html( ! empty( $line['expected_confidence'] ) ? (string) $line['expected_confidence'] : '—' ) . '</td>';
+			echo '<td>';
+			if ( ! empty( $line['is_delayed'] ) ) {
+				echo '<span class="wc-io-badge wc-io-badge-delayed">' . esc_html__( 'Delayed', 'wc-inventory-overview' ) . '</span>';
+			} else {
+				echo '—';
+			}
+			echo '</td>';
+			echo '</tr>';
+		}
+
+		echo '</tbody></table>';
+		echo '</div>';
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * M3: standalone expandable detail row for one variation, keyed by the
+	 * variation's own ID so its "Details" toggle (rendered per-row by
+	 * column_details()) targets a real panel — completing the existing
+	 * details-toggle pattern for variation rows, which previously had no
+	 * matching panel to open.
+	 *
+	 * @param WC_Product $child Variation.
+	 */
+	protected function render_variation_detail_row( WC_Product $child ) {
+		$id = (string) $child->get_id();
+
+		echo '<tr id="wc-io-detail-row-' . esc_attr( $id ) . '" class="wc-io-detail-row wc-io-variation-detail-row" hidden>';
+		$colspan = count( $this->get_columns() );
+		echo '<td colspan="' . (int) $colspan . '" class="wc-io-detail-cell">';
+		echo '<div id="wc-io-detail-panel-' . esc_attr( $id ) . '" class="wc-io-detail-panel">';
+		echo '<div class="wc-io-detail-cols">';
+		echo '<div class="wc-io-detail-primary">';
+		echo '<h4 class="wc-io-detail-heading">' . esc_html__( 'Variation details', 'wc-inventory-overview' ) . '</h4>';
+		echo self::render_details_dl( $child );
+		echo '</div>';
+		if ( current_user_can( 'manage_woocommerce' ) ) {
+			echo $this->render_position_drilldown_section( $child ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped internally.
+		}
+		echo '</div></div></td>';
+		echo '</tr>';
 	}
 
 	/**
@@ -761,7 +983,7 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 
 		$agg = null;
 		if ( $parent->is_type( 'variable' ) ) {
-			$agg = self::compute_variable_aggregate( $parent, $children );
+			$agg = self::compute_variable_aggregate( $parent, $children, $this->position_map );
 		}
 
 		$expand_variations = is_array( $agg ) && ! empty( $agg['expand_default'] );
@@ -811,6 +1033,17 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			$parent,
 			$children
 		);
+
+		// M3: each variation gets its own drill-down-capable detail row,
+		// keyed by its own ID (its "Details" button, rendered per-row by
+		// column_details(), already targets that ID).
+		if ( ! empty( $children ) ) {
+			$this->row_role = 'variation';
+			foreach ( $children as $child ) {
+				$this->render_variation_detail_row( $child );
+			}
+			$this->row_role = 'parent';
+		}
 	}
 
 	/**
@@ -843,6 +1076,13 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			echo '<h4 class="wc-io-detail-heading">' . esc_html__( 'Product details', 'wc-inventory-overview' ) . '</h4>';
 			echo self::render_details_dl( $detail_parent );
 			echo '</div>';
+			if ( ! $detail_parent->is_type( 'variable' ) && current_user_can( 'manage_woocommerce' ) ) {
+				// M3: a variable parent never carries its own incoming supply
+				// (INV-8) — its detail row keeps only the variations mini
+				// table below; per-variation drill-down rows are rendered
+				// separately in render_group_block().
+				echo $this->render_position_drilldown_section( $detail_parent ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped internally.
+			}
 			if ( $detail_children && count( $detail_children ) > 0 ) {
 				echo '<div class="wc-io-detail-variations">';
 				echo '<h4 class="wc-io-detail-heading">' . esc_html__( 'Variations on this page', 'wc-inventory-overview' ) . '</h4>';
@@ -1062,6 +1302,34 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 		}
 
 		$this->item_groups = $groups;
+
+		// M3: Position must be fetched only after the complete groups
+		// structure — including variations discovered above by the later
+		// per-parent query — is built, and in exactly one bulk call (no
+		// per-row queries). Empty for viewers without manage_woocommerce,
+		// since the columns are not shown to them either.
+		$this->position_map = array();
+		if ( current_user_can( 'manage_woocommerce' ) ) {
+			$product_on_hand   = array();
+			$variation_on_hand = array();
+
+			foreach ( $this->item_groups as $group ) {
+				$group_parent   = $group['parent'];
+				$group_children = isset( $group['children'] ) && is_array( $group['children'] ) ? $group['children'] : array();
+
+				if ( $group_parent->is_type( 'variable' ) ) {
+					foreach ( $group_children as $variation ) {
+						if ( $variation instanceof WC_Product && $variation->is_type( 'variation' ) ) {
+							$variation_on_hand[ $variation->get_id() ] = self::item_on_hand_qty( $variation );
+						}
+					}
+				} else {
+					$product_on_hand[ $group_parent->get_id() ] = self::item_on_hand_qty( $group_parent );
+				}
+			}
+
+			$this->position_map = WC_Inventory_Overview_Inventory_Position_Service::get_positions_bulk( $product_on_hand, $variation_on_hand );
+		}
 
 		$this->set_pagination_args(
 			array(
