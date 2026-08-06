@@ -1,10 +1,12 @@
 <?php
 /**
- * Goods Receipt line repository (M4).
+ * Goods Receipt line repository (M4, extended M5).
  *
  * Persistence only — no lifecycle policy, no stock/cost mutation. po_line_id is
- * always NULL in M4: this repository's create()/update() signatures accept no
- * po_line_id parameter at all (structural guarantee, not a runtime check).
+ * settable only at creation, via create()'s $data['po_line_id'] (M5) — never
+ * through update(), whose $allowed whitelist deliberately excludes it: a draft
+ * line's PO linkage is fixed at creation, changing it is delete-and-re-add, not
+ * an in-place edit (M5 plan §Class/service changes).
  *
  * @package WC_Inventory_Overview
  */
@@ -57,9 +59,10 @@ class WC_Inventory_Overview_Receipt_Lines {
 	}
 
 	/**
-	 * Insert a draft line. po_line_id is always persisted as NULL in M4 — no
-	 * parameter accepts one. Caller (Goods_Receipt_Service) enforces draft-only
-	 * editability.
+	 * Insert a draft line. po_line_id is persisted from $data['po_line_id'] when
+	 * present and > 0 (M5 receiving-against-PO lines); NULL otherwise (M4 direct
+	 * lines, unchanged). Caller (Goods_Receipt_Service) enforces draft-only
+	 * editability and validates the referenced PO line before ever reaching here.
 	 *
 	 * @param int                 $receipt_id Receipt id.
 	 * @param array<string,mixed> $data       Line fields.
@@ -72,7 +75,7 @@ class WC_Inventory_Overview_Receipt_Lines {
 		$row = array(
 			'receipt_id'              => $receipt_id,
 			'line_index'              => isset( $data['line_index'] ) ? absint( $data['line_index'] ) : self::next_line_index( $receipt_id ),
-			'po_line_id'              => null,
+			'po_line_id'              => isset( $data['po_line_id'] ) && (int) $data['po_line_id'] > 0 ? (int) $data['po_line_id'] : null,
 			'product_id'              => isset( $data['product_id'] ) ? absint( $data['product_id'] ) : 0,
 			'variation_id'            => isset( $data['variation_id'] ) ? absint( $data['variation_id'] ) : 0,
 			'sku_snapshot'            => isset( $data['sku_snapshot'] ) ? sanitize_text_field( (string) $data['sku_snapshot'] ) : null,
@@ -287,5 +290,43 @@ class WC_Inventory_Overview_Receipt_Lines {
 		$table = self::table_name();
 		$max   = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(line_index) FROM {$table} WHERE receipt_id = %d", $receipt_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return null === $max ? 0 : ( (int) $max + 1 );
+	}
+
+	/**
+	 * Bulk receiving-history lookup for a set of PO lines (M5) — one query, not one
+	 * per PO line (M5 plan §Performance). Used by the PO detail page's receiving
+	 * history panel.
+	 *
+	 * @param int[] $po_line_ids PO line ids.
+	 * @return array<int,array{receipt_id:int,receipt_number:string,receipt_status:string,po_line_id:int,name_snapshot:string,qty:string}>
+	 */
+	public static function list_for_po_line_ids( array $po_line_ids ): array {
+		global $wpdb;
+
+		$po_line_ids = array_values( array_unique( array_filter( array_map( 'absint', $po_line_ids ) ) ) );
+		if ( empty( $po_line_ids ) ) {
+			return array();
+		}
+
+		$lines    = self::table_name();
+		$receipts = WC_Inventory_Overview_Goods_Receipts::table_name();
+		$in       = implode( ',', array_fill( 0, count( $po_line_ids ), '%d' ) );
+
+		$sql = "SELECT
+				gr.id AS receipt_id,
+				gr.receipt_number AS receipt_number,
+				gr.status AS receipt_status,
+				rl.po_line_id AS po_line_id,
+				rl.name_snapshot AS name_snapshot,
+				rl.qty AS qty
+			FROM {$lines} rl
+			INNER JOIN {$receipts} gr ON gr.id = rl.receipt_id
+			WHERE rl.po_line_id IN ({$in})
+			ORDER BY gr.created_at ASC, rl.line_index ASC";
+
+		$prepared = $wpdb->prepare( $sql, $po_line_ids ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is built entirely from %d placeholders, no interpolated values.
+		$rows     = $wpdb->get_results( $prepared, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared is the $wpdb->prepare() result from the line above.
+
+		return is_array( $rows ) ? $rows : array();
 	}
 }

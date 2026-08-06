@@ -1,9 +1,11 @@
 <?php
 /**
- * Goods Receipt header repository (M4).
+ * Goods Receipt header repository (M4, extended M5).
  *
  * Persistence only. Lifecycle transitions and inventory mutation belong to
  * WC_Inventory_Overview_Goods_Receipt_Service. Never touches WooCommerce stock (INV-2).
+ * `source` ('direct'|'po'|'mixed') is derived by Goods_Receipt_Service from a
+ * draft's line composition (M5) — never operator-chosen.
  *
  * @package WC_Inventory_Overview
  */
@@ -103,10 +105,15 @@ class WC_Inventory_Overview_Goods_Receipts {
 		$now     = current_time( 'mysql', true );
 		$user_id = get_current_user_id();
 
+		$source = isset( $data['source'] ) ? sanitize_key( (string) $data['source'] ) : 'direct';
+		if ( ! in_array( $source, array( 'direct', 'po', 'mixed' ), true ) ) {
+			$source = 'direct';
+		}
+
 		$row = array(
 			'receipt_number'           => $receipt_number,
 			'status'                   => WC_Inventory_Overview_Goods_Receipt_Lifecycle::STATUS_DRAFT,
-			'source'                   => 'direct',
+			'source'                   => $source,
 			'supplier_id'              => isset( $data['supplier_id'] ) && (int) $data['supplier_id'] > 0 ? absint( $data['supplier_id'] ) : null,
 			'supplier_name_snapshot'   => isset( $data['supplier_name_snapshot'] ) ? sanitize_text_field( (string) $data['supplier_name_snapshot'] ) : null,
 			'currency'                 => isset( $data['currency'] ) ? strtoupper( sanitize_text_field( (string) $data['currency'] ) ) : 'EUR',
@@ -148,6 +155,7 @@ class WC_Inventory_Overview_Goods_Receipts {
 		global $wpdb;
 
 		$allowed = array(
+			'source',
 			'supplier_id',
 			'supplier_name_snapshot',
 			'currency',
@@ -200,6 +208,11 @@ class WC_Inventory_Overview_Goods_Receipts {
 					break;
 				case 'currency':
 					$update[ $key ] = strtoupper( sanitize_text_field( (string) $data[ $key ] ) );
+					$formats[]      = '%s';
+					break;
+				case 'source':
+					$source         = sanitize_key( (string) $data[ $key ] );
+					$update[ $key ] = in_array( $source, array( 'direct', 'po', 'mixed' ), true ) ? $source : 'direct';
 					$formats[]      = '%s';
 					break;
 				default:
