@@ -122,7 +122,6 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 			$this->assertEquals( $table, $exists, "Expected table {$table}" );
 		}
 
-		$this->assertEquals( '7', WC_Inventory_Overview_Install::DB_VERSION );
 		$this->assertTrue( WC_Inventory_Overview_Install::assert_schema_shape() );
 	}
 
@@ -176,5 +175,141 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 		$this->assertContains( 'reason_code', $fields );
 		$this->assertContains( 'summary', $fields );
 		$this->assertContains( 'data', $fields );
+	}
+
+	/**
+	 * M4: schema v8 new tables exist after create_tables (fresh install).
+	 */
+	public function test_v8_goods_receipt_tables_exist_fresh_install() {
+		global $wpdb;
+
+		WC_Inventory_Overview_Install::create_tables();
+
+		$tables = array(
+			$wpdb->prefix . 'wc_io_goods_receipts',
+			$wpdb->prefix . 'wc_io_receipt_lines',
+			$wpdb->prefix . 'wc_io_receipt_costs',
+		);
+		foreach ( $tables as $table ) {
+			$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+			$this->assertEquals( $table, $exists, "Expected table {$table}" );
+		}
+
+		$this->assertSame( '8', WC_Inventory_Overview_Install::DB_VERSION );
+		$this->assertTrue( WC_Inventory_Overview_Install::assert_schema_shape() );
+	}
+
+	/**
+	 * M4: upgrade path from schema v7 to v8 creates the new tables/columns and the
+	 * dispatcher correctly routes DB_VERSION 8 to expected_schema_v8() (not silently
+	 * falling back to v7's incomplete assertion — the exact trap the plan calls out).
+	 */
+	public function test_v7_to_v8_upgrade_path() {
+		global $wpdb;
+
+		// Simulate a site sitting at v7: create only the v7-era tables/columns.
+		WC_Inventory_Overview_Install::create_tables();
+		$movements_table = $wpdb->prefix . 'wc_io_inventory_movements';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test DDL against known prefix table.
+		$wpdb->query( "ALTER TABLE {$movements_table} DROP COLUMN reference_type, DROP COLUMN reference_id, DROP COLUMN supplier_id" );
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wc_io_goods_receipts' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wc_io_receipt_lines' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wc_io_receipt_costs' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		update_option( 'wc_io_db_version', '7' );
+
+		// A v7-scoped assertion must not see the (currently absent) v8 additions as missing.
+		$v7_expected = new ReflectionMethod( 'WC_Inventory_Overview_Install', 'expected_schema_v7' );
+		$v7_expected->setAccessible( true );
+		$this->assertNotEmpty( $v7_expected->invoke( null ) );
+
+		// Now upgrade.
+		WC_Inventory_Overview_Install::maybe_upgrade();
+
+		$this->assertSame( '8', get_option( 'wc_io_db_version' ) );
+
+		$tables = array(
+			$wpdb->prefix . 'wc_io_goods_receipts',
+			$wpdb->prefix . 'wc_io_receipt_lines',
+			$wpdb->prefix . 'wc_io_receipt_costs',
+		);
+		foreach ( $tables as $table ) {
+			$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+			$this->assertEquals( $table, $exists, "Upgrade must create {$table}" );
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- SHOW COLUMNS against known prefix table.
+		$movement_columns = array_column( $wpdb->get_results( "SHOW COLUMNS FROM {$movements_table}" ), 'Field' );
+		$this->assertContains( 'reference_type', $movement_columns );
+		$this->assertContains( 'reference_id', $movement_columns );
+		$this->assertContains( 'supplier_id', $movement_columns );
+
+		$this->assertTrue( WC_Inventory_Overview_Install::assert_schema_shape() );
+	}
+
+	/**
+	 * M4: the expected_schema() dispatcher must route DB_VERSION 8 to
+	 * expected_schema_v8(), not silently fall back to v7's assertion (which would
+	 * never check the new tables/columns exist — a false-green schema gate).
+	 */
+	public function test_dispatcher_routes_v8_to_v8_assertion_not_v7() {
+		$dispatcher = new ReflectionMethod( 'WC_Inventory_Overview_Install', 'expected_schema' );
+		$dispatcher->setAccessible( true );
+
+		$v8 = $dispatcher->invoke( null, '8' );
+		$this->assertArrayHasKey( 'goods_receipts', $v8['columns'], 'DB_VERSION 8 must dispatch to expected_schema_v8(), which declares goods_receipts columns.' );
+		$this->assertContains( 'wc_io_goods_receipts', $v8['tables'] );
+
+		$v7 = $dispatcher->invoke( null, '7' );
+		$this->assertArrayNotHasKey( 'goods_receipts', $v7['columns'], 'DB_VERSION 7 must still dispatch to expected_schema_v7(), unaffected by the v8 addition.' );
+	}
+
+	/**
+	 * M4: unique receipt_number index exists.
+	 */
+	public function test_receipt_number_unique_index() {
+		global $wpdb;
+
+		WC_Inventory_Overview_Install::create_tables();
+
+		$table = $wpdb->prefix . 'wc_io_goods_receipts';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- SHOW INDEX against known prefix table.
+		$indexes = $wpdb->get_results( "SHOW INDEX FROM {$table} WHERE Column_name='receipt_number' AND Non_unique=0" );
+		$this->assertNotEmpty( $indexes );
+	}
+
+	/**
+	 * M4: qty_received still absent from purchase_order_lines under schema v8
+	 * (the M2 forbidden-column guard carries forward unchanged).
+	 */
+	public function test_qty_received_still_forbidden_at_v8() {
+		global $wpdb;
+
+		WC_Inventory_Overview_Install::create_tables();
+
+		$table = $wpdb->prefix . 'wc_io_purchase_order_lines';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- SHOW COLUMNS against known prefix table.
+		$fields = array_column( $wpdb->get_results( "SHOW COLUMNS FROM {$table}" ), 'Field' );
+		$this->assertNotContains( 'qty_received', $fields );
+
+		$this->assertTrue( WC_Inventory_Overview_Install::assert_schema_shape() );
+	}
+
+	/**
+	 * M4: po_line_id exists on receipt_lines and is indexed, but is not a required/NOT NULL column.
+	 */
+	public function test_receipt_lines_po_line_id_nullable_and_indexed() {
+		global $wpdb;
+
+		WC_Inventory_Overview_Install::create_tables();
+
+		$table = $wpdb->prefix . 'wc_io_receipt_lines';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- SHOW COLUMNS against known prefix table.
+		$columns = $wpdb->get_results( "SHOW COLUMNS FROM {$table} WHERE Field='po_line_id'" );
+		$this->assertNotEmpty( $columns );
+		$this->assertSame( 'YES', $columns[0]->Null );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- SHOW INDEX against known prefix table.
+		$indexes = $wpdb->get_results( "SHOW INDEX FROM {$table} WHERE Column_name='po_line_id'" );
+		$this->assertNotEmpty( $indexes );
 	}
 }

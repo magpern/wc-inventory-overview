@@ -175,14 +175,16 @@ class Test_WC_IO_PO_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Maybe_upgrade bumps db version to 7 and writes canonical assertion.
+	 * Maybe_upgrade bumps db version to the current DB_VERSION and writes canonical
+	 * assertion. Was hardcoded to '7' pre-M4; M4 bumped DB_VERSION to '8', so an
+	 * upgrade from a stale v6 option now jumps straight to v8 (no intermediate stop).
 	 */
-	public function test_maybe_upgrade_sets_db_version_7() {
+	public function test_maybe_upgrade_sets_current_db_version() {
 		update_option( 'wc_io_db_version', '6' );
 		WC_Inventory_Overview_Install::maybe_upgrade();
-		$this->assertEquals( '7', get_option( 'wc_io_db_version' ) );
+		$this->assertEquals( WC_Inventory_Overview_Install::DB_VERSION, get_option( 'wc_io_db_version' ) );
 		$assertion = get_option( 'wc_io_schema_assertion' );
 		$this->assertTrue( $assertion['ok'] );
-		$this->assertEquals( '7', $assertion['version'] );
+		$this->assertEquals( WC_Inventory_Overview_Install::DB_VERSION, $assertion['version'] );
 	}
 }
