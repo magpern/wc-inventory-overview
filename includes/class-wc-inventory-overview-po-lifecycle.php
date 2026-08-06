@@ -1,9 +1,12 @@
 <?php
 /**
- * Purchase Order lifecycle: single transition table (M2-B).
+ * Purchase Order lifecycle: single transition table (M2-B, extended M5).
  *
- * Sole source of truth for transitions, available actions, editability, and
- * terminal-state detection. No persistence writes.
+ * Sole source of truth for *manual* (operator-gated) transitions, available
+ * actions, editability, and terminal-state detection. No persistence writes.
+ * The two M5 receiving statuses (`partially_received`/`received`) are
+ * auto-transitioned by WC_Inventory_Overview_PO_Receiving_Sync and never
+ * appear as a manual transition target here — see transitions() docblock.
  *
  * @package WC_Inventory_Overview
  */
@@ -24,8 +27,18 @@ class WC_Inventory_Overview_PO_Lifecycle {
 	const ACTION_READ         = 'read';
 
 	/**
-	 * Allowed status transitions. Key is from-status; value is list of to-statuses.
-	 * Terminal statuses have empty lists (absorbing).
+	 * Allowed *manual* (operator-gated) status transitions. Key is from-status;
+	 * value is list of to-statuses. Terminal statuses have empty lists (absorbing).
+	 *
+	 * `partially_received`/`received` are deliberately never a *target* value
+	 * anywhere in this table — those transitions are auto-only, reachable
+	 * exclusively through WC_Inventory_Overview_PO_Receiving_Sync, which writes
+	 * status directly and never calls assert_transition()/can_transition() (M5
+	 * plan §Receiving-status ownership). `partially_received` still needs its
+	 * own row here as a *from*-status so cancel/close_short remain available
+	 * while a PO is partially received; `received` has an empty list — no
+	 * manual action is available once fully received (its only exit is the
+	 * automatic downgrade via a receipt void, which likewise bypasses this table).
 	 *
 	 * @return array<string,array<int,string>>
 	 */
@@ -39,6 +52,11 @@ class WC_Inventory_Overview_PO_Lifecycle {
 				WC_Inventory_Overview_PO_Statuses::CANCELLED,
 				WC_Inventory_Overview_PO_Statuses::CLOSED_SHORT,
 			),
+			WC_Inventory_Overview_PO_Statuses::PARTIALLY_RECEIVED => array(
+				WC_Inventory_Overview_PO_Statuses::CANCELLED,
+				WC_Inventory_Overview_PO_Statuses::CLOSED_SHORT,
+			),
+			WC_Inventory_Overview_PO_Statuses::RECEIVED  => array(),
 			WC_Inventory_Overview_PO_Statuses::CANCELLED => array(),
 			WC_Inventory_Overview_PO_Statuses::CLOSED_SHORT => array(),
 		);
