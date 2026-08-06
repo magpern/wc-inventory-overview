@@ -149,7 +149,8 @@ tests/
 │   ├── db-transaction/       # Pure-logic tests (DB-transaction helper)
 │   ├── purchase-orders/      # M2 PO lifecycle, numbering, service, validation, admin
 │   ├── suppliers/            # Supplier value-normalization tests
-│   └── inventory-position/   # M3 Resolver unit tests + D12 architecture guards
+│   ├── inventory-position/   # M3 Resolver unit tests + D12 architecture guards
+│   └── goods-receipt/        # M4 numbering, lifecycle, architecture guards (sole-mutator, throw_if_error bridge, no row locking, no po_line_id/qty_received, no PO writes)
 ├── integration/
 │   ├── costing/              # Weighted-average costing characterization
 │   ├── exchange-rates/       # FX rate resolution characterization
@@ -157,8 +158,9 @@ tests/
 │   ├── movements/            # Ledger record creation characterization
 │   ├── cost-adjustment/      # Cost-adjustment (average/value without stock change)
 │   ├── suppliers/            # M1 supplier CRUD, migration, admin PRG
-│   ├── install/              # Schema-shape assertion (v6/v7)
-│   └── inventory-position/   # M3 open-line repository, Service, Inventory Overview list-table, query-scaling
+│   ├── install/              # Schema-shape assertion (v6/v7/v8)
+│   ├── inventory-position/   # M3 open-line repository, Service, Inventory Overview list-table, query-scaling
+│   └── goods-receipt/        # M4 repositories, costing/allocation, Restock reversal, post/void transactional + rollback, idempotency, capability
 ├── fixtures/
 │   ├── costing/              # Golden fixture data
 │   └── exchange-rates/
@@ -189,7 +191,7 @@ The `phpunit` CI job runs three PHPUnit invocations against the same
 so CI and local results are identical by construction:
 
 1. **Unit suite** (`--testsuite unit`) — must pass.
-2. **M1/M2/M3-focused suite** (default filter: PO, schema assertion, suppliers, DB-transaction, Inventory Position) — must pass; this is the suite that gates M1/M2/M3 changes specifically.
+2. **M1/M2/M3/M4-focused suite** (default filter: PO, schema assertion, suppliers, DB-transaction, Inventory Position, Goods Receipt) — must pass; this is the suite that gates M1–M4 changes specifically. M4 alone contributes 230 tests / 1,039 assertions across numbering, lifecycle, repositories, costing/allocation, Restock reversal, transactional post/void (including forced-failure rollback and the intervening-receipt void regression), idempotency, capability, and architecture guards.
 3. **Cumulative integration suite** (`--testsuite integration`) — executed and its full output kept visible in the Actions log, but marked `continue-on-error: true` so it doesn't block the job. This is a **temporary, documented exception**: the suite currently carries pre-existing failures in M0-era golden characterization tests (see [Known test-content issues](#known-test-content-issues) below), unrelated to M2 or to this infrastructure hotfix. The suite is never silently reported as green — its real pass/fail result and output remain visible, flagged with a warning in the Actions UI. Removing this exception (making the full suite blocking) is a follow-up once the itemized issues below are fixed.
 
 The golden characterization suite remains the regression spine for costing/FX/allocation/movement behavior; M2 adds PO unit tests that must pass in the Docker harness.
@@ -287,6 +289,14 @@ infrastructure. The cumulative integration suite (66 tests, including the
 4 errors + 7 failures + 2 skips itemized above, unchanged by M3 — see the
 Test Infrastructure Hotfix milestone record for exact executed counts and
 commands as of v1.19.1.
+
+The M1–M4-focused suite (default `run-phpunit.sh` filter, now including the
+`Test_WC_IO_Goods_Receipt_`/`Test_WC_IO_Goods_Receipts_`/`Test_WC_IO_Receipt_Lines_`/
+`Test_WC_IO_Restock_Service_Reversal` prefixes) is 230 tests / 1,039
+assertions as of M4/v1.21.0, all passing. The full cumulative suite (243
+tests total) has the identical 4 errors + 7 failures + 2 skips itemized
+above, unchanged in count and identity by M4 — M4 introduced zero new
+failures anywhere in the suite.
 
 ## See also
 

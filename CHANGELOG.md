@@ -1,5 +1,36 @@
 # Changelog — WC Inventory Overview
 
+## [1.21.0] - 2026-08-06
+
+**Milestone M4 — Receipt Engine (Goods Receipt)** — the first milestone that mutates WooCommerce stock and weighted-average cost through this plugin (D3/INV-2). Implements "Quick Receive Without PO" (D7): direct receipts, no PO linkage. **Schema v8** — three new tables plus an `inventory_movements` ALTER. **Prerequisite:** v1.20.0 (M3 Inventory Position).
+
+### Added
+
+- **Goods Receipt entity** (`wc_io_goods_receipts`, `wc_io_receipt_lines`, `wc_io_receipt_costs`): header/lines/landed-costs, three-state lifecycle (`draft → posted → voided`, no reopen), `GR-{YYYY}-{NNNN}` numbering (never-reuse, mirrors PO numbering). `receipt_line.po_line_id` exists (nullable, indexed) for M5 but is never populated by any M4 code path.
+- **`WC_Inventory_Overview_Goods_Receipt_Service`** — the sole entry point for every M4 inventory mutation (structurally enforced by an architecture-guard test). `post()`/`void()` each run inside exactly one `WC_Inventory_Overview_DB_Transaction::run()` closure, with every fallible call routed through a `throw_if_error()` WP_Error→Exception bridge (`DB_Transaction::run()` only catches `Exception`). Forced-failure tests prove full SQL rollback: zero partial stock/cost/movement changes, receipt status unchanged.
+- **`WC_Inventory_Overview_Restock_Service::apply_purchase_line_reversal()`** — voiding's current-state-relative reversal: subtracts only the voided receipt line's own stored delta from *current* stock/average, not a snapshot restore, so it composes correctly no matter how many other receipts posted against the same product in between. Rejects (does not partially apply) when the resulting stock would go negative.
+- **Landed-cost allocation** (`WC_Inventory_Overview_Goods_Receipt_Costing`): proportional-by-line-value formula ported from `Batch_Intake_Service`, remainder to the last line.
+- **Movement provenance**: `TYPE_GOODS_RECEIPT` / `TYPE_GOODS_RECEIPT_VOID` movement types; `wc_io_inventory_movements` gains `reference_type` / `reference_id` / `supplier_id` (nullable — existing `purchase`/`purchase_batch`/`cost_adjustment` inserts unaffected).
+- **Idempotency**: one-shot request tokens (`gr_post`/`gr_void` contexts, reusing `PO_Request_Token`) consumed as the very first statement of `post()`/`void()`, plus a compare-and-swap status `UPDATE ... WHERE status = %s` as the transaction's first write — the complete M4 concurrency model (no row locking, no `SELECT ... FOR UPDATE`, deliberately).
+- **"Receive Stock" admin tab**: draft create/edit/delete, product/variation picker (excludes variable parents, grouped, external, non-stock-managed products), landed-cost rows, computed preview, explicit post-confirmation screen, void with mandatory reason, read-only posted/voided view. Alongside — not replacing — Batch Intake, Quick Restock, and Cost Adjustment.
+- **Capabilities**: `VIEW_RECEIPT` / `EDIT_RECEIPT` / `POST_RECEIPT` / `VOID_RECEIPT` / `DELETE_RECEIPT`, defaulting to `manage_woocommerce` through the existing filterable map (no new WordPress capability); enforced both in the admin controller and independently inside every service mutation method.
+- **Tests:** `tests/unit/goods-receipt/` (numbering, lifecycle, 16-test architecture guard) and `tests/integration/goods-receipt/` (repositories, costing/allocation, Restock reversal in isolation, transactional post/void including the intervening-receipt void regression, idempotency, capability) — 230 tests / 1,039 assertions. `tests/docker/run-phpunit.sh`'s blocking filter now includes the `Test_WC_IO_Goods_Receipt_` family alongside the existing M1/M2/M3 prefixes.
+
+### Fixed
+
+- **Object-cache/rollback divergence** (found during M4 implementation, not merely anticipated): a rolled-back `post()`/`void()` correctly reverted the underlying SQL row, but WordPress's own `update_post_meta()` writes through to the object-cache `post_meta` group synchronously — a write a SQL `ROLLBACK` cannot reach on a persistent cache backend (Redis, on this deployment). Fixed by calling `clean_post_cache()` for every touched product on both the commit and the rollback path (pure invalidation, safe regardless of transaction outcome).
+
+### Verified unchanged
+
+- Schema is additive; `qty_received` still absent from `wc_io_purchase_order_lines` (forbidden-column guard unchanged from v7).
+- No PO table (`wc_io_purchase_orders`, `wc_io_purchase_order_lines`, `wc_io_po_events`) is ever written by M4 — no PO linkage, no `qty_received`, no PO events, no PO status/quantity change (verified by the architecture guard).
+- Batch Intake, Quick Restock, Cost Adjustment, Purchase Order admin, Supplier admin, and Inventory Position behavior are all unmodified.
+- M0 golden suite and existing characterization fixtures unchanged; the cumulative integration suite's 13 pre-existing failures (4 errors + 7 failures + 2 skips, documented in `docs/testing.md`) are unchanged in count and identity — M4 introduced zero new failures.
+
+### Important
+
+Unlike M1–M3, M4 mutates WooCommerce stock and cost. A plugin-code rollback to a pre-M4 version does **not** reverse the stock/cost/value effects of Goods Receipts already posted under M4 — see the new prominent note in `docs/rollback-plan.md`.
+
 ## [1.20.0] - 2026-08-05
 
 **Milestone M3 — Inventory Position** — a first-class, read-only Inventory Position ({On Hand, Incoming, Position}, D11) for every simple product and variation, surfaced on Inventory Overview. **No schema change, no migration** — `DB_VERSION` remains `7`. **No receiving** — no Goods Receipts, no stock/cost mutation, no `qty_received`; M4/M5 will extend the Incoming formula once receiving exists. **Prerequisite:** v1.19.1 (M2 test-infrastructure hotfix).

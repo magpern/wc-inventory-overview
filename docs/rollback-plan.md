@@ -2,6 +2,22 @@
 
 ---
 
+## ⚠ M4 and later: code rollback does not reverse posted-receipt stock effects
+
+**Starting with M4 (v1.21.0), a plugin-code rollback to a pre-M4 version does NOT reverse the stock, average-cost, inventory-value, or movement effects of Goods Receipts already posted under M4.**
+
+This is a genuinely new risk class. M1 (Suppliers) and M2 (Purchase Orders) were schema-additive-only; M3 (Inventory Position) was strictly read-only. Neither ever mutated WooCommerce stock or costing meta, so rolling their code back was always safe — the data a rolled-back version would read was never touched by the newer code in the first place.
+
+M4 is the first milestone that mutates stock and cost (D3/INV-2: Goods Receipt posting is the sole stock mutator). If a receipt has been **posted** after upgrading to v1.21.0+, its stock/cost/value changes are real, committed WooCommerce state — rolling the *plugin code* back to a pre-M4 version does not, and cannot, undo those changes; the older code simply has no receipts UI to view or void them with (the `wc_io_goods_receipts`/`wc_io_receipt_lines`/`wc_io_receipt_costs` tables and `_stock`/`_wc_io_average_unit_cost`/`_wc_io_inventory_value` remain as posting left them).
+
+**If a rollback is needed after M4 receipts have been posted:**
+
+1. **Do not roll back plugin code as a way to "undo" a bad receipt.** Use **Void** (in the still-current version) instead — voiding is the only correct, current-state-relative reversal mechanism (see `docs/milestones/m4-implementation-plan.md` §Inventory mutation — Voiding correctness).
+2. If a genuine code-level rollback is required for an unrelated reason (a PHP fatal error, a regression elsewhere), the stock/cost effects of any receipts posted while on v1.21.0+ **remain in effect** — reconcile manually against physical inventory if needed, the same way a full DB restore would be reconciled (see "Full restore" below).
+3. A full DB restore to a pre-M4 backup **does** reverse everything, including receipt effects, but also reverses every other change made in the interim (orders, other inventory movements) — treat this as the "Full restore (catastrophic)" path below, not a targeted undo.
+
+---
+
 ## When to roll back
 
 - PHP fatal errors on admin inventory pages after deploy

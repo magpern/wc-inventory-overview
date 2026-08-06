@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.20.0
+Stable tag: 1.21.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,14 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.21.0 =
+* Milestone M4 — Receipt Engine: Goods Receipt as the sole stock/cost mutator (Quick Receive Without PO). Schema v8: new wc_io_goods_receipts / wc_io_receipt_lines / wc_io_receipt_costs tables; wc_io_inventory_movements gains reference_type / reference_id / supplier_id.
+* New "Receive Stock" tab on the Purchasing page: draft creation/edit/delete, product/variation picker, landed costs, computed preview, explicit post confirmation, void with mandatory reason.
+* Posting/voiding run inside a single database transaction each, with a compare-and-swap status guard and a one-shot request token -- forced-failure tests confirm full rollback (zero partial stock/cost/movement changes) and that a void correctly reverses only its own receipt's contribution even when other receipts posted in between.
+* Direct receipts only: po_line_id always NULL, no PO table is touched, no qty_received -- Receive-Against-PO remains M5.
+* No changes to Batch Intake, Quick Restock, Cost Adjustment, Purchase Orders, or Inventory Position; all continue to function unmodified.
+* IMPORTANT: unlike M1-M3, M4 mutates WooCommerce stock and cost. Read docs/rollback-plan.md before rolling back a site that has posted any Goods Receipts.
 
 = 1.20.0 =
 * Milestone M3 — Inventory Position: read-only Position ({On Hand, Incoming, Position}) for every simple product and variation, computed from open (placed-PO) purchase order lines. No schema change, no migration, DB_VERSION remains 7.
