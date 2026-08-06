@@ -102,17 +102,17 @@ class WC_Inventory_Overview_Restock_Service {
 			'line_id'  => $line_id,
 			'snapshot' => $snapshot,
 			'movement' => array(
-				'product_id'              => $movement_pid,
-				'variation_id'            => $movement_vid,
-				'quantity_change'         => $added_stock,
-				'unit_cost'               => $unit_cost,
-				'total_value'             => $added_value,
-				'old_stock'               => $old_stock,
-				'new_stock'               => $new_stock,
-				'old_average_unit_cost'   => $old_avg_raw,
-				'new_average_unit_cost'   => $new_average,
-				'old_inventory_value'     => $old_inventory_value,
-				'new_inventory_value'     => $new_inventory_value,
+				'product_id'            => $movement_pid,
+				'variation_id'          => $movement_vid,
+				'quantity_change'       => $added_stock,
+				'unit_cost'             => $unit_cost,
+				'total_value'           => $added_value,
+				'old_stock'             => $old_stock,
+				'new_stock'             => $new_stock,
+				'old_average_unit_cost' => $old_avg_raw,
+				'new_average_unit_cost' => $new_average,
+				'old_inventory_value'   => $old_inventory_value,
+				'new_inventory_value'   => $new_inventory_value,
 			),
 		);
 	}
@@ -137,7 +137,7 @@ class WC_Inventory_Overview_Restock_Service {
 		$snapshot = $applied['snapshot'];
 		$base     = $applied['movement'];
 
-		$product = wc_get_product( $line_id );
+		$product      = wc_get_product( $line_id );
 		$variation_id = $product && $product->is_type( 'variation' ) ? (int) $product->get_id() : 0;
 
 		$movement_ok = WC_Inventory_Overview_Movements::insert_purchase(
@@ -173,6 +173,105 @@ class WC_Inventory_Overview_Restock_Service {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Reverse a previously posted Goods Receipt line's own contribution (M4 void).
+	 *
+	 * Current-state-relative subtraction, NOT a snapshot restore: reads stock/average
+	 * NOW (not a value stored at posting time) and subtracts only this line's own
+	 * immutable delta (its stored qty and true_unit_cost). This composes correctly
+	 * regardless of how many other receipts posted against the same product in the
+	 * interim — it never reads or restores anyone else's before/after state. See the
+	 * M4 implementation plan's "Voiding correctness" section.
+	 *
+	 * @param int   $line_id        Variation or simple product ID.
+	 * @param float $reversal_qty   The receipt line's own stored qty (> 0).
+	 * @param float $reversal_value round(reversal_qty * receipt_line.true_unit_cost, 4).
+	 * @return array<string, mixed>|WP_Error Same shape as apply_purchase_line_change().
+	 */
+	public static function apply_purchase_line_reversal( $line_id, $reversal_qty, $reversal_value ) {
+		$line_id = absint( $line_id );
+		if ( ! $line_id ) {
+			return new WP_Error( 'wc_io_invalid', __( 'Invalid product.', 'wc-inventory-overview' ) );
+		}
+
+		if ( $reversal_qty <= 0 ) {
+			return new WP_Error( 'wc_io_qty', __( 'Reversal quantity must be greater than zero.', 'wc-inventory-overview' ) );
+		}
+
+		$product = wc_get_product( $line_id );
+		if ( ! $product instanceof WC_Product ) {
+			return new WP_Error( 'wc_io_product', __( 'Product not found.', 'wc-inventory-overview' ) );
+		}
+
+		if ( $product->is_type( 'variable' ) || $product->is_type( 'grouped' ) || $product->is_type( 'external' ) ) {
+			return new WP_Error( 'wc_io_type', __( 'Select a variation or a simple product, not a parent variable product.', 'wc-inventory-overview' ) );
+		}
+
+		if ( ! $product->is_type( 'variation' ) && ! $product->is_type( 'simple' ) ) {
+			return new WP_Error( 'wc_io_type', __( 'Unsupported product type for costing.', 'wc-inventory-overview' ) );
+		}
+
+		$parent_id    = $product->is_type( 'variation' ) ? (int) $product->get_parent_id() : (int) $product->get_id();
+		$variation_id = $product->is_type( 'variation' ) ? (int) $product->get_id() : 0;
+		$movement_pid = $parent_id;
+		$movement_vid = $variation_id;
+
+		$current_stock = $product->get_stock_quantity();
+		$current_stock = ( null === $current_stock || '' === $current_stock ) ? 0.0 : (float) wc_stock_amount( $current_stock );
+
+		$current_avg_raw = WC_Inventory_Overview_Costing::get_average_raw( $product );
+		$current_avg     = WC_Inventory_Overview_Costing::get_average_float( $product );
+		$current_value   = ( null === $current_avg ) ? 0.0 : (float) wc_format_decimal( $current_stock * $current_avg, 4 );
+
+		$reversal_qty   = (float) wc_stock_amount( $reversal_qty );
+		$reversal_value = (float) wc_format_decimal( $reversal_value, 4 );
+
+		$new_stock = (float) wc_format_decimal( $current_stock - $reversal_qty, 4 );
+		if ( $new_stock < 0 ) {
+			return new WP_Error(
+				'wc_io_gr_void_insufficient_stock',
+				__( 'Cannot void: units received by this receipt have since been sold or consumed (resulting stock would be negative).', 'wc-inventory-overview' )
+			);
+		}
+
+		$new_value = max( 0.0, (float) wc_format_decimal( $current_value - $reversal_value, 4 ) );
+		$new_avg   = $new_stock > 0 ? (float) wc_format_decimal( $new_value / $new_stock, 6 ) : 0.0;
+
+		$snapshot = array(
+			'stock_quantity' => $current_stock,
+			'avg_meta'       => $current_avg_raw,
+			'val_meta'       => $product->get_meta( WC_Inventory_Overview_Costing::META_VAL, true ),
+		);
+
+		$product->set_stock_quantity( $new_stock );
+		$product->update_meta_data( WC_Inventory_Overview_Costing::META_AVG, wc_format_decimal( $new_avg, 6 ) );
+		$product->update_meta_data( WC_Inventory_Overview_Costing::META_VAL, wc_format_decimal( $new_value, 4 ) );
+
+		try {
+			$product->save();
+		} catch ( Throwable $e ) {
+			return new WP_Error( 'wc_io_save', $e->getMessage() );
+		}
+
+		return array(
+			'line_id'  => $line_id,
+			'snapshot' => $snapshot,
+			'movement' => array(
+				'product_id'            => $movement_pid,
+				'variation_id'          => $movement_vid,
+				'quantity_change'       => -$reversal_qty,
+				'unit_cost'             => $reversal_qty > 0 ? (float) wc_format_decimal( $reversal_value / $reversal_qty, 6 ) : 0.0,
+				'total_value'           => -$reversal_value,
+				'old_stock'             => $current_stock,
+				'new_stock'             => $new_stock,
+				'old_average_unit_cost' => $current_avg_raw,
+				'new_average_unit_cost' => $new_avg,
+				'old_inventory_value'   => $current_value,
+				'new_inventory_value'   => $new_value,
+			),
+		);
 	}
 
 	/**
