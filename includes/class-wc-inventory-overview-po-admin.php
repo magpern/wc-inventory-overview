@@ -224,8 +224,51 @@ class WC_Inventory_Overview_PO_Admin {
 
 		<?php self::render_action_forms( $po, $actions ); ?>
 		<?php if ( ! $is_new ) : ?>
+			<?php self::render_receiving_history( $po_id, $lines ); ?>
 			<?php self::render_timeline( $po_id ); ?>
 		<?php endif; ?>
+		<?php
+	}
+
+	/**
+	 * Receiving history (M5): every Goods Receipt line fulfilling one of this PO's
+	 * lines, across all receipts (posted or voided). Bulk query, not one per line
+	 * (M5 plan §Performance).
+	 *
+	 * @param int                            $po_id PO id.
+	 * @param array<int,array<string,mixed>> $lines This PO's lines (for id list; avoids a second PO-lines query).
+	 */
+	private static function render_receiving_history( int $po_id, array $lines ) {
+		$po_line_ids = wp_list_pluck( $lines, 'id' );
+		$rows        = empty( $po_line_ids ) ? array() : WC_Inventory_Overview_Receipt_Lines::list_for_po_line_ids( array_map( 'absint', $po_line_ids ) );
+		?>
+		<div class="wc-io-po-receiving-history">
+			<h3><?php esc_html_e( 'Receiving History', 'wc-inventory-overview' ); ?></h3>
+			<?php if ( empty( $rows ) ) : ?>
+				<p class="description"><?php esc_html_e( 'No receipts have been posted against this Purchase Order yet.', 'wc-inventory-overview' ); ?></p>
+			<?php else : ?>
+				<table class="widefat striped">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Receipt', 'wc-inventory-overview' ); ?></th>
+							<th><?php esc_html_e( 'Status', 'wc-inventory-overview' ); ?></th>
+							<th><?php esc_html_e( 'Product', 'wc-inventory-overview' ); ?></th>
+							<th><?php esc_html_e( 'Qty', 'wc-inventory-overview' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+					<?php foreach ( $rows as $row ) : ?>
+						<tr>
+							<td><a href="<?php echo esc_url( WC_Inventory_Overview_Goods_Receipt_Admin::detail_url( (int) $row['receipt_id'] ) ); ?>"><?php echo esc_html( (string) $row['receipt_number'] ); ?></a></td>
+							<td><?php echo esc_html( WC_Inventory_Overview_Goods_Receipt_Lifecycle::status_label( (string) $row['receipt_status'] ) ); ?></td>
+							<td><?php echo esc_html( (string) $row['name_snapshot'] ); ?></td>
+							<td><?php echo esc_html( (string) $row['qty'] ); ?></td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+		</div>
 		<?php
 	}
 
@@ -361,6 +404,7 @@ class WC_Inventory_Overview_PO_Admin {
 					<th><?php esc_html_e( 'SKU', 'wc-inventory-overview' ); ?></th>
 					<th><?php esc_html_e( 'Supplier SKU', 'wc-inventory-overview' ); ?></th>
 					<th><?php esc_html_e( 'Ordered', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Received', 'wc-inventory-overview' ); ?></th>
 					<th><?php esc_html_e( 'Cancelled', 'wc-inventory-overview' ); ?></th>
 					<th><?php esc_html_e( 'Outstanding', 'wc-inventory-overview' ); ?></th>
 					<th><?php esc_html_e( 'Unit Cost', 'wc-inventory-overview' ); ?></th>
@@ -440,6 +484,7 @@ class WC_Inventory_Overview_PO_Admin {
 					<?php echo esc_html( (string) ( $line['qty_ordered'] ?? '0' ) ); ?>
 				<?php endif; ?>
 			</td>
+			<td><?php echo esc_html( (string) ( $line['qty_received'] ?? '0' ) ); ?></td>
 			<td><?php echo esc_html( (string) ( $line['qty_cancelled'] ?? '0' ) ); ?></td>
 			<td><?php echo esc_html( (string) $outstanding ); ?></td>
 			<td>
@@ -501,6 +546,29 @@ class WC_Inventory_Overview_PO_Admin {
 			WC_Inventory_Overview_PO_Lifecycle::ACTION_DUPLICATE    => array( 'wc_io_po_duplicate', WC_Inventory_Overview_Purchasing_Caps::DUPLICATE_PO, 'button' ),
 		);
 		echo '<div class="wc-io-po-actions"><h3>' . esc_html__( 'Actions', 'wc-inventory-overview' ) . '</h3>';
+
+		// M5: "Receive" entry point — not a WC_Inventory_Overview_PO_Lifecycle action
+		// (receiving auto-transitions status via PO_Receiving_Sync, never via this
+		// operator-gated map); gated on its own capability and on PO receivability.
+		$receivable_statuses = array(
+			WC_Inventory_Overview_PO_Statuses::PLACED,
+			WC_Inventory_Overview_PO_Statuses::PARTIALLY_RECEIVED,
+			WC_Inventory_Overview_PO_Statuses::RECEIVED,
+		);
+		if ( in_array( (string) $po['status'], $receivable_statuses, true )
+			&& WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::RECEIVE_PO ) ) {
+			$receive_url = add_query_arg(
+				array(
+					'page'   => WC_Inventory_Overview_Purchasing_Page::PAGE_SLUG,
+					'tab'    => WC_Inventory_Overview_Purchasing_Page::TAB_RECEIPTS,
+					'action' => 'new_from_po',
+					'po_id'  => $po_id,
+				),
+				admin_url( 'admin.php' )
+			);
+			echo '<a class="button button-primary" href="' . esc_url( $receive_url ) . '">' . esc_html__( 'Receive', 'wc-inventory-overview' ) . '</a> ';
+		}
+
 		foreach ( $map as $lifecycle_action => $meta ) {
 			if ( ! in_array( $lifecycle_action, $actions, true ) ) {
 				continue;

@@ -147,6 +147,9 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 			case 'view':
 				self::render_detail( $action );
 				return;
+			case 'new_from_po':
+				self::render_new_from_po();
+				return;
 			case 'post_confirm':
 				self::render_post_confirm();
 				return;
@@ -156,6 +159,51 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 			default:
 				self::render_list();
 		}
+	}
+
+	/**
+	 * "Receive" entry point from a PO detail page (M5). Builds an in-memory
+	 * (not yet persisted) line proposal — one line per outstanding PO line,
+	 * default qty = outstanding, cost pre-filled from the PO line's unit_cost —
+	 * and renders the same editable new-receipt form render_detail() already
+	 * builds, pre-populated. Saving it is the same create_draft_from_post() call
+	 * M4 already built; no new persistence method (M5 plan §Receiving workflow).
+	 */
+	private static function render_new_from_po() {
+		if ( ! WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::RECEIVE_PO ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'wc-inventory-overview' ) );
+		}
+		$po_id = isset( $_GET['po_id'] ) ? absint( $_GET['po_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$po    = WC_Inventory_Overview_Purchase_Orders::get( $po_id );
+		if ( is_wp_error( $po ) ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Purchase order not found.', 'wc-inventory-overview' ) . '</p></div>';
+			return;
+		}
+
+		$po_lines = WC_Inventory_Overview_Purchase_Order_Lines::list_for_po( $po_id );
+		$prefill  = array();
+		foreach ( $po_lines as $po_line ) {
+			$outstanding = WC_Inventory_Overview_Purchase_Order_Lines::outstanding( $po_line );
+			if ( $outstanding <= 0 ) {
+				continue;
+			}
+			$prefill[] = array(
+				'po_line_id'        => (int) $po_line['id'],
+				'po_number'         => (string) $po['po_number'],
+				'product_id'        => (int) $po_line['product_id'],
+				'variation_id'      => (int) $po_line['variation_id'],
+				'sku_snapshot'      => (string) ( $po_line['sku_snapshot'] ?? '' ),
+				'name_snapshot'     => (string) ( $po_line['name_snapshot'] ?? '' ),
+				'qty'               => $outstanding,
+				'entered_unit_cost' => $po_line['unit_cost'] ?? 0,
+			);
+		}
+
+		if ( empty( $prefill ) ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'This Purchase Order has no outstanding lines to receive.', 'wc-inventory-overview' ) . '</p></div>';
+		}
+
+		self::render_detail( 'new', $prefill, $po );
 	}
 
 	/**
@@ -180,9 +228,11 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 	/**
 	 * Render create/edit/view detail.
 	 *
-	 * @param string $action Action.
+	 * @param string                         $action        Action.
+	 * @param array<int,array<string,mixed>> $prefill_lines M5: in-memory, not-yet-persisted lines (from render_new_from_po()). Empty for the normal M4 new/edit/view paths.
+	 * @param array<string,mixed>|null       $po_context    M5: the PO being received against, when $prefill_lines is non-empty (for the "Receiving against PO-XXXX" banner).
 	 */
-	private static function render_detail( string $action ) {
+	private static function render_detail( string $action, array $prefill_lines = array(), $po_context = null ) {
 		$id      = isset( $_GET['gr_id'] ) ? absint( $_GET['gr_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$receipt = null;
 		$lines   = array();
@@ -196,6 +246,8 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 			}
 			$lines = WC_Inventory_Overview_Receipt_Lines::list_for_receipt( $id );
 			$costs = WC_Inventory_Overview_Receipt_Costs::list_for_receipt( $id );
+		} elseif ( ! empty( $prefill_lines ) ) {
+			$lines = $prefill_lines;
 		}
 
 		$is_new   = ( null === $receipt );
@@ -205,7 +257,13 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 		$actions  = $is_new ? array( WC_Inventory_Overview_Goods_Receipt_Lifecycle::ACTION_EDIT ) : WC_Inventory_Overview_Goods_Receipt_Lifecycle::available_actions( $status );
 
 		$title = $is_new
-			? __( 'New Goods Receipt (Quick Receive Without PO)', 'wc-inventory-overview' )
+			? ( $po_context
+				? sprintf(
+					/* translators: %s: PO number */
+					__( 'New Goods Receipt (Receiving against %s)', 'wc-inventory-overview' ),
+					$po_context['po_number']
+				)
+				: __( 'New Goods Receipt (Quick Receive Without PO)', 'wc-inventory-overview' ) )
 			: sprintf(
 				/* translators: %s: receipt number */
 				__( 'Goods Receipt %s', 'wc-inventory-overview' ),
@@ -219,6 +277,9 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 				<span class="wc-io-gr-status wc-io-gr-status--<?php echo esc_attr( $status ); ?>"><?php echo esc_html( WC_Inventory_Overview_Goods_Receipt_Lifecycle::status_label( $status ) ); ?></span>
 			<?php endif; ?>
 		</h2>
+		<?php if ( $po_context ) : ?>
+			<p class="notice notice-info inline"><?php echo esc_html( sprintf( /* translators: %s: PO number */ __( 'Pre-filled with the outstanding lines of %s. Adjust quantities for a partial receive, remove lines you\'re not receiving now, or add extra direct lines below.', 'wc-inventory-overview' ), $po_context['po_number'] ) ); ?></p>
+		<?php endif; ?>
 
 		<?php if ( $can_edit ) : ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wc-io-po-form" id="wc-io-gr-form">
@@ -408,17 +469,28 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 		$search_id    = $variation_id > 0 ? $variation_id : $product_id;
 		$name         = (string) ( $line['name_snapshot'] ?? '' );
 		$sku          = (string) ( $line['sku_snapshot'] ?? '' );
+		$po_line_id   = isset( $line['po_line_id'] ) ? (int) $line['po_line_id'] : 0;
 		?>
 		<tr class="wc-io-gr-line-row">
 			<td>
 				<?php if ( $editable ) : ?>
+					<input type="hidden" name="wc_io_gr_line_po_line_id[<?php echo esc_attr( (string) $index ); ?>]" value="<?php echo esc_attr( (string) $po_line_id ); ?>" />
 					<select class="wc-product-search" style="width:220px;" name="wc_io_gr_line_product[<?php echo esc_attr( (string) $index ); ?>]" data-placeholder="<?php esc_attr_e( 'Search for a product…', 'wc-inventory-overview' ); ?>" data-action="woocommerce_json_search_products_and_variations" data-allow_clear="true">
 						<?php if ( $search_id > 0 ) : ?>
 							<option value="<?php echo esc_attr( (string) $search_id ); ?>" selected="selected"><?php echo esc_html( $name ? $name : (string) $search_id ); ?></option>
 						<?php endif; ?>
 					</select>
+					<?php if ( $po_line_id > 0 ) : ?>
+						<p class="description"><?php echo esc_html( sprintf( /* translators: %s: PO line id */ __( 'From PO line #%s', 'wc-inventory-overview' ), (string) $po_line_id ) ); ?></p>
+					<?php endif; ?>
 				<?php else : ?>
 					<?php echo esc_html( $name ); ?>
+					<?php if ( $po_line_id > 0 ) : ?>
+						<?php $fulfils = self::po_line_link( $po_line_id ); ?>
+						<?php if ( $fulfils ) : ?>
+							<p class="description"><?php esc_html_e( 'Fulfils:', 'wc-inventory-overview' ); ?> <?php echo $fulfils; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- po_line_link() returns pre-escaped markup. ?></p>
+						<?php endif; ?>
+					<?php endif; ?>
 				<?php endif; ?>
 			</td>
 			<td><?php echo esc_html( $sku ? $sku : '—' ); ?></td>
@@ -446,6 +518,32 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 			<?php endif; ?>
 		</tr>
 		<?php
+	}
+
+	/**
+	 * Build a "PO-XXXX line N" link for a PO-linked receipt line (M5). Read-only,
+	 * computed at render time — po_line_id is the only stored linkage, this is
+	 * never persisted redundantly (M5 plan §Audit model).
+	 *
+	 * @param int $po_line_id PO line id.
+	 * @return string Pre-escaped HTML link, or '' if the PO line/PO can no longer be resolved.
+	 */
+	private static function po_line_link( int $po_line_id ): string {
+		$po_line = WC_Inventory_Overview_Purchase_Order_Lines::get( $po_line_id );
+		if ( is_wp_error( $po_line ) ) {
+			return '';
+		}
+		$po = WC_Inventory_Overview_Purchase_Orders::get( (int) $po_line['po_id'] );
+		if ( is_wp_error( $po ) ) {
+			return '';
+		}
+		$url = WC_Inventory_Overview_PO_Admin::detail_url( (int) $po['id'] );
+		return sprintf(
+			'<a href="%s">%s (line %d)</a>',
+			esc_url( $url ),
+			esc_html( (string) $po['po_number'] ),
+			(int) $po_line['line_index'] + 1
+		);
 	}
 
 	/**
