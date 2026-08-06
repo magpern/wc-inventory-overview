@@ -1,15 +1,24 @@
 <?php
 /**
- * Goods Receipt application service — sole inventory mutation entry point (M4).
+ * Goods Receipt application service — sole inventory mutation entry point (M4,
+ * extended M5 to orchestrate PO-linked receiving).
  *
  * WC_Inventory_Overview_Goods_Receipt_Service is the ONLY public orchestration path
- * for every M4 inventory mutation. No controller, repository, UI class, AJAX
+ * for every M4/M5 inventory mutation. No controller, repository, UI class, AJAX
  * handler, REST endpoint, CLI command, import, or future integration may directly
  * call Restock_Service::apply_purchase_line_change() / apply_purchase_line_reversal().
  * All persistence during post() and void() is orchestrated here, inside exactly one
  * WC_Inventory_Overview_DB_Transaction::run() closure per call. This class never
  * calls WC_Inventory_Overview_DB_Transaction::rollback() directly — rollback is
  * exclusively run()'s job, triggered only by a thrown Exception (see throw_if_error()).
+ *
+ * M5 addition: this class is also the sole business orchestrator for qty_received
+ * changes — the only code path permitted to initiate one. It never writes
+ * qty_received itself; it delegates to WC_Inventory_Overview_PO_Receiving_Sync (the
+ * sole owner of that mutation), which in turn is the only caller of
+ * WC_Inventory_Overview_Purchase_Order_Lines::increment_qty_received() (the sole
+ * physical writer). See the M5 implementation plan §Receiving-status ownership /
+ * Formal invariant for the full three-tier chain.
  *
  * Transaction lifetime: begins immediately before persistence (after cheap,
  * side-effect-free pre-validation and idempotency-token consumption have already
@@ -89,6 +98,7 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 						'receipt_total'            => $preview['receipt_total'],
 						'reference'                => $preview['header']['reference'],
 						'note'                     => $preview['header']['note'],
+						'source'                   => self::derive_source( $preview['lines'] ),
 					);
 
 					$receipt_id = self::throw_if_error( WC_Inventory_Overview_Goods_Receipts::create_draft( $header_row ) );
@@ -156,6 +166,7 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 						'receipt_total'            => $preview['receipt_total'],
 						'reference'                => $preview['header']['reference'],
 						'note'                     => $preview['header']['note'],
+						'source'                   => self::derive_source( $preview['lines'] ),
 					);
 					self::throw_if_error( WC_Inventory_Overview_Goods_Receipts::update_fields( $id, $header_row ) );
 
@@ -238,6 +249,11 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 			return new WP_Error( 'wc_io_gr_no_lines', __( 'Add at least one line before posting.', 'wc-inventory-overview' ) );
 		}
 
+		$po_over_receipt = self::validate_and_assess_po_linked_lines( $lines );
+		if ( is_wp_error( $po_over_receipt ) ) {
+			return $po_over_receipt;
+		}
+
 		$user_id             = get_current_user_id();
 		$touched_product_ids = array();
 
@@ -246,7 +262,7 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 
 		try {
 			$txn->run(
-				function () use ( $id, $lines, $user_id, &$touched_product_ids ) {
+				function () use ( $id, $lines, $user_id, $po_over_receipt, &$touched_product_ids ) {
 					$affected = WC_Inventory_Overview_Goods_Receipts::compare_and_swap_post( $id, $user_id );
 					if ( 1 !== $affected ) {
 						self::throw_if_error(
@@ -291,6 +307,26 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 						}
 
 						$touched_product_ids[] = $purchasable_id;
+
+						$po_line_id = (int) ( $line['po_line_id'] ?? 0 );
+						if ( $po_line_id > 0 ) {
+							$assessment = $po_over_receipt[ (int) $line['id'] ] ?? array(
+								'over_receipt' => false,
+								'qty_over'     => 0.0,
+							);
+							self::throw_if_error(
+								WC_Inventory_Overview_PO_Receiving_Sync::apply_line_delta(
+									$po_line_id,
+									(float) $line['qty'],
+									$id,
+									(string) $receipt_row['receipt_number'],
+									$user_id,
+									false,
+									$assessment['over_receipt'],
+									$assessment['qty_over']
+								)
+							);
+						}
 					}
 				}
 			);
@@ -312,6 +348,72 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 		self::invalidate_product_caches( $touched_product_ids );
 
 		return WC_Inventory_Overview_Goods_Receipts::get( $id );
+	}
+
+	/**
+	 * Cheap, side-effect-free pre-transaction check for PO-linked lines (M5) — runs
+	 * before the transaction opens, so a request that's obviously invalid never
+	 * starts one (same discipline M4 established for draft/status/no-lines checks).
+	 *
+	 * For every line carrying a po_line_id: the referenced PO line and its owning
+	 * PO must exist, and the PO's status must be one of {placed, partially_received,
+	 * received} — draft/cancelled/closed_short POs may never be received against.
+	 * `received` is deliberately included: D5 permits over-receipt even against an
+	 * already-fully-received PO (M5 plan §Scope-boundary ruling).
+	 *
+	 * Over-receipt (qty > this PO line's current outstanding) is assessed here, at
+	 * post-request time, and is never rejected — only flagged for the PO event's
+	 * audit record (D5: "over-receipt is allowed with warning and audit"), computed
+	 * against 4-decimal-rounded values per the numeric precision convention.
+	 *
+	 * @param array<int, array<string, mixed>> $lines Draft receipt lines.
+	 * @return array<int, array{over_receipt:bool, qty_over:float}>|WP_Error Map keyed by receipt line id.
+	 */
+	private static function validate_and_assess_po_linked_lines( array $lines ) {
+		$assessment = array();
+
+		foreach ( $lines as $line ) {
+			$po_line_id = (int) ( $line['po_line_id'] ?? 0 );
+			if ( $po_line_id <= 0 ) {
+				continue;
+			}
+
+			$po_line = WC_Inventory_Overview_Purchase_Order_Lines::get( $po_line_id );
+			if ( is_wp_error( $po_line ) ) {
+				return $po_line;
+			}
+
+			$po = WC_Inventory_Overview_Purchase_Orders::get( (int) $po_line['po_id'] );
+			if ( is_wp_error( $po ) ) {
+				return $po;
+			}
+
+			$receivable_statuses = array(
+				WC_Inventory_Overview_PO_Statuses::PLACED,
+				WC_Inventory_Overview_PO_Statuses::PARTIALLY_RECEIVED,
+				WC_Inventory_Overview_PO_Statuses::RECEIVED,
+			);
+			if ( ! in_array( $po['status'], $receivable_statuses, true ) ) {
+				return new WP_Error(
+					'wc_io_gr_po_not_receivable',
+					sprintf(
+						/* translators: %s: PO status */
+						__( 'This line\'s Purchase Order cannot be received against in its current status (%s).', 'wc-inventory-overview' ),
+						WC_Inventory_Overview_PO_Statuses::label( (string) $po['status'] )
+					)
+				);
+			}
+
+			$outstanding = round( WC_Inventory_Overview_Purchase_Order_Lines::outstanding( $po_line ), 4 );
+			$qty         = round( (float) $line['qty'], 4 );
+
+			$assessment[ (int) $line['id'] ] = array(
+				'over_receipt' => $qty > $outstanding,
+				'qty_over'     => $qty > $outstanding ? round( $qty - $outstanding, 4 ) : 0.0,
+			);
+		}
+
+		return $assessment;
 	}
 
 	/**
@@ -396,6 +498,20 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 						}
 
 						$touched_product_ids[] = $purchasable_id;
+
+						$po_line_id = (int) ( $line['po_line_id'] ?? 0 );
+						if ( $po_line_id > 0 ) {
+							self::throw_if_error(
+								WC_Inventory_Overview_PO_Receiving_Sync::apply_line_delta(
+									$po_line_id,
+									-$reversal_qty,
+									$id,
+									(string) $receipt_row['receipt_number'],
+									$user_id,
+									true
+								)
+							);
+						}
 					}
 				}
 			);
@@ -433,13 +549,19 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 	 */
 	private static function persist_draft_lines_and_costs( int $receipt_id, array $preview ): void {
 		foreach ( $preview['lines'] as $index => $line ) {
-			$identity = self::resolve_product_identity( (int) $line['product_id'] );
+			$identity   = self::resolve_product_identity( (int) $line['product_id'] );
+			$po_line_id = (int) ( $line['po_line_id'] ?? 0 );
+
+			if ( $po_line_id > 0 ) {
+				self::throw_if_error( self::assert_po_line_matches_product( $po_line_id, $identity ) );
+			}
 
 			self::throw_if_error(
 				WC_Inventory_Overview_Receipt_Lines::create(
 					$receipt_id,
 					array(
 						'line_index'              => $index,
+						'po_line_id'              => $po_line_id,
 						'product_id'              => $identity['product_id'],
 						'variation_id'            => $identity['variation_id'],
 						'sku_snapshot'            => $identity['sku_snapshot'],
@@ -463,6 +585,53 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 				WC_Inventory_Overview_Receipt_Costs::create( $receipt_id, $row )
 			);
 		}
+	}
+
+	/**
+	 * Derive a receipt's 'source' from its line composition (M5). Never
+	 * operator-chosen — computed the same way at draft-save time (here) and used
+	 * verbatim thereafter. 'direct' when every line has no po_line_id (M4 behavior,
+	 * unchanged); 'po' when every line has one; 'mixed' otherwise.
+	 *
+	 * @param array<int, array<string, mixed>> $lines Preview lines (each optionally carrying 'po_line_id').
+	 */
+	private static function derive_source( array $lines ): string {
+		$has_po     = false;
+		$has_direct = false;
+		foreach ( $lines as $line ) {
+			if ( (int) ( $line['po_line_id'] ?? 0 ) > 0 ) {
+				$has_po = true;
+			} else {
+				$has_direct = true;
+			}
+		}
+		if ( $has_po && $has_direct ) {
+			return 'mixed';
+		}
+		return $has_po ? 'po' : 'direct';
+	}
+
+	/**
+	 * Defense-in-depth: the product/variation submitted for a PO-linked line must
+	 * match the product/variation actually referenced by that PO line. Rejected
+	 * before any draft is saved (M5 plan §Class/service changes).
+	 *
+	 * @param int                                                                             $po_line_id PO line id.
+	 * @param array{product_id:int,variation_id:int,sku_snapshot:string,name_snapshot:string} $identity Resolved submitted product identity.
+	 * @return true|WP_Error
+	 */
+	private static function assert_po_line_matches_product( int $po_line_id, array $identity ) {
+		$po_line = WC_Inventory_Overview_Purchase_Order_Lines::get( $po_line_id );
+		if ( is_wp_error( $po_line ) ) {
+			return $po_line;
+		}
+		if ( (int) $po_line['product_id'] !== $identity['product_id'] || (int) $po_line['variation_id'] !== $identity['variation_id'] ) {
+			return new WP_Error(
+				'wc_io_gr_po_line_product_mismatch',
+				__( 'This line\'s product does not match the selected Purchase Order line.', 'wc-inventory-overview' )
+			);
+		}
+		return true;
 	}
 
 	/**
