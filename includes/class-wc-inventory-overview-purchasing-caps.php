@@ -31,6 +31,14 @@ class WC_Inventory_Overview_Purchasing_Caps {
 	const DELETE_RECEIPT = 'delete_receipt';
 
 	/**
+	 * M5: gates only the "Receive" entry point on the PO detail page and the
+	 * PO-line-picker step of building a PO-linked draft. The actual mutating
+	 * actions (post/void) are still gated by POST_RECEIPT/VOID_RECEIPT inside
+	 * Goods_Receipt_Admin/Goods_Receipt_Service — unchanged, not duplicated.
+	 */
+	const RECEIVE_PO = 'receive_po';
+
+	/**
 	 * Resolve the WordPress capability for a purchasing action key.
 	 *
 	 * @param string $action Action key (view_po, edit_po, …).
@@ -50,6 +58,7 @@ class WC_Inventory_Overview_Purchasing_Caps {
 			self::POST_RECEIPT     => 'manage_woocommerce',
 			self::VOID_RECEIPT     => 'manage_woocommerce',
 			self::DELETE_RECEIPT   => 'manage_woocommerce',
+			self::RECEIVE_PO       => 'manage_woocommerce',
 		);
 
 		/**
