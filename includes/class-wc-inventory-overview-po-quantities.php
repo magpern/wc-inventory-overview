@@ -1,8 +1,8 @@
 <?php
 /**
- * Purchase Order quantity helpers (M2 form of INV-4).
+ * Purchase Order quantity helpers (full INV-4 formula, M5).
  *
- * Outstanding = max(0, qty_ordered − qty_cancelled). No qty_received.
+ * Outstanding = max(0, qty_ordered − qty_received − qty_cancelled).
  *
  * @package WC_Inventory_Overview
  */
@@ -15,13 +15,14 @@ defined( 'ABSPATH' ) || exit;
 class WC_Inventory_Overview_PO_Quantities {
 
 	/**
-	 * Outstanding quantity (M2 INV-4 reduction).
+	 * Outstanding quantity — full INV-4 formula.
 	 *
 	 * @param float|int|string $qty_ordered   Ordered.
+	 * @param float|int|string $qty_received  Received (maintained counter, M5).
 	 * @param float|int|string $qty_cancelled Cancelled.
 	 */
-	public static function outstanding( $qty_ordered, $qty_cancelled ): float {
-		return max( 0.0, (float) $qty_ordered - (float) $qty_cancelled );
+	public static function outstanding( $qty_ordered, $qty_received, $qty_cancelled ): float {
+		return max( 0.0, round( (float) $qty_ordered - (float) $qty_received - (float) $qty_cancelled, 4 ) );
 	}
 
 	/**
