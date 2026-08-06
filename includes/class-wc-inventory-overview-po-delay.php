@@ -97,6 +97,7 @@ class WC_Inventory_Overview_PO_Delay {
 			);
 			$outstanding          = WC_Inventory_Overview_PO_Quantities::outstanding(
 				$line['qty_ordered'] ?? 0,
+				$line['qty_received'] ?? 0,
 				$line['qty_cancelled'] ?? 0
 			);
 			if ( self::is_line_delayed( $po_status, $outstanding, $effective_date, $effective_confidence, $grace_days, $today ) ) {
@@ -127,7 +128,7 @@ class WC_Inventory_Overview_PO_Delay {
 
 		$effective_date = 'COALESCE(NULLIF(pol.expected_date, \'0000-00-00\'), NULLIF(po.expected_date, \'0000-00-00\'))';
 		$effective_conf = "COALESCE(NULLIF(pol.expected_confidence, ''), NULLIF(po.expected_confidence, ''), 'unknown')";
-		$outstanding    = 'GREATEST(0, pol.qty_ordered - pol.qty_cancelled)';
+		$outstanding    = 'GREATEST(0, pol.qty_ordered - pol.qty_received - pol.qty_cancelled)';
 
 		return sprintf(
 			"po.status = 'placed'

@@ -1,9 +1,9 @@
 <?php
 /**
- * Purchase Order line repository (M2-C).
+ * Purchase Order line repository (M2-C, extended M5).
  *
- * Persistence only — no lifecycle policy. No qty_received column.
- * Outstanding = ordered − cancelled (M2 form of INV-4).
+ * Persistence only — no lifecycle policy.
+ * Outstanding = ordered − received − cancelled (full INV-4 formula, M5).
  *
  * @package WC_Inventory_Overview
  */
@@ -270,15 +270,43 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	}
 
 	/**
-	 * Outstanding for a line row (M2 INV-4 reduction).
+	 * Outstanding for a line row (full INV-4 formula, M5).
 	 *
 	 * @param array<string,mixed> $line Line row.
 	 */
 	public static function outstanding( array $line ): float {
 		return WC_Inventory_Overview_Purchase_Orders::qty_outstanding(
 			$line['qty_ordered'] ?? 0,
+			$line['qty_received'] ?? 0,
 			$line['qty_cancelled'] ?? 0
 		);
+	}
+
+	/**
+	 * Increment (or, with a negative delta, decrement) qty_received by an exact amount.
+	 *
+	 * Sole physical writer of this column anywhere in the codebase (architecture-guard
+	 * enforced, M5) — called only by WC_Inventory_Overview_PO_Receiving_Sync. A plain
+	 * atomic `SET qty_received = qty_received + %f`, not a read-then-write in PHP, so it
+	 * is safe under concurrent transactions without row locking (M5 plan §Idempotency).
+	 *
+	 * @param int   $line_id Line id.
+	 * @param float $delta   Signed delta; positive on receipt post, negative on void.
+	 * @return int Rows affected (0 or 1).
+	 */
+	public static function increment_qty_received( int $line_id, float $delta ): int {
+		global $wpdb;
+		$table = self::table_name();
+		$now   = current_time( 'mysql', true );
+		$wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is prepared immediately below via $wpdb->prepare().
+			$wpdb->prepare(
+				"UPDATE {$table} SET qty_received = qty_received + %f, updated_at = %s WHERE id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$delta,
+				$now,
+				$line_id
+			)
+		);
+		return (int) $wpdb->rows_affected;
 	}
 
 	/**
@@ -296,10 +324,12 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	/**
 	 * List open PO lines for simple products (M3 — Inventory Position).
 	 *
-	 * "Open" qualification is PO header status = placed only; the PO-line
-	 * status column is not consulted (M3 plan §6). Outstanding uses the
-	 * M2-era formula GREATEST(0, qty_ordered - qty_cancelled) — no
-	 * qty_received anywhere in schema v7. Lines are never aggregated in
+	 * "Open" qualification is PO header status IN (placed, partially_received,
+	 * received) — the PO-line status column is not consulted (M3 plan §6). A
+	 * `received` PO is included for completeness though its lines' outstanding
+	 * is always 0 and the HAVING clause below excludes them regardless.
+	 * Outstanding uses the full INV-4 formula, GREATEST(0, qty_ordered -
+	 * qty_received - qty_cancelled) as of M5 (schema v9). Lines are never aggregated in
 	 * SQL: each row is an independent line so the caller (the Inventory
 	 * Position Service) can retain per-line identity for drill-down
 	 * (INV-1, INV-7).
@@ -361,7 +391,7 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 			WC_Inventory_Overview_PO_Delay::grace_days_from_option()
 		);
 
-		$outstanding_expr   = 'GREATEST(0, pol.qty_ordered - pol.qty_cancelled)';
+		$outstanding_expr   = 'GREATEST(0, pol.qty_ordered - pol.qty_received - pol.qty_cancelled)';
 		$expected_date_expr = "COALESCE(NULLIF(pol.expected_date, '0000-00-00'), NULLIF(po.expected_date, '0000-00-00'))";
 		$expected_conf_expr = "COALESCE(NULLIF(pol.expected_confidence, ''), NULLIF(po.expected_confidence, ''), 'unknown')";
 
@@ -377,7 +407,7 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 				({$delayed_predicate}) AS is_delayed
 			FROM {$lines} pol
 			INNER JOIN {$orders} po ON po.id = pol.po_id
-			WHERE po.status = 'placed'
+			WHERE po.status IN ('placed', 'partially_received', 'received')
 				AND {$qualifier_sql}
 			HAVING outstanding > 0
 			ORDER BY pol.po_id ASC, pol.line_index ASC, pol.id ASC";

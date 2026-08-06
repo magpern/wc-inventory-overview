@@ -345,13 +345,14 @@ class WC_Inventory_Overview_Purchase_Orders {
 	}
 
 	/**
-	 * Outstanding quantity helper (M2 form of INV-4: ordered − cancelled).
+	 * Outstanding quantity helper (full INV-4 formula, M5: ordered − received − cancelled).
 	 *
 	 * @param float|string $qty_ordered   Ordered.
+	 * @param float|string $qty_received  Received.
 	 * @param float|string $qty_cancelled Cancelled.
 	 */
-	public static function qty_outstanding( $qty_ordered, $qty_cancelled ): float {
-		return WC_Inventory_Overview_PO_Quantities::outstanding( $qty_ordered, $qty_cancelled );
+	public static function qty_outstanding( $qty_ordered, $qty_received, $qty_cancelled ): float {
+		return WC_Inventory_Overview_PO_Quantities::outstanding( $qty_ordered, $qty_received, $qty_cancelled );
 	}
 
 	/**

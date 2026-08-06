@@ -482,7 +482,7 @@ class WC_Inventory_Overview_PO_Service {
 
 		$ordered     = (float) $line['qty_ordered'];
 		$cancelled   = (float) $line['qty_cancelled'];
-		$outstanding = WC_Inventory_Overview_PO_Quantities::outstanding( $ordered, $cancelled );
+		$outstanding = WC_Inventory_Overview_Purchase_Order_Lines::outstanding( $line );
 		$cancel_qty  = null === $qty ? $outstanding : (float) $qty;
 
 		if ( $cancel_qty <= 0 ) {
