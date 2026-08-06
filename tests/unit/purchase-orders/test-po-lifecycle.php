@@ -11,14 +11,17 @@
 class Test_WC_IO_PO_Lifecycle extends WP_UnitTestCase {
 
 	/**
-	 * Vocabulary remains exactly four statuses.
+	 * Vocabulary is exactly six statuses as of M5 (the original four M2 statuses
+	 * plus the two auto-transitioned M5 receiving statuses). Superseded from the
+	 * pre-M5 "exactly four" claim — M5 implementation plan §Testing "M4
+	 * guard-revision audit".
 	 */
-	public function test_status_vocabulary_exactly_four() {
+	public function test_status_vocabulary_exactly_six() {
 		$this->assertSame(
-			array( 'draft', 'placed', 'cancelled', 'closed_short' ),
+			array( 'draft', 'placed', 'partially_received', 'received', 'cancelled', 'closed_short' ),
 			WC_Inventory_Overview_PO_Statuses::all()
 		);
-		$this->assertCount( 4, WC_Inventory_Overview_PO_Lifecycle::transitions() );
+		$this->assertCount( 6, WC_Inventory_Overview_PO_Lifecycle::transitions() );
 	}
 
 	/**
@@ -124,12 +127,57 @@ class Test_WC_IO_PO_Lifecycle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Unknown statuses are rejected.
+	 * Genuinely unknown statuses (not the two new M5 values, which are now valid
+	 * vocabulary) are still rejected.
 	 */
-	public function test_unknown_status_rejected() {
-		$this->assertFalse( WC_Inventory_Overview_PO_Lifecycle::can_transition( 'partially_received', 'received' ) );
-		$this->assertWPError( WC_Inventory_Overview_PO_Lifecycle::assert_transition( 'draft', 'received' ) );
-		$this->assertWPError( WC_Inventory_Overview_PO_Lifecycle::assert_editable( 'received' ) );
-		$this->assertSame( array(), WC_Inventory_Overview_PO_Lifecycle::available_actions( 'received' ) );
+	public function test_truly_unknown_status_rejected() {
+		$this->assertFalse( WC_Inventory_Overview_PO_Lifecycle::can_transition( 'draft', 'bogus_status' ) );
+		$this->assertWPError( WC_Inventory_Overview_PO_Lifecycle::assert_transition( 'draft', 'bogus_status' ) );
+		$this->assertWPError( WC_Inventory_Overview_PO_Lifecycle::assert_editable( 'bogus_status' ) );
+		$this->assertSame( array(), WC_Inventory_Overview_PO_Lifecycle::available_actions( 'bogus_status' ) );
+	}
+
+	/**
+	 * M5: partially_received/received are never reachable through the manual,
+	 * operator-gated transition table — they are auto-transition-only, reachable
+	 * exclusively through WC_Inventory_Overview_PO_Receiving_Sync, which writes
+	 * status directly and never calls assert_transition()/can_transition().
+	 */
+	public function test_receiving_statuses_never_manual_transition_targets() {
+		foreach ( WC_Inventory_Overview_PO_Statuses::all() as $from ) {
+			$this->assertFalse(
+				WC_Inventory_Overview_PO_Lifecycle::can_transition( $from, 'partially_received' ),
+				"{$from} → partially_received must never be a manual transition."
+			);
+			$this->assertFalse(
+				WC_Inventory_Overview_PO_Lifecycle::can_transition( $from, 'received' ),
+				"{$from} → received must never be a manual transition."
+			);
+		}
+	}
+
+	/**
+	 * M5: partially_received is not editable (mirrors placed/draft's non-terminal
+	 * peers being the only editable statuses); cancel/close_short remain available
+	 * from it (closing out a partial PO), but not from received (nothing left to
+	 * cancel — its only exit is the automatic downgrade via a receipt void).
+	 */
+	public function test_partially_received_editability_and_actions() {
+		$this->assertFalse( WC_Inventory_Overview_PO_Lifecycle::is_editable( 'partially_received' ) );
+		$this->assertFalse( WC_Inventory_Overview_PO_Lifecycle::is_editable( 'received' ) );
+
+		$partial = WC_Inventory_Overview_PO_Lifecycle::available_actions( 'partially_received' );
+		$this->assertContains( 'cancel', $partial );
+		$this->assertContains( 'close_short', $partial );
+		$this->assertNotContains( 'edit', $partial );
+		$this->assertNotContains( 'place', $partial );
+		$this->assertNotContains( 'delete_draft', $partial );
+
+		$received = WC_Inventory_Overview_PO_Lifecycle::available_actions( 'received' );
+		$this->assertContains( 'read', $received );
+		$this->assertContains( 'duplicate', $received );
+		$this->assertNotContains( 'cancel', $received );
+		$this->assertNotContains( 'close_short', $received );
+		$this->assertNotContains( 'edit', $received );
 	}
 }

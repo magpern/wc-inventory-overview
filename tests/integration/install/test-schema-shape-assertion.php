@@ -126,9 +126,11 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 	}
 
 	/**
-	 * M2-A: qty_received must not exist (receiving is M5).
+	 * M5 (schema v9): qty_received now exists as a real, maintained column.
+	 * Superseded from the pre-M5 "qty_received must not exist" claim — M5
+	 * implementation plan §Testing "M4 guard-revision audit".
 	 */
-	public function test_no_qty_received_column_on_po_lines() {
+	public function test_qty_received_column_exists_on_po_lines() {
 		global $wpdb;
 
 		WC_Inventory_Overview_Install::create_tables();
@@ -138,7 +140,7 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 		$columns = $wpdb->get_results( "SHOW COLUMNS FROM {$table}" );
 		$fields  = array_column( $columns, 'Field' );
 
-		$this->assertNotContains( 'qty_received', $fields );
+		$this->assertContains( 'qty_received', $fields );
 		$this->assertContains( 'qty_ordered', $fields );
 		$this->assertContains( 'qty_cancelled', $fields );
 
@@ -195,29 +197,38 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 			$this->assertEquals( $table, $exists, "Expected table {$table}" );
 		}
 
-		$this->assertSame( '8', WC_Inventory_Overview_Install::DB_VERSION );
+		$this->assertSame( '9', WC_Inventory_Overview_Install::DB_VERSION );
 		$this->assertTrue( WC_Inventory_Overview_Install::assert_schema_shape() );
 	}
 
 	/**
-	 * M4: upgrade path from schema v7 to v8 creates the new tables/columns and the
-	 * dispatcher correctly routes DB_VERSION 8 to expected_schema_v8() (not silently
-	 * falling back to v7's incomplete assertion — the exact trap the plan calls out).
+	 * Upgrade path from schema v7 all the way to the current DB_VERSION (v9, M5)
+	 * creates every intervening version's new tables/columns — v8's Goods Receipt
+	 * tables/movement columns AND v9's qty_received column — in one upgrade,
+	 * since maybe_upgrade() always targets the current DB_VERSION directly, never
+	 * stopping partway at an intermediate version. Renamed and extended from the
+	 * pre-M5 "v7 to v8" test, which asserted upgrading landed at DB_VERSION '8' —
+	 * that assertion is no longer true now that DB_VERSION is '9' (M5 implementation
+	 * plan §Testing "M4 guard-revision audit"); a dedicated, narrower v8→v9-only
+	 * upgrade test lives in tests/integration/po-receiving/test-schema-v9-upgrade.php.
 	 */
-	public function test_v7_to_v8_upgrade_path() {
+	public function test_v7_to_current_upgrade_path() {
 		global $wpdb;
 
 		// Simulate a site sitting at v7: create only the v7-era tables/columns.
 		WC_Inventory_Overview_Install::create_tables();
 		$movements_table = $wpdb->prefix . 'wc_io_inventory_movements';
+		$po_lines_table   = $wpdb->prefix . 'wc_io_purchase_order_lines';
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test DDL against known prefix table.
 		$wpdb->query( "ALTER TABLE {$movements_table} DROP COLUMN reference_type, DROP COLUMN reference_id, DROP COLUMN supplier_id" );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- test DDL against known prefix table.
+		$wpdb->query( "ALTER TABLE {$po_lines_table} DROP COLUMN qty_received" );
 		$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wc_io_goods_receipts' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wc_io_receipt_lines' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query( 'DROP TABLE IF EXISTS ' . $wpdb->prefix . 'wc_io_receipt_costs' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		update_option( 'wc_io_db_version', '7' );
 
-		// A v7-scoped assertion must not see the (currently absent) v8 additions as missing.
+		// A v7-scoped assertion must not see the (currently absent) v8/v9 additions as missing.
 		$v7_expected = new ReflectionMethod( 'WC_Inventory_Overview_Install', 'expected_schema_v7' );
 		$v7_expected->setAccessible( true );
 		$this->assertNotEmpty( $v7_expected->invoke( null ) );
@@ -225,7 +236,7 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 		// Now upgrade.
 		WC_Inventory_Overview_Install::maybe_upgrade();
 
-		$this->assertSame( '8', get_option( 'wc_io_db_version' ) );
+		$this->assertSame( WC_Inventory_Overview_Install::DB_VERSION, get_option( 'wc_io_db_version' ) );
 
 		$tables = array(
 			$wpdb->prefix . 'wc_io_goods_receipts',
@@ -242,6 +253,10 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 		$this->assertContains( 'reference_type', $movement_columns );
 		$this->assertContains( 'reference_id', $movement_columns );
 		$this->assertContains( 'supplier_id', $movement_columns );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- SHOW COLUMNS against known prefix table.
+		$po_lines_columns = array_column( $wpdb->get_results( "SHOW COLUMNS FROM {$po_lines_table}" ), 'Field' );
+		$this->assertContains( 'qty_received', $po_lines_columns, 'Upgrade must add qty_received (v9, M5).' );
 
 		$this->assertTrue( WC_Inventory_Overview_Install::assert_schema_shape() );
 	}
@@ -278,10 +293,13 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 	}
 
 	/**
-	 * M4: qty_received still absent from purchase_order_lines under schema v8
-	 * (the M2 forbidden-column guard carries forward unchanged).
+	 * M5 (schema v9): qty_received is no longer forbidden — the M2/M4
+	 * forbidden-column guard is intentionally lifted, the one entry M5 is
+	 * permitted to change (M5 implementation plan §Database — "forbidden_columns
+	 * — removed"). Superseded from the pre-M5 "still forbidden at v8" claim — M5
+	 * implementation plan §Testing "M4 guard-revision audit".
 	 */
-	public function test_qty_received_still_forbidden_at_v8() {
+	public function test_qty_received_no_longer_forbidden_at_v9() {
 		global $wpdb;
 
 		WC_Inventory_Overview_Install::create_tables();
@@ -289,9 +307,14 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 		$table = $wpdb->prefix . 'wc_io_purchase_order_lines';
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- SHOW COLUMNS against known prefix table.
 		$fields = array_column( $wpdb->get_results( "SHOW COLUMNS FROM {$table}" ), 'Field' );
-		$this->assertNotContains( 'qty_received', $fields );
+		$this->assertContains( 'qty_received', $fields );
 
 		$this->assertTrue( WC_Inventory_Overview_Install::assert_schema_shape() );
+
+		$v9_expected = new ReflectionMethod( 'WC_Inventory_Overview_Install', 'expected_schema_v9' );
+		$v9_expected->setAccessible( true );
+		$v9 = $v9_expected->invoke( null );
+		$this->assertSame( array(), $v9['forbidden_columns']['purchase_order_lines'] );
 	}
 
 	/**

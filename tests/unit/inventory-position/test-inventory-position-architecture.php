@@ -120,13 +120,25 @@ class Test_WC_IO_Inventory_Position_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * No qty_received reference anywhere in the M3 surface (Resolver, Service, repository).
+	 * No qty_received reference in the Resolver/Service themselves — the two
+	 * classes D12 names as the sole calculator surface. Revised for M5 (not
+	 * silently broken — M5 implementation plan §Testing "M4 guard-revision
+	 * audit"): the pre-M5 version of this test also scanned
+	 * class-wc-inventory-overview-purchase-order-lines.php, on the premise that
+	 * the entire M3 surface (Resolver + Service + the repository it reads through)
+	 * was qty_received-free. That repository is not M3-exclusive — it is the same
+	 * shared Purchase Order line repository M5 extends with qty_received as its
+	 * sole physical writer (WC_Inventory_Overview_Purchase_Order_Lines::
+	 * increment_qty_received()), so it legitimately references qty_received now.
+	 * What actually matters for D12 (one authoritative calculator, no N+1) is
+	 * untouched by this: the Resolver and Service still never reference
+	 * qty_received directly — they only ever see the already-computed
+	 * `outstanding` figure query_open_lines() returns, unchanged in shape.
 	 */
-	public function test_no_qty_received_in_m3_surface() {
+	public function test_no_qty_received_in_resolver_or_service() {
 		$files = array(
 			$this->includes_dir() . 'class-wc-inventory-overview-inventory-position-resolver.php',
 			$this->includes_dir() . 'class-wc-inventory-overview-inventory-position-service.php',
-			$this->includes_dir() . 'class-wc-inventory-overview-purchase-order-lines.php',
 		);
 
 		foreach ( $files as $file ) {

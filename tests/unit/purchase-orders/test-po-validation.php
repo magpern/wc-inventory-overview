@@ -13,12 +13,16 @@
 class Test_WC_IO_PO_Validation extends WC_Inventory_Overview_Test_Case {
 
 	/**
-	 * Outstanding floors at zero (M2 INV-4).
+	 * Outstanding floors at zero (full INV-4 formula, M5: ordered − received − cancelled).
 	 */
 	public function test_outstanding_quantity() {
-		$this->assertSame( 3.0, WC_Inventory_Overview_PO_Quantities::outstanding( 5, 2 ) );
-		$this->assertSame( 0.0, WC_Inventory_Overview_PO_Quantities::outstanding( 2, 5 ) );
-		$this->assertSame( 0.0, WC_Inventory_Overview_PO_Quantities::outstanding( 0, 0 ) );
+		$this->assertSame( 3.0, WC_Inventory_Overview_PO_Quantities::outstanding( 5, 0, 2 ) );
+		$this->assertSame( 0.0, WC_Inventory_Overview_PO_Quantities::outstanding( 2, 0, 5 ) );
+		$this->assertSame( 0.0, WC_Inventory_Overview_PO_Quantities::outstanding( 0, 0, 0 ) );
+		// M5: received also reduces outstanding, same as cancelled.
+		$this->assertSame( 4.0, WC_Inventory_Overview_PO_Quantities::outstanding( 10, 6, 0 ) );
+		$this->assertSame( 0.0, WC_Inventory_Overview_PO_Quantities::outstanding( 10, 6, 4 ) );
+		$this->assertSame( 0.0, WC_Inventory_Overview_PO_Quantities::outstanding( 10, 15, 0 ), 'Over-receipt floors at zero, never negative (D5).' );
 	}
 
 	/**
@@ -47,8 +51,15 @@ class Test_WC_IO_PO_Validation extends WC_Inventory_Overview_Test_Case {
 				)
 			)
 		);
+		// M5 revision: 'received' is now a legitimate status value (schema v9) and
+		// no longer triggers this rejection — a genuinely unknown status is used
+		// instead (M5 implementation plan §Testing "M4 guard-revision audit").
 		$this->assertWPError(
-			WC_Inventory_Overview_PO_Validation::validate_header( array( 'status' => 'received' ) )
+			WC_Inventory_Overview_PO_Validation::validate_header( array( 'status' => 'bogus_status' ) )
+		);
+		$this->assertTrue(
+			WC_Inventory_Overview_PO_Validation::validate_header( array( 'status' => 'received' ) ),
+			'received is now valid header-validation vocabulary (M5).'
 		);
 		$this->assertWPError(
 			WC_Inventory_Overview_PO_Validation::validate_header( array( 'currency' => 'GBP' ) )

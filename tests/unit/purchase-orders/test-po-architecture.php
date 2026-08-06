@@ -24,17 +24,20 @@ class Test_WC_IO_PO_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Status vocabulary is exactly four M2 values.
+	 * Status vocabulary is exactly six values as of M5 (the original four M2
+	 * statuses plus the two auto-transitioned M5 receiving statuses). Superseded
+	 * from the pre-M5 "exactly four, partially_received/received invalid" claim —
+	 * M5 implementation plan §Testing "M4 guard-revision audit".
 	 */
-	public function test_status_vocabulary_is_exactly_four() {
+	public function test_status_vocabulary_is_exactly_six() {
 		$all = WC_Inventory_Overview_PO_Statuses::all();
-		$this->assertCount( 4, $all );
+		$this->assertCount( 6, $all );
 		$this->assertEquals(
-			array( 'draft', 'placed', 'cancelled', 'closed_short' ),
+			array( 'draft', 'placed', 'partially_received', 'received', 'cancelled', 'closed_short' ),
 			$all
 		);
-		$this->assertFalse( WC_Inventory_Overview_PO_Statuses::is_valid( 'partially_received' ) );
-		$this->assertFalse( WC_Inventory_Overview_PO_Statuses::is_valid( 'received' ) );
+		$this->assertTrue( WC_Inventory_Overview_PO_Statuses::is_valid( 'partially_received' ) );
+		$this->assertTrue( WC_Inventory_Overview_PO_Statuses::is_valid( 'received' ) );
 	}
 
 	/**
@@ -48,9 +51,16 @@ class Test_WC_IO_PO_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Lines have no qty_received; outstanding uses ordered − cancelled.
+	 * Lines now carry a real, maintained qty_received column (schema v9, M5);
+	 * outstanding uses the full INV-4 formula (ordered − received − cancelled).
+	 * Superseded from the pre-M5 "no qty_received column" claim — M5
+	 * implementation plan §Testing "M4 guard-revision audit". qty_received
+	 * defaults to 0 on a freshly-created line (it is never operator-settable
+	 * through create()/update() — only WC_Inventory_Overview_Purchase_Order_Lines
+	 * ::increment_qty_received() writes it), so the outstanding figure here is
+	 * unchanged from the pre-M5 baseline.
 	 */
-	public function test_lines_and_outstanding_without_qty_received() {
+	public function test_lines_and_outstanding_with_qty_received_column() {
 		$po_id   = WC_Inventory_Overview_Purchase_Orders::create_draft(
 			array(
 				'supplier_id'            => 1,
@@ -69,7 +79,8 @@ class Test_WC_IO_PO_Architecture extends WP_UnitTestCase {
 		$this->assertIsInt( $line_id );
 
 		$line = WC_Inventory_Overview_Purchase_Order_Lines::get( $line_id );
-		$this->assertArrayNotHasKey( 'qty_received', $line );
+		$this->assertArrayHasKey( 'qty_received', $line );
+		$this->assertEquals( 0.0, (float) $line['qty_received'] );
 		$this->assertEquals( 3.0, WC_Inventory_Overview_Purchase_Order_Lines::outstanding( $line ) );
 	}
 
@@ -168,10 +179,20 @@ class Test_WC_IO_PO_Architecture extends WP_UnitTestCase {
 	/**
 	 * Receiving event types are not declared in M2.
 	 */
-	public function test_no_receiving_event_types_declared() {
+	/**
+	 * M5 revision (not silently broken — M5 implementation plan §Testing "M4
+	 * guard-revision audit"): po_line_received is now a real, legitimate M5 event
+	 * type, written only by PO_Receiving_Sync. 'po_receipt_linked' — a name never
+	 * actually used by any milestone's implementation — remains correctly absent.
+	 */
+	public function test_receiving_event_types_declared_only_by_m5() {
 		$types = WC_Inventory_Overview_PO_Events::known_types();
 		$this->assertNotContains( 'po_receipt_linked', $types );
-		$this->assertNotContains( 'po_line_received', $types );
+		$this->assertContains( 'po_line_received', $types );
+		$this->assertContains( 'po_line_receipt_voided', $types );
+		$this->assertContains( 'po_partially_received', $types );
+		$this->assertContains( 'po_received', $types );
+		$this->assertContains( 'po_qty_received_reconciled', $types );
 	}
 
 	/**

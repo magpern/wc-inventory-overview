@@ -341,17 +341,25 @@ class Test_WC_IO_Goods_Receipt_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * po_line_id is never set to anything but NULL by any M4 code path — no
-	 * repository method accepts it as a settable field, and the service never
-	 * references it as a parameter.
+	 * M5 revision (not silently deleted — M5 implementation plan §Testing "M4
+	 * guard-revision audit"): under M4, po_line_id was structurally forbidden
+	 * everywhere. M5 legitimately populates it — this test's replacement asserts
+	 * the column is settable through exactly one path (Receipt_Lines::create()'s
+	 * $data['po_line_id']) and nowhere else: not through update() (whitelist
+	 * excludes it — draft PO linkage is fixed at creation, changing it is
+	 * delete-and-re-add, not an in-place edit), not via any raw SQL elsewhere.
 	 */
-	public function test_po_line_id_never_populated() {
+	public function test_po_line_id_populated_only_by_receipt_lines_create() {
 		$repo_src = $this->strip_comments( (string) file_get_contents( $this->includes_dir() . 'class-wc-inventory-overview-receipt-lines.php' ) );
-		$this->assertStringNotContainsString( "\$data['po_line_id']", $repo_src, 'Receipt_Lines must not read po_line_id from caller-supplied $data — it is always NULL in M4.' );
-		$this->assertMatchesRegularExpression( "/'po_line_id'\\s*=>\\s*null,/", $repo_src, 'Receipt_Lines::create() must persist po_line_id as a hardcoded NULL, not a caller-supplied value.' );
+		$this->assertStringContainsString( "\$data['po_line_id']", $repo_src, 'Receipt_Lines::create() must read po_line_id from caller-supplied $data (M5).' );
 
-		$service_src = $this->strip_comments( $this->service_src() );
-		$this->assertStringNotContainsString( 'po_line_id', $service_src, 'Goods_Receipt_Service must never reference po_line_id — M4 has no PO linkage.' );
+		$create_body = $this->extract_method_body( $repo_src, 'create' );
+		$this->assertNotNull( $create_body, 'Receipt_Lines::create() method body not found.' );
+		$this->assertStringContainsString( "'po_line_id'", $create_body, "create()'s insert row must set po_line_id." );
+
+		$update_body = $this->extract_method_body( $repo_src, 'update' );
+		$this->assertNotNull( $update_body, 'Receipt_Lines::update() method body not found.' );
+		$this->assertStringNotContainsString( "'po_line_id'", $update_body, 'update()\'s $allowed whitelist must never include po_line_id — PO linkage is fixed at creation, not editable in place.' );
 	}
 
 	/**
@@ -376,47 +384,87 @@ class Test_WC_IO_Goods_Receipt_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * No M4 file writes to any Purchase Order table (wc_io_purchase_orders,
-	 * wc_io_purchase_order_lines, wc_io_po_events).
+	 * No M4/M5 file writes to any Purchase Order table (wc_io_purchase_orders,
+	 * wc_io_purchase_order_lines, wc_io_po_events) — the guard's real intent, per
+	 * its own name and docblock, is "no writes", not "no reference at all".
+	 *
+	 * Revised for M5 (not silently kept, not silently broken — M5 implementation
+	 * plan §Testing "M4 guard-revision audit"): under M4, Goods_Receipt_Service and
+	 * Goods_Receipt_Admin had zero PO-domain involvement, so the original test
+	 * blanket-forbade any reference to these classes as a simple, sufficient proxy
+	 * for "no writes". M5 legitimately reads PO data from both files — validating a
+	 * PO-linked line's receivability/product-match before opening a transaction
+	 * (Goods_Receipt_Service), and rendering the "Receive from PO" prefill and
+	 * "Fulfils: PO-XXXX" links (Goods_Receipt_Admin) — so the blanket-forbid must
+	 * narrow to what it actually protects: neither file may call any *write* method
+	 * on WC_Inventory_Overview_Purchase_Orders/Purchase_Order_Lines (create,
+	 * create_draft, update, update_fields, delete, delete_draft,
+	 * compare_and_swap_*, increment_qty_received). PO_Events::/PO_Service:: remain
+	 * fully forbidden in every M4/M5 file below — no read or write reference to
+	 * either is ever legitimate here (PO_Receiving_Sync is Goods_Receipt_Service's
+	 * only PO-domain touchpoint for events/status). receipt-lines.php and
+	 * goods-receipts.php keep the original, unmodified full forbid — M5 added no
+	 * PO-domain reference to either.
 	 */
 	public function test_no_po_table_writes_in_m4_files() {
-		$m4_files = array(
-			'class-wc-inventory-overview-goods-receipt-service.php',
-			'class-wc-inventory-overview-goods-receipt-admin.php',
+		$fully_forbidden_files = array(
 			'class-wc-inventory-overview-receipt-lines.php',
 			'class-wc-inventory-overview-goods-receipts.php',
 		);
-		$forbidden = array(
+		$fully_forbidden = array(
 			'WC_Inventory_Overview_Purchase_Orders::',
 			'WC_Inventory_Overview_Purchase_Order_Lines::',
 			'WC_Inventory_Overview_PO_Events::',
 			'WC_Inventory_Overview_PO_Service::',
 		);
-		foreach ( $m4_files as $basename ) {
+		foreach ( $fully_forbidden_files as $basename ) {
 			$src = $this->strip_comments( (string) file_get_contents( $this->includes_dir() . $basename ) );
-			foreach ( $forbidden as $needle ) {
-				$this->assertStringNotContainsString( $needle, $src, "{$basename} must not reference {$needle} — M4 never touches PO tables." );
+			foreach ( $fully_forbidden as $needle ) {
+				$this->assertStringNotContainsString( $needle, $src, "{$basename} must not reference {$needle} — receipt-lines/goods-receipts never touch PO tables." );
+			}
+		}
+
+		$read_allowed_files = array(
+			'class-wc-inventory-overview-goods-receipt-service.php',
+			'class-wc-inventory-overview-goods-receipt-admin.php',
+		);
+		$always_forbidden = array(
+			'WC_Inventory_Overview_PO_Events::',
+			'WC_Inventory_Overview_PO_Service::',
+		);
+		$write_methods = array(
+			'::create(',
+			'::create_draft(',
+			'::update(',
+			'::update_fields(',
+			'::delete(',
+			'::delete_draft(',
+			'::compare_and_swap_post(',
+			'::compare_and_swap_void(',
+			'::increment_qty_received(',
+		);
+		foreach ( $read_allowed_files as $basename ) {
+			$src = $this->strip_comments( (string) file_get_contents( $this->includes_dir() . $basename ) );
+			foreach ( $always_forbidden as $needle ) {
+				$this->assertStringNotContainsString( $needle, $src, "{$basename} must not reference {$needle} — only PO_Receiving_Sync touches PO events/status." );
+			}
+			foreach ( array( 'WC_Inventory_Overview_Purchase_Orders', 'WC_Inventory_Overview_Purchase_Order_Lines' ) as $class ) {
+				foreach ( $write_methods as $method ) {
+					$this->assertStringNotContainsString( $class . $method, $src, "{$basename} must not call the write method {$class}{$method} — reads are permitted for M5 validation/display, writes are not (PO_Receiving_Sync is the sole writer)." );
+				}
 			}
 		}
 	}
 
 	/**
-	 * No M5+ functionality: no "Receive Against PO" / PO-linked receiving UI or
-	 * service surface anywhere in the M4 files.
+	 * Retired (M5 implementation plan §Testing "M4 guard-revision audit" — not
+	 * silently deleted): this test's entire premise, "M5 PO-linked receiving
+	 * functionality doesn't exist yet", is now false by construction — M5 has
+	 * shipped. Its replacement is this milestone's own positive test suite:
+	 * tests/unit/po-receiving/test-po-receiving-architecture.php (sole-writer/
+	 * sole-caller guards) and tests/integration/po-receiving/*.php (behavioral
+	 * coverage of receiving-against-PO end to end).
 	 */
-	public function test_no_m5_receive_against_po_functionality() {
-		$m4_files = array(
-			'class-wc-inventory-overview-goods-receipt-service.php',
-			'class-wc-inventory-overview-goods-receipt-admin.php',
-		);
-		$forbidden = array( 'receive_against_po', 'Receive Against PO', 'po_line_completion' );
-		foreach ( $m4_files as $basename ) {
-			$src = $this->strip_comments( (string) file_get_contents( $this->includes_dir() . $basename ) );
-			foreach ( $forbidden as $needle ) {
-				$this->assertStringNotContainsString( $needle, $src, "{$basename} must not contain M5 functionality: {$needle}." );
-			}
-		}
-	}
 
 	/**
 	 * Lifecycle has exactly three states and no reopen action.
