@@ -658,16 +658,31 @@ class Test_WC_IO_PO_Service extends WC_Inventory_Overview_Test_Case {
 	}
 
 	/**
-	 * No receiving columns or statuses leak into M2-C.
+	 * M2-C's own write surface (PO_Service's manual header/line updates) never
+	 * writes qty_received or the two M5 receiving statuses — those are exclusively
+	 * written by WC_Inventory_Overview_PO_Receiving_Sync (M5 plan §Receiving-status
+	 * ownership). Superseded from the pre-M5 "no receiving columns exist at all"
+	 * assertion (qty_received is now a real column, schema v9) to this narrower,
+	 * still-true claim: PO_Service itself never produces these values.
 	 */
-	public function test_no_receiving_behavior() {
-		global $wpdb;
-		$cols = $wpdb->get_col( 'DESCRIBE ' . WC_Inventory_Overview_Purchase_Order_Lines::table_name(), 0 ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- DESCRIBE fixed table name from repository.
-		$this->assertNotContains( 'qty_received', $cols );
-		$this->assertFalse( WC_Inventory_Overview_PO_Statuses::is_valid( 'partially_received' ) );
-		$this->assertFalse( WC_Inventory_Overview_PO_Statuses::is_valid( 'received' ) );
-		$types = WC_Inventory_Overview_PO_Events::known_types();
-		$this->assertNotContains( 'po_receipt_linked', $types );
+	public function test_po_service_never_writes_receiving_status_or_qty_received() {
+		$src = file_get_contents( WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-service.php' );
+		$src = preg_replace( '#/\*.*?\*/#s', '', $src );
+		$src = preg_replace( '#//[^\n]*#', '', $src );
+
+		$this->assertStringNotContainsString( 'qty_received', $src, 'PO_Service must never reference qty_received — only PO_Receiving_Sync writes it.' );
+		$this->assertStringNotContainsString( "'partially_received'", $src, 'PO_Service must never write the partially_received status — it is auto-transitioned only.' );
+		$this->assertStringNotContainsString( 'PO_Statuses::RECEIVED', $src, 'PO_Service must never write the received status — it is auto-transitioned only.' );
+		$this->assertStringNotContainsString( 'PO_Receiving_Sync', $src, 'PO_Service must never call PO_Receiving_Sync — Goods_Receipt_Service is its sole caller.' );
+	}
+
+	/**
+	 * The M5 receiving statuses are now real, valid vocabulary (schema v9) — this
+	 * replaces the pre-M5 assertion that they didn't exist.
+	 */
+	public function test_receiving_statuses_are_valid_vocabulary() {
+		$this->assertTrue( WC_Inventory_Overview_PO_Statuses::is_valid( 'partially_received' ) );
+		$this->assertTrue( WC_Inventory_Overview_PO_Statuses::is_valid( 'received' ) );
 	}
 
 	/**
