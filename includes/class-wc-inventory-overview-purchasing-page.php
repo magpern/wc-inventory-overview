@@ -15,6 +15,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 	const PAGE_SLUG     = 'wc-io-purchasing';
 	const TAB_SUPPLIERS = 'suppliers';
 	const TAB_ORDERS    = 'orders';
+	const TAB_RECEIPTS  = 'receipts';
 
 	/**
 	 * Singleton instance.
@@ -45,6 +46,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 		add_action( 'wp_ajax_wc_io_search_suppliers', array( $this, 'ajax_search_suppliers' ) );
 		add_action( 'wp_ajax_wc_io_quick_create_supplier', array( $this, 'ajax_quick_create_supplier' ) );
 		WC_Inventory_Overview_PO_Admin::init();
+		WC_Inventory_Overview_Goods_Receipt_Admin::init();
 	}
 
 	/**
@@ -122,6 +124,21 @@ class WC_Inventory_Overview_Purchasing_Page {
 				echo esc_url(
 					add_query_arg(
 						array(
+							'tab'    => self::TAB_RECEIPTS,
+							'action' => 'list',
+						),
+						admin_url( 'admin.php?page=' . self::PAGE_SLUG )
+					)
+				);
+				?>
+							" class="nav-tab <?php echo self::TAB_RECEIPTS === $tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Receive Stock', 'wc-inventory-overview' ); ?>
+				</a>
+				<a href="
+				<?php
+				echo esc_url(
+					add_query_arg(
+						array(
 							'tab'    => self::TAB_SUPPLIERS,
 							'action' => 'list',
 						),
@@ -136,11 +153,15 @@ class WC_Inventory_Overview_Purchasing_Page {
 
 			<?php $this->render_notices(); ?>
 			<?php WC_Inventory_Overview_PO_Admin::render_notices(); ?>
+			<?php WC_Inventory_Overview_Goods_Receipt_Admin::render_notices(); ?>
 
 			<?php
 			switch ( $tab ) {
 				case self::TAB_ORDERS:
 					WC_Inventory_Overview_PO_Admin::render_panel( $action );
+					break;
+				case self::TAB_RECEIPTS:
+					WC_Inventory_Overview_Goods_Receipt_Admin::render_panel( $action );
 					break;
 				case self::TAB_SUPPLIERS:
 					$this->render_suppliers_panel( $action );

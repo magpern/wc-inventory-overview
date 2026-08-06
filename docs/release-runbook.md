@@ -126,6 +126,30 @@ No additional steps. The release is a pure-tooling change with no functional or 
    - PO line schema must not include `qty_received` (assertion forbids it until M5).
    - No Receive Stock tab or receiving UI should appear.
 
+### M4: Receipt Engine
+
+**Before tagging v1.21.0:**
+
+0. **Release notes file:** Confirm `docs/GITHUB_RELEASE_NOTES_1.21.0.md` exists and matches `CHANGELOG.md` for 1.21.0.
+1. **Verify schema version bump:** Check that `DB_VERSION = '8'` in `includes/class-wc-inventory-overview-install.php`.
+2. **Test schema-shape assertion on a production-data copy:**
+   - Upgrade to the M4 release on a copy of production database.
+   - Verify `wp option get wc_io_db_version` returns `8`.
+   - Verify `wp option get wc_io_schema_assertion --format=json` shows `ok: true` and `version: "8"`.
+   - Verify `wc_io_goods_receipts`, `wc_io_receipt_lines`, `wc_io_receipt_costs` tables exist and `wc_io_inventory_movements` gained `reference_type`/`reference_id`/`supplier_id`.
+3. **Verify Purchasing → Receive Stock:**
+   - Log in as a `manage_woocommerce` user.
+   - Confirm the **Receive Stock** tab is present alongside Purchase Orders and Suppliers.
+   - Walk through: Quick Receive Without PO draft creation → add lines → save → post confirmation preview → Confirm & Post → verify stock/average-cost/inventory-value updated on the receiving product(s).
+   - Void the same receipt with a reason; confirm the reversal and that `receipt_number` is unchanged.
+4. **Stock-mutation-correctness check (mandatory — new for M4):** unlike M2/M3, M4 actually mutates stock. Before tagging:
+   - Note a test product's `_stock`, `_wc_io_average_unit_cost`, `_wc_io_inventory_value` before posting a Quick Receive.
+   - Post the receipt; verify the new values match the weighted-average formula by hand (`new_avg = (old_stock*old_avg + qty*true_unit_cost) / (old_stock+qty)`).
+   - Void the receipt; verify stock/cost return to (or correctly reflect, if other receipts posted in between) the pre-posting state.
+5. **Batch Intake, Quick Restock, Cost Adjustment unaffected:** confirm all three continue to function exactly as in v1.20.0 — Receive Stock is additive, not a replacement.
+6. **No PO-linked receiving:** confirm no "Receive Against PO" option, no PO picker, and no `qty_received` column anywhere (M5 scope).
+7. **Rollback awareness:** read `docs/rollback-plan.md`'s new M4 note before deploying — a code rollback does not reverse stock effects of receipts already posted under M4.
+
 ## Post-release communication
 
 After a successful release:

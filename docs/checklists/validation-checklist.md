@@ -70,6 +70,38 @@ These checks are added by each milestone's implementation plan based on its scop
 
 - [ ] **No receiving surface**: no Goods Receipt, Quick Receive, or "Receive Against PO" UI exists anywhere in the plugin.
 
+### For M4 (Receipt Engine, v1.21.0)
+
+Inverted from M3's checklist above: M4 positively verifies receiving now works correctly, transactionally, and idempotently — not that it's absent.
+
+- [ ] **Schema v8**: `DB_VERSION` is `8`; `wc_io_goods_receipts`, `wc_io_receipt_lines`, `wc_io_receipt_costs` exist; `wc_io_inventory_movements` has `reference_type`/`reference_id`/`supplier_id`:
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  ```
+
+- [ ] **`qty_received` still absent** from `wc_io_purchase_order_lines` (forbidden-column guard still enforcing, unchanged from v7).
+
+- [ ] **Quick Receive Without PO works end-to-end**: create draft → add line(s) → save → post-confirmation preview shown → Confirm & Post → product stock/average cost/inventory value update exactly per the weighted-average formula.
+
+- [ ] **Void works and is correctly reversible**: void a posted receipt with a reason; stock/cost/value revert to reflect only that receipt's own contribution (verified against the intervening-receipt scenario if multiple receipts exist for the same product).
+
+- [ ] **Void correctly rejected when stock has since been sold** below the receipt's contribution — clear, actionable error; zero partial mutation.
+
+- [ ] **Transactional integrity holds under forced failure**: a mid-post or mid-void failure (e.g., an invalid line product) leaves stock, cost meta, and movement rows completely unchanged and the receipt status unchanged (verified in CI by `Test_WC_IO_Goods_Receipt_Service_Post`/`_Void`, not just manually).
+
+- [ ] **Idempotency holds**: resubmitting a post/void form (refresh/back-button) does not double-apply; a receipt cannot be posted or voided twice.
+
+- [ ] **`po_line_id` stays NULL**: every receipt line's `po_line_id` is NULL; no PO is linked, no PO quantity/status/event is touched by receiving.
+
+- [ ] **Movement provenance**: every posted line produces exactly one `goods_receipt` movement row with `reference_type='goods_receipt'` and `reference_id`=the receipt id; every voided line produces exactly one `goods_receipt_void` row.
+
+- [ ] **Receipt number immutable**: `receipt_number` is unchanged after posting and after voiding.
+
+- [ ] **Batch Intake, Quick Restock, Cost Adjustment, PO admin, Supplier admin unaffected** — all continue to function exactly as in v1.20.0.
+
+- [ ] **No PO-linked receiving surface**: no "Receive Against PO" option, no PO-line picker, anywhere in the Receive Stock UI (M5 scope).
+
 ## Sign-off
 
 Once all checks pass:

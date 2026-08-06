@@ -24,6 +24,12 @@ class WC_Inventory_Overview_Purchasing_Caps {
 	const DELETE_PO        = 'delete_po';
 	const MANAGE_SUPPLIERS = 'manage_suppliers';
 
+	const VIEW_RECEIPT   = 'view_receipt';
+	const EDIT_RECEIPT   = 'edit_receipt';
+	const POST_RECEIPT   = 'post_receipt';
+	const VOID_RECEIPT   = 'void_receipt';
+	const DELETE_RECEIPT = 'delete_receipt';
+
 	/**
 	 * Resolve the WordPress capability for a purchasing action key.
 	 *
@@ -39,6 +45,11 @@ class WC_Inventory_Overview_Purchasing_Caps {
 			self::DUPLICATE_PO     => 'manage_woocommerce',
 			self::DELETE_PO        => 'manage_woocommerce',
 			self::MANAGE_SUPPLIERS => 'manage_woocommerce',
+			self::VIEW_RECEIPT     => 'manage_woocommerce',
+			self::EDIT_RECEIPT     => 'manage_woocommerce',
+			self::POST_RECEIPT     => 'manage_woocommerce',
+			self::VOID_RECEIPT     => 'manage_woocommerce',
+			self::DELETE_RECEIPT   => 'manage_woocommerce',
 		);
 
 		/**
