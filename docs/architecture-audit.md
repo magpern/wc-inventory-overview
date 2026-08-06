@@ -200,8 +200,9 @@ Scripts receive localized nonces and AJAX URLs from `Plugin::enqueue_*`.
 | File | Use |
 |------|-----|
 | `cli/set-low-stock-threshold.php` | WP-CLI `eval-file`: bulk-set variation `_low_stock_amount` to 3 |
+| `includes/class-wc-inventory-overview-reconcile-cli-command.php` | **M5:** `wp wc-io reconcile-qty-received [--fix] [--po=<id>]`, a true registered `WP_CLI::add_command()` (loaded via the normal `includes/` require chain, guarded by `class_exists('WP_CLI')`) — qty_received drift diagnostic/repair, read-only by default |
 
-Operational only; not loaded by WordPress. Requires WP-CLI + WooCommerce.
+Operational only; not loaded by WordPress admin requests in a meaningful way beyond registration. Requires WP-CLI + WooCommerce.
 
 ---
 
@@ -257,6 +258,49 @@ Operational only; not loaded by WordPress. Requires WP-CLI + WooCommerce.
 
 ---
 
+## Milestone M5 — Purchase Order Receiving
+
+**Status:** Complete, v1.22.0. **Schema v9** — one column addition (`qty_received decimal(19,4)` on `wc_io_purchase_order_lines`), zero new tables — M4 had already prepared `receipt_line.po_line_id` and `goods_receipt.source` for this moment.
+
+**Scope:** connects Purchase Orders (M2) to the Goods Receipt engine (M4). `Goods_Receipt_Service` remains the sole stock/cost mutator (D3/INV-2, unchanged) and gains a second responsibility: sole business orchestrator for `qty_received` changes. No second mutation path was introduced anywhere.
+
+**Schema** (`WC_Inventory_Overview_Install`): `expected_schema_v9()` extends `expected_schema_v8()` with one new `columns['purchase_order_lines']` entry (`qty_received`) and clears `forbidden_columns['purchase_order_lines']` — the one `forbidden_columns` entry M5 is permitted to change. The `expected_schema()` dispatcher gained a `version_compare( $version, '9', '>=' )` branch before falling through to v8/v7/v6 (the identical dispatcher trap M4 flagged for v7/v8 repeats identically at v8/v9, and is guarded the same way).
+
+**Formal invariant — the three-tier `qty_received` ownership chain** (mirrors D3/INV-2's own elevation from implementation detail to named architectural rule):
+
+```
+Goods_Receipt_Service              (sole business orchestrator — initiates the change)
+        ↓
+PO_Receiving_Sync                  (sole owner of the mutation — decides the delta,
+        │                            recomputes PO status, authors the PO event)
+        ↓
+Purchase_Order_Lines::increment_qty_received()   (sole physical database writer)
+```
+
+The one explicitly-named exception: the reconciliation CLI's `--fix` mode writes through a second, distinctly-named method on the *same* sole-owner class (`PO_Receiving_Sync::reconcile_line()`), never through `increment_qty_received()` directly.
+
+**`WC_Inventory_Overview_PO_Receiving_Sync`** (new class): two public methods, each with exactly one permitted caller (architecture-guard enforced). `apply_line_delta()` — the receiving path — is called only by `Goods_Receipt_Service`, from inside its existing `post()`/`void()` transaction closure, immediately after that line's `Restock_Service` call and movement insert succeed. `reconcile_line()` — the reconciliation path — is called only by the CLI command. Neither opens its own transaction (verified by an architecture guard scanning for `begin()`/`commit()`/`rollback()`/`new WC_Inventory_Overview_DB_Transaction`). Internally: an atomic `UPDATE ... SET qty_received = qty_received + %f` (safe under concurrent transactions without row locking, same argument M4 already established for stock), a bulk re-fetch of the PO's lines to sum outstanding/received, a pure status-recompute call, a conditional header status write, and one or two `PO_Events::add()` calls.
+
+**Status recompute** (`WC_Inventory_Overview_PO_Statuses::recompute_for_receiving()`): pure, direction-agnostic function — the same current-state-relative design principle M4 used for void correctness, applied here to PO status. Produces the identical answer whether reached by a post (totals went up) or a void (totals went down), because it never inspects direction, only current totals. Two new statuses, `partially_received`/`received`, are auto-transitioned only — never a manual transition target in `PO_Lifecycle::transitions()`, never operator-selectable.
+
+**`PO_Lifecycle`**: `transitions()` gained `partially_received` as a *from*-status (so `cancel`/`close_short` remain available while a PO is partially received) and `received` as an empty-list *from*-status (no manual action once fully received — its only exit is the automatic downgrade via a receipt void, which bypasses this table entirely). Neither new status is editable.
+
+**`PO_Events`**: five new types (`po_line_received`, `po_line_receipt_voided`, `po_partially_received`, `po_received`, `po_qty_received_reconciled`), written only by `PO_Receiving_Sync` — closing the exact audit-trail gap M4's own Audit-trail decision reserved for this milestone (INV-6's "PO event log" clause, structurally inapplicable to M4's PO-less receipts, is now literally satisfiable for PO-linked ones).
+
+**`Goods_Receipt_Service` integration**: a new pre-transaction validation step (`validate_and_assess_po_linked_lines()`) rejects receiving against a non-receivable PO status (`draft`/`cancelled`/`closed_short`) before any transaction opens, and assesses over-receipt (D5: never blocked, only flagged) against 4-decimal-rounded current outstanding. `post()`/`void()` each gained one additional call per PO-linked line — `PO_Receiving_Sync::apply_line_delta()` — inside the existing transaction, after that line's stock mutation and movement insert. `source` (`direct`/`po`/`mixed`) is derived from line composition at draft-save time, never operator-chosen. A defense-in-depth check (`assert_po_line_matches_product()`) rejects a submitted product that doesn't match its referenced PO line's product, before any draft is even saved.
+
+**`Receipt_Lines`**: `create()`'s hardcoded `'po_line_id' => null` (M4's structural guarantee) became conditional on `$data['po_line_id']` — the only write path to this column anywhere in the repository; `update()`'s whitelist still excludes it (PO linkage is fixed at creation, not editable in place).
+
+**Reconciliation tooling** (`wp wc-io reconcile-qty-received [--fix] [--po=<id>]`, new WP-CLI command, registered via `WP_CLI::add_command()` — the first true registered command in this codebase, alongside the pre-existing `cli/*.php` eval-file scripts): read-only by default (sums posted receipt-line quantities per PO line and compares against stored `qty_received`); `--fix` repairs through `PO_Receiving_Sync::reconcile_line()` only; every repair is individually logged and recorded as its own `po_qty_received_reconciled` PO event; summary output reports verified/drift/repaired counts.
+
+**Admin UI**: a "Receive" button on `PO_Admin`'s detail page (gated by a new `RECEIVE_PO` capability, default `manage_woocommerce`, filterable through the existing map) routes to a new `Goods_Receipt_Admin::render_new_from_po()` entry point, which pre-fills a new draft's lines from the PO's outstanding lines and reuses the existing M4 editable-detail template unchanged — no new persistence method. The PO detail page gained a "Received" column and a bulk-queried (not per-line) "Receiving History" panel; Goods Receipt lines show a "Fulfils: PO-XXXX line N" back-link, computed at render time, never stored redundantly.
+
+**M3 Incoming regression fix**: `Purchase_Order_Lines::query_open_lines()`'s raw SQL `GREATEST()` literal gained the `qty_received` term, and its `WHERE po.status IN (...)` list gained `partially_received`/`received` (previously `placed` only) — a partially-received PO's remaining outstanding now correctly continues to surface as Incoming, the exact recomputation M3's own plan deferred to this milestone. `WC_Inventory_Overview_PO_Delay::sql_line_delayed_predicate()`'s outstanding term was updated identically for consistency, though its own `po.status = 'placed'` gate was deliberately left unchanged (an intentionally narrower, separate scope decision — see the M5 implementation plan's git history for the explicit reasoning) — so a partially-received PO's line is never flagged "Delayed" even though it still has real outstanding, a documented, conservative gap rather than a silent one.
+
+**Architecture guard:** `tests/unit/po-receiving/test-po-receiving-architecture.php` — `increment_qty_received()` has exactly one caller (`PO_Receiving_Sync`); `apply_line_delta()` has exactly one caller (`Goods_Receipt_Service`); `reconcile_line()` has exactly one caller (the reconciliation CLI); `PO_Receiving_Sync` never opens its own transaction; `Restock_Service`'s caller set gained zero new entries; no new value is ever written to the per-line `wc_io_purchase_order_lines.status` column; named `PO_Events::TYPE_*` constants only, never inlined string literals. Every M4 architecture guard whose premise M5 legitimately changed (`test_po_line_id_never_populated`, `test_no_receiving_event_types_declared`, and others) was deliberately revised with a named, documented replacement — none silently broken, none silently deleted (verified individually, not assumed).
+
+---
+
 ## Known risks / tech debt
 
 1. **Large god class:** `class-wc-inventory-overview-plugin.php` centralizes UI, handlers, and exports — harder to test and review.
@@ -264,7 +308,7 @@ Operational only; not loaded by WordPress. Requires WP-CLI + WooCommerce.
 3. **`posts_clauses` filter:** Global filter at priority 999; scoped by query depth and admin context — avoid front-end product queries while filter is active.
 4. **Danger zone reset:** Can bulk-delete plugin tables/meta snapshots; gated by capability + nonces + preview token — still high impact for operators.
 5. **Inline stock AJAX:** Uses `edit_products` (broader than `manage_woocommerce`) with per-product `edit_product` — intentional for catalog editors.
-6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts), PHPCS (local), and GitHub Actions CI (PHP lint + release ZIP). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
+6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving), PHPCS (local), and GitHub Actions CI (PHP lint + release ZIP). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
 7. **Monorepo mirror:** A development copy may exist under `biopentra-custom-plugins/plugins/wc-inventory-overview/`; this standalone repo is canonical for releases.
 
 ---
@@ -272,4 +316,5 @@ Operational only; not loaded by WordPress. Requires WP-CLI + WooCommerce.
 ## Recommended follow-ups (non-blocking)
 
 - Split `Plugin` into tab controllers or modules.
-- Extend schema-shape assertion per milestone (M3 introduced no schema change; next relevant at M4/M5 receiving).
+- Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; next relevant at M6 migration/retirement).
+- `PO_Delay`'s "Delayed" detection deliberately does not yet extend to `partially_received` POs (M5 left this gap open, documented rather than silent) — worth a small follow-up milestone or ADR if operators need delay flagging on partially-received POs.

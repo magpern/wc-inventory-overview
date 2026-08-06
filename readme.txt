@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.21.0
+Stable tag: 1.22.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,17 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.22.0 =
+* Milestone M5 — Purchase Order Receiving: qty_received becomes a real, maintained column on wc_io_purchase_order_lines (full INV-4 formula: outstanding = ordered - received - cancelled). Schema v9.
+* Goods Receipt lines can now carry a po_line_id, populated only through Receipt_Lines::create() -- "Receive" against a Purchase Order pre-fills a draft from its outstanding lines; direct receipts (Quick Receive Without PO) are unchanged.
+* New PO statuses partially_received / received, auto-transitioned only (never operator-selected) by the new WC_Inventory_Overview_PO_Receiving_Sync -- the sole owner of qty_received mutations, itself the only caller of Purchase_Order_Lines::increment_qty_received(). Goods_Receipt_Service remains the sole business orchestrator and sole stock/cost mutator; no second mutation path was introduced.
+* Over-receipt is allowed, never blocked (per D5), warned at the post-confirm screen and recorded in the PO event log with an over_receipt / qty_over marker.
+* Five new PO event types (po_line_received, po_line_receipt_voided, po_partially_received, po_received, po_qty_received_reconciled) close the audit-trail gap M4 explicitly reserved for this milestone.
+* New wp wc-io reconcile-qty-received [--fix] [--po=<id>] CLI command: read-only drift report by default; --fix repairs through the same sole-owner class, never bypassing it.
+* Purchase Order detail page gains a Receive button, a Received column, and a receiving-history panel; Goods Receipt lines show "Fulfils: PO-XXXX line N" back-links.
+* M3's Inventory Position "Incoming" figure now correctly decreases as receipts post against PO lines (the recomputation M3's own plan deferred to this milestone).
+* IMPORTANT: like M4, M5 mutates WooCommerce stock, cost, and now qty_received/PO status. Read docs/rollback-plan.md before rolling back a site with any M5-era receipts posted.
 
 = 1.21.0 =
 * Milestone M4 — Receipt Engine: Goods Receipt as the sole stock/cost mutator (Quick Receive Without PO). Schema v8: new wc_io_goods_receipts / wc_io_receipt_lines / wc_io_receipt_costs tables; wc_io_inventory_movements gains reference_type / reference_id / supplier_id.
