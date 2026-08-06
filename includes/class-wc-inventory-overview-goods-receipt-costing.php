@@ -1,6 +1,8 @@
 <?php
 /**
- * Goods Receipt costing: FX/line parsing, landed allocation, and preview computation (M4).
+ * Goods Receipt costing: FX/line parsing, landed allocation, and preview computation
+ * (M4, extended M5 to parse an optional per-line po_line_id — pure parsing/carrying
+ * only, no validation of the referenced PO line's existence/receivability here).
  *
  * Ported from WC_Inventory_Overview_Batch_Intake_Service's landed-allocation formula
  * (proportional by product line value, remainder to the last line) — unmodified math,
@@ -267,6 +269,7 @@ class WC_Inventory_Overview_Goods_Receipt_Costing {
 				'exchange_rate_to_eur'    => $rrate,
 				'converted_unit_cost_eur' => $converted_unit_eur,
 				'base_line_cost'          => $base_line_cost,
+				'po_line_id'              => isset( $line['po_line_id'] ) ? (int) $line['po_line_id'] : 0,
 			);
 		}
 
@@ -363,6 +366,7 @@ class WC_Inventory_Overview_Goods_Receipt_Costing {
 					'allocated_landed'        => $allocated,
 					'true_line_cost'          => $true_line,
 					'true_unit_cost'          => $true_unit,
+					'po_line_id'              => $vl['po_line_id'],
 				),
 				$preview
 			);
@@ -436,21 +440,29 @@ class WC_Inventory_Overview_Goods_Receipt_Costing {
 	}
 
 	/**
-	 * Parse raw product/qty/unit-cost line arrays from POST.
+	 * Parse raw product/qty/unit-cost/po_line_id line arrays from POST.
+	 *
+	 * The po_line_id value (M5) is 0 for a direct line (M4 behavior, unchanged) or
+	 * positive when this line is submitted as receiving against that Purchase
+	 * Order line — the referenced line's existence, receivability, and product
+	 * match are validated by Goods_Receipt_Service at draft-build time (M5 plan
+	 * §Class/service changes), not here — this method only parses the raw value.
 	 *
 	 * @param array<string, mixed> $src Unslashed POST.
-	 * @return array<int, array{product_id: int, qty: string, entered_unit_cost: string}>
+	 * @return array<int, array{product_id: int, qty: string, entered_unit_cost: string, po_line_id: int}>
 	 */
 	protected static function parse_product_lines( array $src ) {
-		$ids   = isset( $src['wc_io_gr_line_product'] ) && is_array( $src['wc_io_gr_line_product'] ) ? $src['wc_io_gr_line_product'] : array();
-		$qtys  = isset( $src['wc_io_gr_line_qty'] ) && is_array( $src['wc_io_gr_line_qty'] ) ? $src['wc_io_gr_line_qty'] : array();
-		$costs = isset( $src['wc_io_gr_line_unit_cost'] ) && is_array( $src['wc_io_gr_line_unit_cost'] ) ? $src['wc_io_gr_line_unit_cost'] : array();
-		$max   = max( count( $ids ), count( $qtys ), count( $costs ) );
-		$out   = array();
+		$ids      = isset( $src['wc_io_gr_line_product'] ) && is_array( $src['wc_io_gr_line_product'] ) ? $src['wc_io_gr_line_product'] : array();
+		$qtys     = isset( $src['wc_io_gr_line_qty'] ) && is_array( $src['wc_io_gr_line_qty'] ) ? $src['wc_io_gr_line_qty'] : array();
+		$costs    = isset( $src['wc_io_gr_line_unit_cost'] ) && is_array( $src['wc_io_gr_line_unit_cost'] ) ? $src['wc_io_gr_line_unit_cost'] : array();
+		$po_lines = isset( $src['wc_io_gr_line_po_line_id'] ) && is_array( $src['wc_io_gr_line_po_line_id'] ) ? $src['wc_io_gr_line_po_line_id'] : array();
+		$max      = max( count( $ids ), count( $qtys ), count( $costs ) );
+		$out      = array();
 		for ( $i = 0; $i < $max; $i++ ) {
 			$pid = isset( $ids[ $i ] ) ? absint( $ids[ $i ] ) : 0;
 			$qty = isset( $qtys[ $i ] ) ? (string) $qtys[ $i ] : '';
 			$cst = isset( $costs[ $i ] ) ? (string) $costs[ $i ] : '';
+			$pol = isset( $po_lines[ $i ] ) ? absint( $po_lines[ $i ] ) : 0;
 			if ( $pid <= 0 && '' === trim( $qty ) && '' === trim( $cst ) ) {
 				continue;
 			}
@@ -458,6 +470,7 @@ class WC_Inventory_Overview_Goods_Receipt_Costing {
 				'product_id'        => $pid,
 				'qty'               => $qty,
 				'entered_unit_cost' => $cst,
+				'po_line_id'        => $pol,
 			);
 		}
 		return $out;
