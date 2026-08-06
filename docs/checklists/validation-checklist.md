@@ -102,6 +102,40 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **No PO-linked receiving surface**: no "Receive Against PO" option, no PO-line picker, anywhere in the Receive Stock UI (M5 scope).
 
+### For M5 (PO Receiving, v1.22.0)
+
+- [ ] **Schema v9**: `DB_VERSION` is `9`; `qty_received` exists on `wc_io_purchase_order_lines`; the `qty_received` forbidden-column guard is gone:
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  wp db query "SHOW COLUMNS FROM \`$(wp config get table_prefix)wc_io_purchase_order_lines\` LIKE 'qty_received'"
+  ```
+  (Non-empty result — the exact inverse of M3's/M4's check above.)
+
+- [ ] **Receive against PO** — a real receipt posted end-to-end against a real, previously-placed PO line via the admin UI's "Receive" button: `qty_received` on the PO line increments by exactly the posted quantity; the PO's header status updates correctly (`placed → partially_received` or `placed → received`, per outstanding).
+
+- [ ] **Partial receipt** — a receipt covering less than a PO line's full outstanding quantity: PO status reads "Partially Received"; the line's `qty_outstanding` (Ordered − Received − Cancelled) correctly reflects the remainder; a second receipt can still be created against the same line's remaining outstanding.
+
+- [ ] **Complete receipt** — a receipt (or the cumulative effect of several) that brings a PO line's outstanding to exactly zero: PO status reads "Received"; the PO detail page's per-line Received/Outstanding columns confirm it.
+
+- [ ] **Void one receipt** — voiding a posted PO-linked receipt with a reason: `qty_received` and PO status walk back down correctly (not just "the void succeeds") — verified against the intervening-receipt scenario if multiple receipts exist against the same PO line (voiding one must not erase another's contribution, regardless of order).
+
+- [ ] **Inventory Position updates correctly after every one of the above operations**: the Incoming figure for the affected product/variation on Inventory Overview is re-checked after the partial receipt, the complete receipt, and the void — confirming it tracks `qty_outstanding` at each step, not just at the end (the M3 Incoming regression fix, verified live, not only in CI).
+
+- [ ] **Over-receipt is possible, warned, and audited — never blocked**: posting a quantity exceeding a PO line's current outstanding succeeds; the post-confirmation screen shows an explicit over-receipt warning; the PO's event timeline records `over_receipt: true` for that line.
+
+- [ ] **Mixed and multi-PO receipts work**: one receipt containing both a PO-linked line and a direct line (`source = mixed`), and one receipt with lines from two different POs (both POs' statuses update independently), both post correctly.
+
+- [ ] **Reconciliation CLI available and read-only by default**:
+  ```bash
+  wp wc-io reconcile-qty-received
+  ```
+  (Reports verified/drift counts; makes zero writes without `--fix`.)
+
+- [ ] **Receiving history visible**: the PO detail page's "Receiving History" panel lists every receipt line fulfilling any of that PO's lines, with working links to each Goods Receipt; a PO-linked Goods Receipt line shows a working "Fulfils: PO-XXXX line N" back-link.
+
+- [ ] **Batch Intake, Quick Restock, Cost Adjustment, Supplier admin, and M4's Quick Receive Without PO all unaffected** — all continue to function exactly as in v1.21.0.
+
 ## Sign-off
 
 Once all checks pass:

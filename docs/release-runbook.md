@@ -150,6 +150,34 @@ No additional steps. The release is a pure-tooling change with no functional or 
 6. **No PO-linked receiving:** confirm no "Receive Against PO" option, no PO picker, and no `qty_received` column anywhere (M5 scope).
 7. **Rollback awareness:** read `docs/rollback-plan.md`'s new M4 note before deploying — a code rollback does not reverse stock effects of receipts already posted under M4.
 
+### M5: PO Receiving
+
+**Before tagging v1.22.0:**
+
+0. **Release notes file:** Confirm `docs/GITHUB_RELEASE_NOTES_1.22.0.md` exists and matches `CHANGELOG.md` for 1.22.0.
+1. **Verify schema version bump:** Check that `DB_VERSION = '9'` in `includes/class-wc-inventory-overview-install.php`.
+2. **Test schema-shape assertion on a production-data copy:**
+   - Upgrade to the M5 release on a copy of production database.
+   - Verify `wp option get wc_io_db_version` returns `9`.
+   - Verify `wp option get wc_io_schema_assertion --format=json` shows `ok: true` and `version: "9"`.
+   - Verify `qty_received` now exists on `wc_io_purchase_order_lines` and is no longer in the schema-shape assertion's forbidden-columns list.
+3. **Dispatcher-routing check (mandatory — the exact trap M4's own runbook flagged for v7/v8, repeats identically at v8/v9):** confirm `DB_VERSION` 9 routes to `expected_schema_v9()`, not silently falling back to v8's (incomplete, still-forbids-`qty_received`) assertion. If schema-shape assertion reports `ok: true` at `version: "9"` with `qty_received` present, the dispatcher is correct; if it reports the column as forbidden despite the column existing, the dispatcher fell through to v8 and must be fixed before tagging.
+4. **Verify PO Receiving end-to-end:**
+   - Log in as a `manage_woocommerce` user.
+   - On a placed Purchase Order's detail page, confirm the **Receive** button appears and pre-fills a new Goods Receipt draft from the PO's outstanding lines.
+   - Post a partial receive; verify the PO line's `qty_received`/outstanding update, and the PO status reads "Partially Received".
+   - Post a second receive covering the remainder; verify PO status reads "Received".
+   - Void one of the two receipts; verify `qty_received`/PO status walk back down correctly (the other receipt's contribution survives, regardless of which one is voided — see the two mandatory regression scenarios in `docs/milestones/m5-implementation-plan.md` §Testing).
+5. **qty_received-mutation-correctness check (mandatory — new for M5, mirrors M4's stock-mutation-correctness check):** unlike M4 (stock/cost only), M5 also mutates `qty_received` and PO status.
+   - Note a PO line's `qty_ordered`/`qty_received`/`qty_cancelled` and the PO's `status` before posting a PO-linked receipt.
+   - Post the receipt; verify `qty_received` incremented by exactly the posted quantity, and PO status matches `PO_Statuses::recompute_for_receiving()`'s expected output by hand.
+   - Void the receipt; verify `qty_received`/status return to (or correctly reflect, if other receipts posted in between) the pre-posting state.
+6. **Over-receipt check:** post a quantity exceeding a PO line's outstanding; confirm it succeeds (D5 forbids hard-blocking), the post-confirm screen warns explicitly, and the PO's event timeline records the over-receipt.
+7. **Reconciliation CLI available:** `wp wc-io reconcile-qty-received` runs and reports verified/drift counts without `--fix`; confirm it makes zero writes in that mode.
+8. **Batch Intake, Quick Restock, Cost Adjustment, and M4's Quick Receive Without PO unaffected:** confirm all continue to function exactly as in v1.21.0 — PO Receiving is additive.
+9. **No alternative receiving pipeline:** confirm `Goods_Receipt_Service` remains the only code path that mutates stock/cost, and `PO_Receiving_Sync` remains the only code path that mutates `qty_received` (architecture-guard tests pass in CI; this is a documentation cross-check, not a new manual step).
+10. **Rollback awareness:** read `docs/rollback-plan.md`'s new M5 note before deploying — a code rollback does not reverse `qty_received`/PO-status effects of receipts already posted under M5.
+
 ## Post-release communication
 
 After a successful release:

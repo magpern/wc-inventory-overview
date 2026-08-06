@@ -2,6 +2,20 @@
 
 ---
 
+## ⚠ M5 and later: code rollback does not reverse qty_received/PO-status effects
+
+**Starting with M5 (v1.22.0), a plugin-code rollback to a pre-M5 version does NOT reverse the `qty_received` or Purchase Order status effects of PO-linked receipts already posted under M5** — in addition to the stock/cost effects M4 already introduced this same risk for (see the M4 section immediately below, which still applies unchanged and in full to any receipt, PO-linked or direct).
+
+This extends the same new risk class M4 introduced to a second domain: the Purchase Order's own `qty_received` counter and `status` (`placed → partially_received → received`) are, as of M5, real committed state maintained by `WC_Inventory_Overview_PO_Receiving_Sync` — the exact same "sole mutator" argument M4 made for stock/cost applies here. If a receipt with `po_line_id` set has been **posted** after upgrading to v1.22.0+, the PO line's `qty_received` and the PO's `status` are real, committed state; rolling the *plugin code* back to a pre-M5 version does not, and cannot, undo those changes — the older code simply has no PO-linked receiving UI to view or void them with (`wc_io_purchase_order_lines.qty_received` and `wc_io_purchase_orders.status` remain exactly as posting left them, and the older code's PO admin screen would render `partially_received`/`received` as an unrecognized status).
+
+**If a rollback is needed after M5 PO-linked receipts have been posted:**
+
+1. **Do not roll back plugin code as a way to "undo" a bad PO-linked receipt.** Use **Void** (in the still-current version) instead — voiding correctly walks both `qty_received` and PO status back down, regardless of what else has posted against the same PO in between (see `docs/milestones/m5-implementation-plan.md` §Receiving-status ownership).
+2. If a genuine code-level rollback is required for an unrelated reason, the `qty_received`/PO-status effects of any PO-linked receipts posted while on v1.22.0+ **remain in effect** — reconcile manually (the M5 reconciliation CLI, `wp wc-io reconcile-qty-received`, can verify `qty_received` against actual posted receipt history even from a rolled-back-code state, since it only reads `wc_io_receipt_lines`/`wc_io_goods_receipts`, tables the older code doesn't touch but can still read via raw SQL if needed).
+3. A full DB restore to a pre-M5 backup **does** reverse everything, including `qty_received`/PO-status effects, but also reverses every other interim change — treat this as the "Full restore (catastrophic)" path below, not a targeted undo.
+
+---
+
 ## ⚠ M4 and later: code rollback does not reverse posted-receipt stock effects
 
 **Starting with M4 (v1.21.0), a plugin-code rollback to a pre-M4 version does NOT reverse the stock, average-cost, inventory-value, or movement effects of Goods Receipts already posted under M4.**

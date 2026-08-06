@@ -1,5 +1,38 @@
 # Changelog — WC Inventory Overview
 
+## [1.22.0] - 2026-08-06
+
+**Milestone M5 — Purchase Order Receiving** — connects Purchase Orders (M2) to the Goods Receipt engine (M4): `qty_received` becomes a real, maintained column (full INV-4 formula), and receipt lines can now link to a PO line. `Goods_Receipt_Service` remains the sole stock/cost mutator and gains a second responsibility — sole business orchestrator for `qty_received` changes, delegated to a new sole-owner class. No second mutation path was introduced anywhere. **Schema v9** — one column addition, zero new tables (M4 had already prepared `receipt_line.po_line_id` and `goods_receipt.source` for this moment). **Prerequisite:** v1.21.0 (M4 Receipt Engine).
+
+### Added
+
+- **`qty_received` on `wc_io_purchase_order_lines`** (schema v9): the full INV-4 formula, `qty_outstanding = GREATEST(0, qty_ordered - qty_received - qty_cancelled)`. The forbidden-column guard from M2/M4 is lifted — the one `forbidden_columns` entry M5 is permitted to change. `Purchase_Order_Lines::increment_qty_received()` is the sole physical writer anywhere in the codebase (architecture-guard enforced).
+- **`WC_Inventory_Overview_PO_Receiving_Sync`** — the sole owner of every `qty_received` mutation and its PO-status/PO-event side effects. `apply_line_delta()` (the normal receiving path) is called only by `Goods_Receipt_Service`, from inside its existing transaction, immediately after that line's stock mutation and movement insert succeed. `reconcile_line()` (the reconciliation path) is called only by the new CLI command. Neither method opens its own transaction. Three-tier ownership chain — orchestrator (`Goods_Receipt_Service`) → owner (`PO_Receiving_Sync`) → physical writer (`increment_qty_received()`) — enforced by dedicated architecture guards.
+- **Two new PO statuses**, `partially_received` / `received`, auto-transitioned only via a pure, direction-agnostic recompute function (`PO_Statuses::recompute_for_receiving()` — the same current-state-relative design principle M4 used for void correctness, applied here to status). Never reachable through the operator-gated transition table; `cancel`/`close_short` remain available from `partially_received`, not from `received`; neither status is editable.
+- **Receiving against a PO**: a "Receive" button on the PO detail page (gated by a new `RECEIVE_PO` capability, default `manage_woocommerce`) pre-fills a new Goods Receipt draft from the PO's outstanding lines — reusing the same `create_draft_from_post()` M4 already built, no new persistence method. The line editor's product picker gained an optional `po_line_id` per line; product-mismatch between a submitted line and its referenced PO line is rejected before any draft is even saved.
+- **Mixed and multi-PO receipts**: one receipt may contain PO-linked lines (from one or more POs) alongside direct lines; `source` (`direct`/`po`/`mixed`) is derived from line composition, never operator-chosen.
+- **Over-receipt, per D5**: never blocked. A line's quantity may exceed its PO line's current outstanding; the post-confirm screen warns explicitly, and the resulting PO event carries `over_receipt`/`qty_over` markers.
+- **Five new PO event types**: `po_line_received`, `po_line_receipt_voided`, `po_partially_received`, `po_received`, `po_qty_received_reconciled` — closing the audit-trail gap M4's own Audit-trail decision explicitly reserved for this milestone (INV-6's "PO event log" clause, structurally inapplicable to M4's PO-less receipts, is now literally satisfiable).
+- **Reconciliation tooling**: `wp wc-io reconcile-qty-received [--fix] [--po=<id>]` — read-only drift report by default; `--fix` repairs through `PO_Receiving_Sync::reconcile_line()` only, never bypassing the sole-writer chain. Every repair is individually logged and recorded as its own PO event; summary output reports verified/repaired counts.
+- **Receiving history**: a bulk (not per-line) query on the PO detail page lists every receipt line fulfilling any of that PO's lines; Goods Receipt detail pages show a "Fulfils: PO-XXXX line N" back-link per PO-linked line. PO line rows gain a "Received" column.
+- **Tests:** `tests/unit/po-receiving/` and `tests/integration/po-receiving/` (12 new files) covering the full formula, the status-recompute function's direction-agnostic behavior, both mandatory rollback regression scenarios (post-A/post-B/void-A, and post-A/post-B/void-B/void-A — order-independence), the forced-failure test proving stock/`qty_received`/PO-status roll back together, over-receipt, mixed/multi-PO receipts, pre-transaction validation, and the M3 Incoming regression M3's own plan deferred to this milestone.
+
+### Fixed
+
+- **M3's Inventory Position "Incoming" figure** now correctly reflects receiving: the raw SQL `GREATEST()` literal in `Purchase_Order_Lines::query_open_lines()` gained the `qty_received` term, and its `WHERE` clause now includes `partially_received`/`received` POs (previously `placed` only) so a partially-received PO's remaining outstanding still surfaces as Incoming.
+
+### Verified unchanged
+
+- `Restock_Service::apply_purchase_line_change()`/`apply_purchase_line_reversal()`'s caller set gained zero new entries — `PO_Receiving_Sync` never calls either method; all stock/cost mutation still flows exclusively through `Goods_Receipt_Service`.
+- No header-level `po_id` column exists on `wc_io_goods_receipts` (D6: line-level linkage only, unchanged from M4).
+- No new value is ever written to the per-line `wc_io_purchase_order_lines.status` bookkeeping column — "line completion" is derived from `qty_outstanding == 0`, never stored as a line-level enum.
+- Batch Intake, Quick Restock, Cost Adjustment, and Supplier admin behavior are all unmodified.
+- Every M4 architecture guard's disposition (kept unchanged / revised with a named replacement / retired with a named replacement) was individually verified, not assumed — none silently broken, none silently deleted.
+
+### Important
+
+Like M4, M5 mutates state that a code-only rollback cannot reverse: a plugin-code rollback to a pre-M5 version does **not** reverse the `qty_received`/PO-status effects of receipts already posted under M5 — see the extended note in `docs/rollback-plan.md`.
+
 ## [1.21.0] - 2026-08-06
 
 **Milestone M4 — Receipt Engine (Goods Receipt)** — the first milestone that mutates WooCommerce stock and weighted-average cost through this plugin (D3/INV-2). Implements "Quick Receive Without PO" (D7): direct receipts, no PO linkage. **Schema v8** — three new tables plus an `inventory_movements` ALTER. **Prerequisite:** v1.20.0 (M3 Inventory Position).
