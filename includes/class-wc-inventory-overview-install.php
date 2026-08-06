@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Install {
 
-	const DB_VERSION = '7';
+	const DB_VERSION = '8';
 
 	/**
 	 * Register activation hook target.
@@ -77,11 +77,16 @@ class WC_Inventory_Overview_Install {
 			note text NULL,
 			user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			reference_type varchar(32) NULL,
+			reference_id bigint(20) unsigned NULL,
+			supplier_id bigint(20) unsigned NULL,
 			PRIMARY KEY  (id),
 			KEY product_id (product_id),
 			KEY variation_id (variation_id),
 			KEY movement_type (movement_type),
-			KEY created_at (created_at)
+			KEY created_at (created_at),
+			KEY reference (reference_type, reference_id),
+			KEY supplier_id (supplier_id)
 		) {$collate};";
 		dbDelta( $sql );
 
@@ -264,6 +269,95 @@ class WC_Inventory_Overview_Install {
 			KEY reason_code (reason_code)
 		) {$collate};";
 		dbDelta( $sql9 );
+
+		// M4: Goods Receipts (schema v8). Direct receipts only — po_line_id always NULL in M4.
+		$goods_receipts = $wpdb->prefix . 'wc_io_goods_receipts';
+		$sql10          = "CREATE TABLE {$goods_receipts} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			receipt_number varchar(32) NOT NULL,
+			status varchar(20) NOT NULL DEFAULT 'draft',
+			source varchar(20) NOT NULL DEFAULT 'direct',
+			supplier_id bigint(20) unsigned NULL,
+			supplier_name_snapshot varchar(190) NULL,
+			currency char(3) NOT NULL DEFAULT 'EUR',
+			exchange_rate_to_eur decimal(19,8) NOT NULL DEFAULT 1,
+			exchange_rate_date date NULL,
+			product_subtotal_entered decimal(19,4) NOT NULL DEFAULT 0,
+			landed_total_entered decimal(19,4) NOT NULL DEFAULT 0,
+			receipt_total_entered decimal(19,4) NOT NULL DEFAULT 0,
+			product_subtotal decimal(19,4) NOT NULL DEFAULT 0,
+			landed_total decimal(19,4) NOT NULL DEFAULT 0,
+			receipt_total decimal(19,4) NOT NULL DEFAULT 0,
+			reference varchar(190) NULL,
+			note text NULL,
+			posted_at datetime NULL,
+			posted_by bigint(20) unsigned NULL,
+			voided_at datetime NULL,
+			voided_by bigint(20) unsigned NULL,
+			void_reason text NULL,
+			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			updated_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY receipt_number (receipt_number),
+			KEY status (status),
+			KEY supplier_id (supplier_id),
+			KEY created_at (created_at)
+		) {$collate};";
+		dbDelta( $sql10 );
+
+		$receipt_lines = $wpdb->prefix . 'wc_io_receipt_lines';
+		$sql11         = "CREATE TABLE {$receipt_lines} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			receipt_id bigint(20) unsigned NOT NULL,
+			line_index int NOT NULL DEFAULT 0,
+			po_line_id bigint(20) unsigned NULL,
+			product_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			variation_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			sku_snapshot varchar(100) NULL,
+			name_snapshot varchar(190) NULL,
+			qty decimal(19,4) NOT NULL DEFAULT 0,
+			entered_currency char(3) NOT NULL DEFAULT 'EUR',
+			exchange_rate_to_eur decimal(19,8) NOT NULL DEFAULT 1,
+			entered_unit_cost decimal(19,6) NOT NULL DEFAULT 0,
+			converted_unit_cost_eur decimal(19,6) NOT NULL DEFAULT 0,
+			base_line_cost decimal(19,4) NOT NULL DEFAULT 0,
+			allocated_landed_cost decimal(19,4) NOT NULL DEFAULT 0,
+			true_line_cost decimal(19,4) NOT NULL DEFAULT 0,
+			true_unit_cost decimal(19,6) NOT NULL DEFAULT 0,
+			old_stock decimal(19,4) NOT NULL DEFAULT 0,
+			new_stock decimal(19,4) NOT NULL DEFAULT 0,
+			old_average_unit_cost decimal(19,6) NULL,
+			new_average_unit_cost decimal(19,6) NOT NULL DEFAULT 0,
+			old_inventory_value decimal(19,4) NOT NULL DEFAULT 0,
+			new_inventory_value decimal(19,4) NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY receipt_id (receipt_id),
+			KEY product_id (product_id),
+			KEY variation_id (variation_id),
+			KEY po_line_id (po_line_id)
+		) {$collate};";
+		dbDelta( $sql11 );
+
+		$receipt_costs = $wpdb->prefix . 'wc_io_receipt_costs';
+		$sql12         = "CREATE TABLE {$receipt_costs} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			receipt_id bigint(20) unsigned NOT NULL,
+			cost_type varchar(32) NOT NULL DEFAULT '',
+			entered_currency char(3) NOT NULL DEFAULT 'EUR',
+			exchange_rate_to_eur decimal(19,8) NOT NULL DEFAULT 1,
+			entered_amount decimal(19,4) NOT NULL DEFAULT 0,
+			converted_amount_eur decimal(19,4) NOT NULL DEFAULT 0,
+			amount decimal(19,4) NOT NULL DEFAULT 0,
+			note text NULL,
+			post_hoc tinyint(1) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY receipt_id (receipt_id),
+			KEY cost_type (cost_type)
+		) {$collate};";
+		dbDelta( $sql12 );
 	}
 
 	/**
@@ -340,6 +434,14 @@ class WC_Inventory_Overview_Install {
 			}
 		}
 
+		$receipts_table = $wpdb->prefix . 'wc_io_goods_receipts';
+		if ( version_compare( $version, '8', '>=' ) && $receipts_table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $receipts_table ) ) ) ) {
+			$indexes = $wpdb->get_results( "SHOW INDEX FROM {$receipts_table} WHERE Column_name='receipt_number' AND Non_unique=0" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( empty( $indexes ) ) {
+				$missing[] = "Unique index missing on {$receipts_table}.receipt_number";
+			}
+		}
+
 		$payload = array(
 			'ok'         => empty( $missing ),
 			'version'    => $version,
@@ -372,6 +474,9 @@ class WC_Inventory_Overview_Install {
 	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns?:array<string,array<int,string>>}
 	 */
 	private static function expected_schema( $version ) {
+		if ( version_compare( (string) $version, '8', '>=' ) ) {
+			return self::expected_schema_v8();
+		}
 		if ( version_compare( (string) $version, '7', '>=' ) ) {
 			return self::expected_schema_v7();
 		}
@@ -483,6 +588,105 @@ class WC_Inventory_Overview_Install {
 			'purchase_order_lines' => array( 'qty_received' ),
 			'purchase_orders'      => array(),
 		);
+
+		return $base;
+	}
+
+	/**
+	 * Expected schema shape for DB version 8 (Goods Receipts, M4).
+	 *
+	 * Direct receipts only — po_line_id exists on wc_io_receipt_lines but is never
+	 * populated by M4 code. The M2 forbidden-column guard for qty_received on
+	 * wc_io_purchase_order_lines carries forward unchanged.
+	 *
+	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns:array<string,array<int,string>>}
+	 */
+	private static function expected_schema_v8() {
+		$base = self::expected_schema_v7();
+
+		$base['tables'][] = 'wc_io_goods_receipts';
+		$base['tables'][] = 'wc_io_receipt_lines';
+		$base['tables'][] = 'wc_io_receipt_costs';
+
+		$base['columns']['goods_receipts'] = array(
+			'id',
+			'receipt_number',
+			'status',
+			'source',
+			'supplier_id',
+			'supplier_name_snapshot',
+			'currency',
+			'exchange_rate_to_eur',
+			'exchange_rate_date',
+			'product_subtotal_entered',
+			'landed_total_entered',
+			'receipt_total_entered',
+			'product_subtotal',
+			'landed_total',
+			'receipt_total',
+			'reference',
+			'note',
+			'posted_at',
+			'posted_by',
+			'voided_at',
+			'voided_by',
+			'void_reason',
+			'created_by',
+			'updated_by',
+			'created_at',
+			'updated_at',
+		);
+
+		$base['columns']['receipt_lines'] = array(
+			'id',
+			'receipt_id',
+			'line_index',
+			'po_line_id',
+			'product_id',
+			'variation_id',
+			'sku_snapshot',
+			'name_snapshot',
+			'qty',
+			'entered_currency',
+			'exchange_rate_to_eur',
+			'entered_unit_cost',
+			'converted_unit_cost_eur',
+			'base_line_cost',
+			'allocated_landed_cost',
+			'true_line_cost',
+			'true_unit_cost',
+			'old_stock',
+			'new_stock',
+			'old_average_unit_cost',
+			'new_average_unit_cost',
+			'old_inventory_value',
+			'new_inventory_value',
+			'created_at',
+		);
+
+		$base['columns']['receipt_costs'] = array(
+			'id',
+			'receipt_id',
+			'cost_type',
+			'entered_currency',
+			'exchange_rate_to_eur',
+			'entered_amount',
+			'converted_amount_eur',
+			'amount',
+			'note',
+			'post_hoc',
+		);
+
+		// inventory_movements is pre-existing (v-anything); v8 is the first version to assert its columns,
+		// since the ALTER that adds these three columns is itself a v8 change.
+		$base['columns']['inventory_movements'] = array(
+			'reference_type',
+			'reference_id',
+			'supplier_id',
+		);
+
+		$base['forbidden_columns']['purchase_order_lines'] = array( 'qty_received' );
+		$base['forbidden_columns']['purchase_orders']       = array();
 
 		return $base;
 	}
