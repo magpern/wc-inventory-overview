@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Install {
 
-	const DB_VERSION = '8';
+	const DB_VERSION = '9';
 
 	/**
 	 * Register activation hook target.
@@ -194,7 +194,7 @@ class WC_Inventory_Overview_Install {
 		) {$collate};";
 		dbDelta( $sql6 );
 
-		// M2: Purchase Orders (schema v7). No receiving columns — qty_received arrives in M5.
+		// M2: Purchase Orders (schema v7). qty_received (M5, schema v9) added via ALTER below.
 		$purchase_orders = $wpdb->prefix . 'wc_io_purchase_orders';
 		$sql7            = "CREATE TABLE {$purchase_orders} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -234,6 +234,7 @@ class WC_Inventory_Overview_Install {
 			name_snapshot varchar(190) NULL,
 			supplier_sku varchar(100) NULL,
 			qty_ordered decimal(19,4) NOT NULL DEFAULT 0,
+			qty_received decimal(19,4) NOT NULL DEFAULT 0,
 			qty_cancelled decimal(19,4) NOT NULL DEFAULT 0,
 			unit_cost decimal(19,6) NOT NULL DEFAULT 0,
 			currency char(3) NOT NULL DEFAULT 'EUR',
@@ -474,6 +475,9 @@ class WC_Inventory_Overview_Install {
 	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns?:array<string,array<int,string>>}
 	 */
 	private static function expected_schema( $version ) {
+		if ( version_compare( (string) $version, '9', '>=' ) ) {
+			return self::expected_schema_v9();
+		}
 		if ( version_compare( (string) $version, '8', '>=' ) ) {
 			return self::expected_schema_v8();
 		}
@@ -686,7 +690,29 @@ class WC_Inventory_Overview_Install {
 		);
 
 		$base['forbidden_columns']['purchase_order_lines'] = array( 'qty_received' );
-		$base['forbidden_columns']['purchase_orders']       = array();
+		$base['forbidden_columns']['purchase_orders']      = array();
+
+		return $base;
+	}
+
+	/**
+	 * Expected schema shape for DB version 9 (PO Receiving, M5).
+	 *
+	 * The qty_received column on wc_io_purchase_order_lines becomes a real,
+	 * maintained field here (full INV-4 formula). The M2/M4 forbidden-column
+	 * guard for qty_received is removed here — this is the one forbidden_columns
+	 * entry M5 is permitted to change. No new tables are added;
+	 * wc_io_receipt_lines.po_line_id and wc_io_goods_receipts.source were already
+	 * schema-ready from M4 and require no further change.
+	 *
+	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns:array<string,array<int,string>>}
+	 */
+	private static function expected_schema_v9() {
+		$base = self::expected_schema_v8();
+
+		$base['columns']['purchase_order_lines'][] = 'qty_received';
+
+		$base['forbidden_columns']['purchase_order_lines'] = array();
 
 		return $base;
 	}
