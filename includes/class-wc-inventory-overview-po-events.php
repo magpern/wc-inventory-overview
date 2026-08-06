@@ -37,6 +37,18 @@ class WC_Inventory_Overview_PO_Events {
 	const TYPE_LINE_CANCELLED        = 'po_line_cancelled';
 
 	/**
+	 * Event types written by M5 (PO receiving). Written only by
+	 * WC_Inventory_Overview_PO_Receiving_Sync — never directly by PO_Service.
+	 * TYPE_QTY_RECEIVED_RECONCILED is written only by the reconciliation CLI's
+	 * PO_Receiving_Sync::reconcile_line() path, never by apply_line_delta().
+	 */
+	const TYPE_LINE_RECEIVED           = 'po_line_received';
+	const TYPE_LINE_RECEIPT_VOIDED     = 'po_line_receipt_voided';
+	const TYPE_PARTIALLY_RECEIVED      = 'po_partially_received';
+	const TYPE_RECEIVED                = 'po_received';
+	const TYPE_QTY_RECEIVED_RECONCILED = 'po_qty_received_reconciled';
+
+	/**
 	 * Prefixed table name.
 	 */
 	public static function table_name(): string {
@@ -63,6 +75,11 @@ class WC_Inventory_Overview_PO_Events {
 			self::TYPE_LINE_CHANGED,
 			self::TYPE_LINE_REMOVED,
 			self::TYPE_LINE_CANCELLED,
+			self::TYPE_LINE_RECEIVED,
+			self::TYPE_LINE_RECEIPT_VOIDED,
+			self::TYPE_PARTIALLY_RECEIVED,
+			self::TYPE_RECEIVED,
+			self::TYPE_QTY_RECEIVED_RECONCILED,
 		);
 	}
 
