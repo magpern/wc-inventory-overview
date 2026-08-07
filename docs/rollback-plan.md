@@ -2,6 +2,16 @@
 
 ---
 
+## ✓ M7 (v1.24.0): the cleanest rollback of any milestone — leaves nothing behind
+
+**M7 has the cleanest rollback story of any milestone in this program — cleaner even than M6's.**
+
+- **Instant, no deploy:** set `wc_io_expected_delivery_renderer_enabled` to `no` (Inventory & Profit → Settings → Storefront → "Enable Expected Delivery display" → No). Storefront output returns to stock WooCommerce immediately. Nothing else in the plugin changes behavior.
+- **Code rollback v1.24.0 → v1.23.0 is unconditionally safe.** M7 wrote no data, changed no schema, and mutated nothing — no stock, no PO, no Goods Receipt, no product meta. The only persistent artifact of M7 is one `wp_options` row (`wc_io_expected_delivery_renderer_enabled`) that v1.23.0 simply never reads. There is no data-safety reason to remove it, and no schema to reverse.
+- Unlike M4/M5 below (stock/`qty_received` effects survive a code rollback) and unlike M6 above (additive migrated rows survive, harmlessly inert), **M7 leaves nothing behind at all** — the storefront is byte-for-byte back to pre-M7 behavior the moment either the setting is toggled off or the code is rolled back.
+
+---
+
 ## ✓ M6 (v1.23.0): code rollback after batch migration is safe by construction
 
 Unlike M4/M5 below, **M6 does not add a new "code rollback is unsafe" risk class.** A plugin-code rollback to a pre-M6 version (v1.22.0) after `wp wc-io migrate-batches --apply` has already migrated some batches is safe:

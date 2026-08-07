@@ -204,6 +204,24 @@ No additional steps. The release is a pure-tooling change with no functional or 
 12. **Legacy tables frozen:** confirm `wc_io_purchase_batches`/`wc_io_purchase_batch_lines`/`wc_io_purchase_batch_costs` are never dropped or truncated by any code path (D14).
 13. **Rollback awareness:** unlike M4/M5, M6 does **not** introduce a new "code rollback is unsafe" risk — read `docs/rollback-plan.md`'s new M6 note for why (migrated Goods Receipts are purely additive, invisible to pre-M6 code).
 
+### M7: Storefront
+
+**Before tagging v1.24.0:**
+
+0. **Release notes file:** Confirm `docs/GITHUB_RELEASE_NOTES_1.24.0.md` exists and matches `CHANGELOG.md` for 1.24.0.
+1. **No schema change:** confirm `DB_VERSION` is still `'10'` in `includes/class-wc-inventory-overview-install.php` — M7 adds no table, column, or index. `wp option get wc_io_db_version` returns `10`; `wp option get wc_io_schema_assertion --format=json` shows `ok: true` at `version: "10"`.
+2. **Storefront-toggle validation (the addition promised above for M7):**
+   - Confirm the **Storefront** section and "Enable Expected Delivery display" radio appear on Inventory & Profit → Settings, defaulting to **Yes**.
+   - On a real out-of-stock product with a placed PO carrying an exact expected date, confirm the storefront reads "Expected back around …".
+   - Toggle the setting to **No**; confirm WooCommerce's stock text returns to "Out of stock" exactly, with no deploy.
+   - Toggle back to **Yes**; confirm the custom text returns.
+3. **Four customer-visible states verified on a real product:** `STATE_IN_STOCK` (untouched), `STATE_UNAVAILABLE` (plain "Out of stock", no incoming), `STATE_EXPECTED_DATE` (exact and estimated wording), `STATE_EXPECTED_SOON` (incoming exists, no safe date).
+4. **In-stock and backorder products untouched:** confirm both render exactly as stock WooCommerce would, with no plugin text substitution.
+5. **Variable-parent rollup (Invariant M7-2):** an out-of-stock variable parent with at least one customer-safe child shows "Expected soon" on its own card/page, never a specific date; the specific variation shows its own wording once selected.
+6. **No admin screen changed apart from the new Storefront section** on the Settings tab — confirm no new top-level or submenu page was added.
+7. **Quick Restock, Cost Adjustment, Goods Receipts, PO Receiving, batch migration CLI, Supplier admin, and Inventory Position unaffected:** confirm all continue to function exactly as in v1.23.0.
+8. **Rollback awareness:** M7 has the cleanest rollback story of any milestone in this program. The setting toggle is instant with no deploy; a code rollback 1.24.0 → 1.23.0 is unconditionally safe (M7 writes no data, changes no schema, and mutates nothing — see `docs/rollback-plan.md`'s M7 note).
+
 ## Post-release communication
 
 After a successful release:
