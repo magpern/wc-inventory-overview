@@ -53,6 +53,8 @@ class WC_Inventory_Overview_Plugin {
 		WC_Inventory_Overview_Order_Item_Snapshots::register();
 		WC_Inventory_Overview_Order_Shipping_Admin::register();
 		WC_Inventory_Overview_Purchasing_Page::instance()->init();
+		WC_Inventory_Overview_Expected_Delivery_Service::register();
+		WC_Inventory_Overview_Expected_Delivery_Renderer::register();
 
 		add_action( 'admin_init', array( $this, 'redirect_legacy_inventory_admin_pages' ), 1 );
 		add_action( 'admin_menu', array( $this, 'register_menu' ), 60 );
