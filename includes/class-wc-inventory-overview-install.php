@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Install {
 
-	const DB_VERSION = '9';
+	const DB_VERSION = '10';
 
 	/**
 	 * Register activation hook target.
@@ -90,6 +90,8 @@ class WC_Inventory_Overview_Install {
 		) {$collate};";
 		dbDelta( $sql );
 
+		// M6: migrated_receipt_id/migrated_at (schema v10) are migration tracking
+		// metadata only — see the M6 implementation plan's Schema change section.
 		$batches = $wpdb->prefix . 'wc_io_purchase_batches';
 		$sql2    = "CREATE TABLE {$batches} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -107,9 +109,12 @@ class WC_Inventory_Overview_Install {
 			note text NULL,
 			user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			migrated_receipt_id bigint(20) unsigned NULL,
+			migrated_at datetime NULL,
 			PRIMARY KEY  (id),
 			KEY created_at (created_at),
-			KEY user_id (user_id)
+			KEY user_id (user_id),
+			KEY migrated_receipt_id (migrated_receipt_id)
 		) {$collate};";
 		dbDelta( $sql2 );
 
@@ -475,6 +480,9 @@ class WC_Inventory_Overview_Install {
 	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns?:array<string,array<int,string>>}
 	 */
 	private static function expected_schema( $version ) {
+		if ( version_compare( (string) $version, '10', '>=' ) ) {
+			return self::expected_schema_v10();
+		}
 		if ( version_compare( (string) $version, '9', '>=' ) ) {
 			return self::expected_schema_v9();
 		}
@@ -713,6 +721,30 @@ class WC_Inventory_Overview_Install {
 		$base['columns']['purchase_order_lines'][] = 'qty_received';
 
 		$base['forbidden_columns']['purchase_order_lines'] = array();
+
+		return $base;
+	}
+
+	/**
+	 * Expected schema shape for DB version 10 (Migration & Retirement, M6).
+	 *
+	 * Adds migration-tracking-only columns to wc_io_purchase_batches
+	 * (migrated_receipt_id, migrated_at). No new business-domain schema —
+	 * the migrated data fits M4's existing Goods Receipt shape exactly (see
+	 * the M6 implementation plan's Schema change section for why this bump
+	 * exists at all). wc_io_purchase_batches' full column list was never
+	 * previously asserted; only the two v10 additions are asserted here,
+	 * matching the minimal-diff style v9 used for qty_received.
+	 *
+	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns:array<string,array<int,string>>}
+	 */
+	private static function expected_schema_v10() {
+		$base = self::expected_schema_v9();
+
+		$base['columns']['purchase_batches'] = array(
+			'migrated_receipt_id',
+			'migrated_at',
+		);
 
 		return $base;
 	}
