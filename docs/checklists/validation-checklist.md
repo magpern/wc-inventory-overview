@@ -180,6 +180,32 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **Quick Restock, Cost Adjustment, Goods Receipts (M4), PO Receiving (M5), Supplier admin, and Inventory Position all unaffected** — all continue to function exactly as in v1.22.0.
 
+### For M7 (Storefront, v1.24.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`; `wc_io_schema_assertion` reports `ok: true` at `version: "10"`:
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  ```
+
+- [ ] **Setting present, defaults Yes**: Inventory & Profit → Settings → **Storefront** section shows "Enable Expected Delivery display" defaulting to **Yes** on a fresh install.
+
+- [ ] **Out-of-stock product with a customer-safe exact date** shows "Expected back around {date}" on the product page (and on catalog cards, if the active theme renders stock text there).
+
+- [ ] **Out-of-stock product with only an estimated date** shows "Expected during week {W}".
+
+- [ ] **Out-of-stock product with incoming supply but no safe date** (all lines delayed/unknown-confidence/undated) shows "Expected soon" — never a fabricated date.
+
+- [ ] **Out-of-stock variable parent with a customer-safe child** shows "Expected soon" on the parent's own card/page, never a specific date (Invariant M7-2); the specific variation shows its own precise wording once selected.
+
+- [ ] **Toggle off**: setting "Enable Expected Delivery display" to **No** immediately restores stock WooCommerce's own "Out of stock" text with no deploy.
+
+- [ ] **In-stock and backordered products are visually unchanged** in every case above.
+
+- [ ] **No new admin page**: only the existing Settings tab gained a Storefront section; no new top-level or submenu page was added.
+
+- [ ] **Quick Restock, Cost Adjustment, Inventory Overview, Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), and Supplier admin all unaffected** — all continue to function exactly as in v1.23.0.
+
 ## Sign-off
 
 Once all checks pass:
