@@ -9,45 +9,35 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Parse POST/REQUEST arrays, validate, allocate landed costs, compute weighted-average preview.
+ *
+ * @deprecated M6 (v1.23.0) — disabled-not-deleted. The create/apply/preview
+ * entry points that reached this class (admin_post_wc_io_batch_apply,
+ * wp_ajax_wc_io_batch_preview) were removed from WC_Inventory_Overview_Plugin
+ * in M6; this class is retained, unreachable, only so the legacy
+ * apply_batch_from_post()/rollback_batch_apply() logic that produced
+ * wc_io_purchase_batches* history remains available for reference during a
+ * migration audit. Slated for physical removal in M8 (see the M6
+ * implementation plan's Retirement strategy — "Disabled, not deleted").
  */
 class WC_Inventory_Overview_Batch_Intake_Service {
-
-	public const COST_TYPE_SHIPPING              = 'shipping';
-
-	public const COST_TYPE_CUSTOMS_VAT         = 'customs_vat';
-
-	public const COST_TYPE_EXCHANGE_FEE        = 'exchange_fee';
-
-	public const COST_TYPE_CRYPTO_TRANSFER     = 'crypto_transfer_fee';
-
-	public const COST_TYPE_PAYMENT_PROCESSOR   = 'payment_processor_fee';
-
-	public const COST_TYPE_BANK_FEE            = 'bank_fee';
-
-	public const COST_TYPE_MISCELLANEOUS       = 'miscellaneous';
 
 	/**
 	 * Allowed landed cost type slugs => admin label.
 	 *
+	 * @deprecated M6 — delegates to WC_Inventory_Overview_Landed_Cost_Types,
+	 * the extraction target for this vocabulary (M6 §Retirement strategy).
 	 * @return array<string, string>
 	 */
 	public static function landed_cost_type_labels() {
-		return array(
-			self::COST_TYPE_SHIPPING            => __( 'Shipping', 'wc-inventory-overview' ),
-			self::COST_TYPE_CUSTOMS_VAT         => __( 'Customs / VAT', 'wc-inventory-overview' ),
-			self::COST_TYPE_EXCHANGE_FEE       => __( 'Exchange fee', 'wc-inventory-overview' ),
-			self::COST_TYPE_CRYPTO_TRANSFER    => __( 'Crypto transfer fee', 'wc-inventory-overview' ),
-			self::COST_TYPE_PAYMENT_PROCESSOR  => __( 'Payment processor fee', 'wc-inventory-overview' ),
-			self::COST_TYPE_BANK_FEE           => __( 'Bank fee', 'wc-inventory-overview' ),
-			self::COST_TYPE_MISCELLANEOUS      => __( 'Miscellaneous', 'wc-inventory-overview' ),
-		);
+		return WC_Inventory_Overview_Landed_Cost_Types::landed_cost_type_labels();
 	}
 
 	/**
+	 * @deprecated M6 — delegates to WC_Inventory_Overview_Landed_Cost_Types.
 	 * @return string[]
 	 */
 	public static function allowed_cost_types() {
-		return array_keys( self::landed_cost_type_labels() );
+		return WC_Inventory_Overview_Landed_Cost_Types::allowed_cost_types();
 	}
 
 	/**
@@ -113,6 +103,7 @@ class WC_Inventory_Overview_Batch_Intake_Service {
 	/**
 	 * Build preview data from raw POST-style array (e.g. $_POST).
 	 *
+	 * @deprecated M6 (v1.23.0) — unreachable; see class docblock.
 	 * @param array<string, mixed> $src Unslashed POST.
 	 * @return array<string, mixed>|WP_Error
 	 */
@@ -386,6 +377,7 @@ class WC_Inventory_Overview_Batch_Intake_Service {
 	/**
 	 * Apply a validated batch: DB rows, stock, costs, movements. Re-validates via build_preview_from_post (same math as preview).
 	 *
+	 * @deprecated M6 (v1.23.0) — unreachable; see class docblock.
 	 * @param array<string, mixed> $src Unslashed POST.
 	 * @return int|WP_Error Batch ID on success.
 	 */
@@ -580,6 +572,7 @@ class WC_Inventory_Overview_Batch_Intake_Service {
 	}
 
 	/**
+	 * @deprecated M6 (v1.23.0) — unreachable; see class docblock.
 	 * @param array<int, array{movement_id: int, line_id: int, snapshot: array<string, mixed>}> $completed Applied lines in order.
 	 */
 	protected static function rollback_batch_apply( $batch_id, array $completed ) {
@@ -597,6 +590,7 @@ class WC_Inventory_Overview_Batch_Intake_Service {
 	}
 
 	/**
+	 * @deprecated M6 (v1.23.0) — unreachable; see class docblock.
 	 * @param array<string, mixed> $header   Parsed header.
 	 * @param array<string, mixed> $line_row One preview line.
 	 * @param array<string, mixed> $preview  Full preview.
@@ -818,6 +812,7 @@ class WC_Inventory_Overview_Batch_Intake_Service {
 	/**
 	 * Render preview table + summaries (escaped HTML).
 	 *
+	 * @deprecated M6 (v1.23.0) — unreachable; see class docblock.
 	 * @param array<string, mixed> $result Output of build_preview_from_post.
 	 */
 	public static function render_preview_markup( array $result ): string {

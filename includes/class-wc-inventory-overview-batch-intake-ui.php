@@ -9,10 +9,18 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Echo Batch Intake HTML (preview via AJAX; apply via admin-post).
+ *
+ * @deprecated M6 (v1.23.0) — disabled-not-deleted. No longer called from
+ * WC_Inventory_Overview_Plugin::render_restock_panel() — the Batch Intake
+ * subview and its admin entry points were retired in M6. Retained,
+ * unreachable, for reference during a migration audit; slated for physical
+ * removal in M8 (see the M6 implementation plan's Retirement strategy —
+ * "Disabled, not deleted").
  */
 class WC_Inventory_Overview_Batch_Intake_UI {
 
 	/**
+	 * @deprecated M6 (v1.23.0) — unreachable; see class docblock.
 	 * @param string $form_action admin-post.php URL (escaped).
 	 */
 	public static function render_panel( $form_action = '' ) {

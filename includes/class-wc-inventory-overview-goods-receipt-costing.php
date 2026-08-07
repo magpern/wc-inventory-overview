@@ -6,12 +6,14 @@
  *
  * Ported from WC_Inventory_Overview_Batch_Intake_Service's landed-allocation formula
  * (proportional by product line value, remainder to the last line) — unmodified math,
- * duplicated rather than shared because Batch_Intake_Service's allocation logic is
- * protected/internal to a feature slated for M6 removal (see the M4 implementation
- * plan's Critical review — Hidden coupling).
+ * originally duplicated rather than shared because Batch_Intake_Service's allocation
+ * logic was protected/internal to a feature slated for M6 removal (see the M4
+ * implementation plan's Critical review — Hidden coupling). That trigger has now
+ * fired: see below.
  *
- * Cost type slugs/labels are reused directly from Batch_Intake_Service (safe
- * cross-reference — Batch Intake stays live until M6).
+ * Cost type slugs/labels are reused from WC_Inventory_Overview_Landed_Cost_Types
+ * (M6) — extracted out of Batch_Intake_Service once M6 disabled that class's write
+ * path, closing the hidden-coupling remediation trigger M4's own plan flagged.
  *
  * The weighted-average formula itself (old/new stock, average, inventory value) is
  * NOT reimplemented here for posting — only for the pure, read-only preview shown
@@ -30,21 +32,21 @@ defined( 'ABSPATH' ) || exit;
 class WC_Inventory_Overview_Goods_Receipt_Costing {
 
 	/**
-	 * Allowed landed-cost type slugs, reused directly from Batch_Intake_Service.
+	 * Allowed landed-cost type slugs, reused from WC_Inventory_Overview_Landed_Cost_Types (M6).
 	 *
 	 * @return string[]
 	 */
 	public static function allowed_cost_types() {
-		return WC_Inventory_Overview_Batch_Intake_Service::allowed_cost_types();
+		return WC_Inventory_Overview_Landed_Cost_Types::allowed_cost_types();
 	}
 
 	/**
-	 * Landed-cost type slug => admin label, reused directly from Batch_Intake_Service.
+	 * Landed-cost type slug => admin label, reused from WC_Inventory_Overview_Landed_Cost_Types (M6).
 	 *
 	 * @return array<string, string>
 	 */
 	public static function landed_cost_type_labels() {
-		return WC_Inventory_Overview_Batch_Intake_Service::landed_cost_type_labels();
+		return WC_Inventory_Overview_Landed_Cost_Types::landed_cost_type_labels();
 	}
 
 	/**
