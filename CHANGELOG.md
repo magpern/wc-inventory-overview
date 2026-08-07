@@ -1,5 +1,35 @@
 # Changelog — WC Inventory Overview
 
+## [1.24.0] - 2026-08-07
+
+**Milestone M7 — Storefront Expected Delivery** — the first milestone that a customer sees. Exposes exactly **one** governed fact for an out-of-stock item: the earliest credible expected receipt, worded by confidence ("Expected back around 1 September" / "Expected during week 36" / "Expected soon") — never suppliers, PO numbers, quantities, or delay details. Ships behind a stable public API (`API_VERSION = 1`, versioned independently of the plugin version) that stays stable for its whole v1 lifetime: the interface's method set never shrinks, the `STATE_*` constants are never removed or repurposed, and `expected_date()` never changes format. **Schema unchanged (v10)** — zero new tables, columns, or indexes; M7 derives, it does not store. **Prerequisite:** v1.23.0 (M6 Migration & Retirement).
+
+### Added
+
+- **`WC_Inventory_Overview_Expected_Delivery_Service`** — the sole public API. `get_for_product()`/`get_for_products_bulk()` consume Inventory Position (D12) exclusively; nothing in M7 re-queries Purchase Orders, receipts, or receiving repositories directly. `get_for_product()` is defined as exactly `get_for_products_bulk()` returning the single element, so single and bulk can never disagree. Request-scoped memoization only, flushed on the plugin's four existing `wc_io_purchase_order_*` hooks — no persistent caching, because whether a date is still customer-safe depends on *today*, with zero write-side trigger to invalidate against.
+- **`WC_Inventory_Overview_Expected_Delivery_Result_Interface`** / **`WC_Inventory_Overview_Expected_Delivery_Result`** — the public contract is the interface, not the concrete class. Four states (`STATE_IN_STOCK`/`STATE_UNAVAILABLE`/`STATE_EXPECTED_DATE`/`STATE_EXPECTED_SOON`), five accessors, immutable, `api_version()` informational only (never branch on it — the Service owns compatibility).
+- **`WC_Inventory_Overview_Expected_Delivery_Resolver`** — pure, deterministic selection algorithm. **Invariant M7-1:** a customer-safe line's date is never in the past, regardless of the upstream `is_delayed` flag — closes a concrete customer-facing defect where a partially-received PO's remaining outstanding, or a non-zero delay grace period, could otherwise leave a stale date on the storefront indefinitely.
+- **`WC_Inventory_Overview_Expected_Delivery_Renderer`** — the built-in, generic storefront renderer (filters `woocommerce_get_availability`). Not a fallback: the intended external consumer plugin was verified to be an empty directory, so this is the only renderer (see `docs/adr/0003-storefront-expected-delivery-ownership.md`). **Invariant M7-2:** an out-of-stock variable parent presents "Expected soon," never a specific date, regardless of how confident an individual variation's date is — the strongest claim that stays true no matter which variation the customer picks. **Invariant M7-3:** at most one product-scoped and one variation-scoped query per rendered page, regardless of item count (measured: 20 vs 40 mixed products issue the *same* query count).
+- **One new setting**, `wc_io_expected_delivery_renderer_enabled` (default `yes`), on the existing Settings tab's new **Storefront** section.
+- **Two extension filters**: `wc_io_storefront_render_expected_delivery` (generic per-render opt-out — checked before any query runs) and `wc_io_expected_delivery_text` (copy override).
+- **Tests:** `tests/unit/expected-delivery/` and `tests/integration/expected-delivery/` (71 new tests / 218 assertions) covering the Result/Resolver contract and pure algorithm, architecture guards (sole-entry-point rule, D12 extended to the new Service, zero mutation, no sibling-plugin coupling), Service integration (including Invariant M7-2 and memo-flush-on-write), Renderer integration (the full bail ladder, both filters, the ISO-week year boundary), settings, and Invariant M7-3's equality-based query-scaling performance test.
+
+### Documentation
+
+- New: `docs/adr/0003-storefront-expected-delivery-ownership.md`, `docs/api-expected-delivery.md` (public API v1 reference for consumer-plugin developers), `docs/admin-guide-storefront-availability.md` (merchant-facing behavior guide).
+- `CLAUDE.md` §2's storefront-ownership statement corrected (the previously-named sibling plugin is an empty directory); milestone status table updated. `docs/architecture-audit.md`'s "No public REST routes or storefront-facing hooks" line corrected — `woocommerce_get_availability` is now a documented, sole-owned storefront hook.
+
+### Verified unchanged
+
+- `DB_VERSION` stays `10`; `wc_io_schema_assertion` reports `ok: true` at `version: "10"`.
+- The M3 Inventory Position architecture guard (`test_only_service_calls_bulk_repository_methods`) passes unmodified.
+- Quick Restock, Cost Adjustment, Inventory Overview list table, Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), and Supplier admin all behave exactly as in v1.23.0.
+- In-stock and backordered products are byte-for-byte unchanged on the storefront.
+
+### Important
+
+M7 has the cleanest rollback story of any milestone in this program. The setting toggle is instant with no deploy (`wc_io_expected_delivery_renderer_enabled = no` restores stock WooCommerce output immediately). A code rollback 1.24.0 → 1.23.0 is unconditionally safe: M7 wrote no data, changed no schema, and mutated nothing — see the new M7 section in `docs/rollback-plan.md`.
+
 ## [1.23.0] - 2026-08-07
 
 **Milestone M6 — Migration & Retirement** — the headline guarantee: migrating legacy Batch Intake history into Goods Receipts leaves current WooCommerce stock and cost **byte-for-byte unchanged** for every affected product, because migration is historical record materialization, not receiving — it never mutates current stock/cost, only writes a historical record in today's schema (verified by a dedicated golden/characterization test, a release blocker in its own right). Replaces the batch↔movement regex linkage with the typed `reference_type`/`reference_id` columns M4 already added, exactly as Architecture v1.0 §1 (D14) promised. Retires Batch Intake's ability to create new batches — the one thing it still did that Goods Receipts (M4/M5) hadn't already superseded — while leaving the legacy tables frozen, readable, and permanently the audit trail behind every migrated receipt. **Schema v10** — two migration-tracking columns on `wc_io_purchase_batches` (`migrated_receipt_id`, `migrated_at`); no new business-domain schema. **Prerequisite:** v1.22.0 (M5 PO Receiving).

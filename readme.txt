@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.23.0
+Stable tag: 1.24.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,15 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.24.0 =
+* Milestone M7 — Storefront Expected Delivery: exposes exactly one governed fact for an out-of-stock item -- the earliest credible expected receipt, worded by confidence ("Expected back around 1 September" / "Expected during week 36" / "Expected soon"). Schema unchanged (v10).
+* New public API (WC_Inventory_Overview_Expected_Delivery_Service, API_VERSION 1) for consumer-plugin developers; see docs/api-expected-delivery.md.
+* Built-in, generic storefront renderer filters woocommerce_get_availability -- no supplier, PO, or quantity details are ever shown.
+* New setting: "Enable Expected Delivery display" (Settings tab, Storefront section, default Yes).
+* Two extension filters: wc_io_storefront_render_expected_delivery (opt-out) and wc_io_expected_delivery_text (copy override).
+* A variable parent presents "Expected soon", never a specific date, when out of stock with incoming supply on any variation.
+* A past-dated expected delivery is never shown, even if the upstream delayed flag hasn't caught up yet.
 
 = 1.23.0 =
 * Milestone M6 — Migration & Retirement: legacy Batch Intake history is migrated into Goods Receipts as historical record materialization, not replay -- current stock and cost are byte-for-byte unchanged (verified by a dedicated golden test). Schema v10 (migration-tracking columns only, no new business schema).
