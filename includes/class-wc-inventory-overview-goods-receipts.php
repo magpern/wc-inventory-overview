@@ -18,8 +18,8 @@ defined( 'ABSPATH' ) || exit;
 class WC_Inventory_Overview_Goods_Receipts {
 
 	const SOURCE_DIRECT = 'direct';
-	const SOURCE_PO = 'po';
-	const SOURCE_MIXED = 'mixed';
+	const SOURCE_PO     = 'po';
+	const SOURCE_MIXED  = 'mixed';
 
 	/**
 	 * Historical record materialization from a legacy Batch Intake row (M6) —

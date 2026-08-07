@@ -48,7 +48,12 @@ class Test_WC_IO_Batch_Migration_Historical_Integrity extends WC_Inventory_Overv
 	 * A single simple-product batch, EUR, no landed cost — the minimal case.
 	 */
 	public function test_simple_product_eur_batch_stock_and_cost_unchanged() {
-		$fixture = $this->create_legacy_batch( array( 'qty' => 10, 'line_cost' => 155 ) );
+		$fixture = $this->create_legacy_batch(
+			array(
+				'qty'       => 10,
+				'line_cost' => 155,
+			)
+		);
 
 		$before = $this->snapshot( $fixture['product_id'] );
 
@@ -126,9 +131,30 @@ class Test_WC_IO_Batch_Migration_Historical_Integrity extends WC_Inventory_Overv
 	 */
 	public function test_full_migration_run_across_multiple_products_leaves_all_unchanged() {
 		$fixtures = array(
-			$this->create_legacy_batch( array( 'qty' => 3, 'line_cost' => 30 ) ),
-			$this->create_legacy_batch( array( 'currency' => 'USD', 'fx_rate' => '0.9', 'qty' => 6, 'line_cost' => 120 ) ),
-			$this->create_legacy_batch( array( 'currency' => 'SEK', 'fx_rate' => '0.09', 'qty' => 2, 'line_cost' => 500, 'landed_type' => 'bank_fee', 'landed_amount' => 25 ) ),
+			$this->create_legacy_batch(
+				array(
+					'qty'       => 3,
+					'line_cost' => 30,
+				)
+			),
+			$this->create_legacy_batch(
+				array(
+					'currency'  => 'USD',
+					'fx_rate'   => '0.9',
+					'qty'       => 6,
+					'line_cost' => 120,
+				)
+			),
+			$this->create_legacy_batch(
+				array(
+					'currency'      => 'SEK',
+					'fx_rate'       => '0.09',
+					'qty'           => 2,
+					'line_cost'     => 500,
+					'landed_type'   => 'bank_fee',
+					'landed_amount' => 25,
+				)
+			),
 		);
 
 		$before = array();

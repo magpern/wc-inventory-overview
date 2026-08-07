@@ -26,7 +26,12 @@ class Test_WC_IO_Batch_Migration_Service extends WC_Inventory_Overview_Test_Case
 	}
 
 	public function test_migrate_batch_returns_summary_and_creates_posted_migrated_receipt() {
-		$fixture = $this->create_legacy_batch( array( 'qty' => 4, 'line_cost' => 40 ) );
+		$fixture = $this->create_legacy_batch(
+			array(
+				'qty'       => 4,
+				'line_cost' => 40,
+			)
+		);
 
 		$result = WC_Inventory_Overview_Batch_Migration_Service::migrate_batch( $fixture['batch_id'] );
 		$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
@@ -87,10 +92,10 @@ class Test_WC_IO_Batch_Migration_Service extends WC_Inventory_Overview_Test_Case
 	public function test_migrate_batch_with_landed_cost_maps_cost_row() {
 		$fixture = $this->create_legacy_batch(
 			array(
-				'qty'            => 5,
-				'line_cost'      => 100,
-				'landed_type'    => 'shipping',
-				'landed_amount'  => 10,
+				'qty'           => 5,
+				'line_cost'     => 100,
+				'landed_type'   => 'shipping',
+				'landed_amount' => 10,
 			)
 		);
 

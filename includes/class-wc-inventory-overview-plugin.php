@@ -134,23 +134,23 @@ class WC_Inventory_Overview_Plugin {
 	 */
 	protected function get_tabs_definition() {
 		return array(
-			self::TAB_DASHBOARD            => array(
+			self::TAB_DASHBOARD             => array(
 				'label' => __( 'Dashboard', 'wc-inventory-overview' ),
 				'cap'   => 'edit_products',
 			),
-			self::TAB_OVERVIEW            => array(
+			self::TAB_OVERVIEW              => array(
 				'label' => __( 'Inventory Overview', 'wc-inventory-overview' ),
 				'cap'   => 'edit_products',
 			),
-			self::TAB_RESTOCK             => array(
+			self::TAB_RESTOCK               => array(
 				'label' => __( 'Restock / Cost Adjustment', 'wc-inventory-overview' ),
 				'cap'   => 'manage_woocommerce',
 			),
-			self::TAB_MOVEMENTS           => array(
+			self::TAB_MOVEMENTS             => array(
 				'label' => __( 'Inventory Movements', 'wc-inventory-overview' ),
 				'cap'   => 'manage_woocommerce',
 			),
-			self::TAB_ORDER_PROFIT        => array(
+			self::TAB_ORDER_PROFIT          => array(
 				'label' => __( 'Order Profit', 'wc-inventory-overview' ),
 				'cap'   => 'manage_woocommerce',
 			),
@@ -158,7 +158,7 @@ class WC_Inventory_Overview_Plugin {
 				'label' => __( 'Product Profitability', 'wc-inventory-overview' ),
 				'cap'   => 'manage_woocommerce',
 			),
-			self::TAB_SETTINGS            => array(
+			self::TAB_SETTINGS              => array(
 				'label' => __( 'Settings', 'wc-inventory-overview' ),
 				'cap'   => 'manage_woocommerce',
 			),
@@ -171,7 +171,7 @@ class WC_Inventory_Overview_Plugin {
 	 * @return string
 	 */
 	protected function get_requested_tab() {
-		$raw = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+		$raw  = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
 		$tabs = $this->get_tabs_definition();
 		if ( ! isset( $tabs[ $raw ] ) ) {
 			return self::TAB_OVERVIEW;
@@ -215,7 +215,7 @@ class WC_Inventory_Overview_Plugin {
 		if ( self::TAB_RESTOCK !== $this->get_requested_tab() ) {
 			return self::RESTOCK_VIEW_QUICK;
 		}
-		$raw = isset( $_GET['restock_view'] ) ? sanitize_key( wp_unslash( $_GET['restock_view'] ) ) : '';
+		$raw     = isset( $_GET['restock_view'] ) ? sanitize_key( wp_unslash( $_GET['restock_view'] ) ) : '';
 		$allowed = array(
 			self::RESTOCK_VIEW_QUICK,
 			self::RESTOCK_VIEW_ADJUST,
@@ -407,8 +407,8 @@ class WC_Inventory_Overview_Plugin {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'page'            => self::PAGE_SLUG,
-					'tab'             => self::TAB_SETTINGS,
+					'page'           => self::PAGE_SLUG,
+					'tab'            => self::TAB_SETTINGS,
 					'wc_io_settings' => 'saved',
 				),
 				admin_url( 'admin.php' )
@@ -638,9 +638,9 @@ class WC_Inventory_Overview_Plugin {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'page'                 => self::PAGE_SLUG,
-					'tab'                  => self::TAB_SETTINGS,
-					'wc_io_reset_applied'  => '1',
+					'page'                => self::PAGE_SLUG,
+					'tab'                 => self::TAB_SETTINGS,
+					'wc_io_reset_applied' => '1',
 				),
 				admin_url( 'admin.php' )
 			)
@@ -689,8 +689,8 @@ class WC_Inventory_Overview_Plugin {
 		if ( isset( $_GET['wc_io_reset_applied'] ) && '1' === sanitize_key( wp_unslash( $_GET['wc_io_reset_applied'] ) ) ) {
 			$res = WC_Inventory_Overview_Data_Reset::consume_result_notice( get_current_user_id() );
 			if ( is_array( $res ) && ! empty( $res['deleted'] ) && is_array( $res['deleted'] ) ) {
-				$d   = $res['deleted'];
-				$msg = __( 'Danger Zone reset completed. Rows removed:', 'wc-inventory-overview' ) . ' ';
+				$d    = $res['deleted'];
+				$msg  = __( 'Danger Zone reset completed. Rows removed:', 'wc-inventory-overview' ) . ' ';
 				$msg .= sprintf(
 					/* translators: 1: movements, 2: batch costs, 3: batch lines, 4: batches, 5: line meta, 6: shipping meta, 7: product meta */
 					__( 'movements %1$d; batch costs %2$d; batch lines %3$d; batches %4$d; order line snapshot meta %5$d; order shipping meta %6$d; product cost meta %7$d.', 'wc-inventory-overview' ),
@@ -768,7 +768,7 @@ class WC_Inventory_Overview_Plugin {
 			);
 		}
 		echo '</select></p>';
-		$rate_ro = WC_Inventory_Overview_Settings::CURRENCY_EUR === $ship_pkg['currency'];
+		$rate_ro    = WC_Inventory_Overview_Settings::CURRENCY_EUR === $ship_pkg['currency'];
 		$rate_class = 'small-text';
 		if ( ! $rate_ro && (float) $ship_pkg['exchange_rate_to_eur'] <= 0 ) {
 			$rate_class .= ' wc-io-batch-rate-manual-needed';
@@ -914,11 +914,11 @@ class WC_Inventory_Overview_Plugin {
 			echo '<th scope="col">' . esc_html__( 'Actions', 'wc-inventory-overview' ) . '</th>';
 			echo '</tr></thead><tbody>';
 			foreach ( $rates as $r ) {
-				$rid   = (int) $r['id'];
-				$uid   = (int) $r['user_id'];
-				$uobj  = $uid > 0 ? get_userdata( $uid ) : false;
-				$ulab  = $uobj ? $uobj->display_name : __( '—', 'wc-inventory-overview' );
-				$note  = isset( $r['source_note'] ) && null !== $r['source_note'] ? (string) $r['source_note'] : '';
+				$rid  = (int) $r['id'];
+				$uid  = (int) $r['user_id'];
+				$uobj = $uid > 0 ? get_userdata( $uid ) : false;
+				$ulab = $uobj ? $uobj->display_name : __( '—', 'wc-inventory-overview' );
+				$note = isset( $r['source_note'] ) && null !== $r['source_note'] ? (string) $r['source_note'] : '';
 				echo '<tr>';
 				echo '<td>' . esc_html( (string) $r['rate_date'] ) . '</td>';
 				echo '<td>' . esc_html( (string) $r['from_currency'] ) . '</td>';
@@ -1179,8 +1179,8 @@ class WC_Inventory_Overview_Plugin {
 		} else {
 			$links = array(
 				array(
-					'label'   => __( 'Restock / Add Inventory', 'wc-inventory-overview' ),
-					'url'     => $this->admin_url_tab( self::TAB_RESTOCK, array( 'restock_view' => self::RESTOCK_VIEW_QUICK ) ) . '#wc-io-restock-section',
+					'label'    => __( 'Restock / Add Inventory', 'wc-inventory-overview' ),
+					'url'      => $this->admin_url_tab( self::TAB_RESTOCK, array( 'restock_view' => self::RESTOCK_VIEW_QUICK ) ) . '#wc-io-restock-section',
 					'dashicon' => 'dashicons-plus-alt',
 				),
 				array(
@@ -1245,7 +1245,7 @@ class WC_Inventory_Overview_Plugin {
 		$summary     = WC_Inventory_Overview_Summary::build( $summary_base );
 		$low_stock   = isset( $summary['low_stock'] ) ? (int) $summary['low_stock'] : 0;
 
-		$na = "\u{2014}";
+		$na          = "\u{2014}";
 		$margin_html = null === $totals['margin_percent']
 			? '<span class="wc-io-dash-kpi-na">' . esc_html( $na ) . '</span>'
 			: '<span class="wc-io-dash-kpi-num">' . esc_html( number_format_i18n( $totals['margin_percent'], 2 ) ) . '<span class="wc-io-dash-kpi-suffix">%</span></span>';
@@ -1368,8 +1368,8 @@ class WC_Inventory_Overview_Plugin {
 
 		echo '<div class="wc-io-dash-kpis" role="list">';
 		foreach ( $kpis as $kpi ) {
-			$accent        = isset( $kpi['accent'] ) ? sanitize_key( (string) $kpi['accent'] ) : 'neutral';
-			$dashicon      = isset( $kpi['dashicon'] ) ? preg_replace( '/[^a-z0-9\-]/', '', (string) $kpi['dashicon'] ) : 'dashicons-chart-line';
+			$accent          = isset( $kpi['accent'] ) ? sanitize_key( (string) $kpi['accent'] ) : 'neutral';
+			$dashicon        = isset( $kpi['dashicon'] ) ? preg_replace( '/[^a-z0-9\-]/', '', (string) $kpi['dashicon'] ) : 'dashicons-chart-line';
 			$kpi_outer_class = 'postbox wc-io-dash-kpi wc-io-dash-kpi--accent-' . $accent;
 			if ( 'low_stock' === $kpi['key'] && $low_stock > 0 ) {
 				$kpi_outer_class .= ' wc-io-dash-kpi--needs-attention';
@@ -1590,10 +1590,10 @@ class WC_Inventory_Overview_Plugin {
 			'wc-io-supplier-picker',
 			'wcIoSupplierPicker',
 			array(
-				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
-				'nonce'        => wp_create_nonce( 'wc_io_search_suppliers' ),
-				'quickNonce'   => wp_create_nonce( 'wc_io_quick_create_supplier' ),
-				'strings'      => array(
+				'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
+				'nonce'      => wp_create_nonce( 'wc_io_search_suppliers' ),
+				'quickNonce' => wp_create_nonce( 'wc_io_quick_create_supplier' ),
+				'strings'    => array(
 					'newSupplier' => __( '+ Create new supplier', 'wc-inventory-overview' ),
 					'loading'     => __( 'Loading…', 'wc-inventory-overview' ),
 					'error'       => __( 'Error creating supplier', 'wc-inventory-overview' ),
@@ -1788,10 +1788,10 @@ class WC_Inventory_Overview_Plugin {
 			$line_id = isset( $_POST['wc_io_line_id'][0] ) ? absint( wp_unslash( $_POST['wc_io_line_id'][0] ) ) : 0;
 		}
 
-		$qty   = isset( $_POST['wc_io_qty'] ) ? wc_stock_amount( wp_unslash( $_POST['wc_io_qty'] ) ) : 0;
-		$cost  = isset( $_POST['wc_io_unit_cost'] ) ? wc_format_decimal( wp_unslash( $_POST['wc_io_unit_cost'] ), 6 ) : '';
-		$sup   = isset( $_POST['wc_io_supplier'] ) ? sanitize_text_field( wp_unslash( $_POST['wc_io_supplier'] ) ) : '';
-		$note  = isset( $_POST['wc_io_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wc_io_note'] ) ) : '';
+		$qty  = isset( $_POST['wc_io_qty'] ) ? wc_stock_amount( wp_unslash( $_POST['wc_io_qty'] ) ) : 0;
+		$cost = isset( $_POST['wc_io_unit_cost'] ) ? wc_format_decimal( wp_unslash( $_POST['wc_io_unit_cost'] ), 6 ) : '';
+		$sup  = isset( $_POST['wc_io_supplier'] ) ? sanitize_text_field( wp_unslash( $_POST['wc_io_supplier'] ) ) : '';
+		$note = isset( $_POST['wc_io_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['wc_io_note'] ) ) : '';
 
 		if ( ! $line_id ) {
 			wp_safe_redirect( add_query_arg( 'wc_io_restock_msg', 'missing_product', $redirect ) );
@@ -2047,8 +2047,8 @@ class WC_Inventory_Overview_Plugin {
 		echo '<h2 class="wp-heading-inline wc-io-tab-panel-title">' . esc_html__( 'Order Profit', 'wc-inventory-overview' ) . '</h2>';
 		echo '<p class="description">' . esc_html__( 'Product revenue sums WooCommerce line totals after discount from each snapshotted line (stored as _wc_io_line_total_snapshot when available; older rows use unit snapshot × quantity). Product cost uses snapshot average unit cost. The Discount column sums per-line _wc_io_discount_snapshot (empty for legacy snapshots). Shipping paid follows the "include shipping tax" setting. Actual shipping cost uses the order meta when set; otherwise the default from Settings. Gross profit = product revenue + shipping paid - product cost - actual shipping cost. Margin % is gross profit divided by (product revenue + shipping paid) when that sum is positive.', 'wc-inventory-overview' ) . '</p>';
 
-		$filters = WC_Inventory_Overview_Order_Profit_Query::get_filters_from_request();
-		$all_st  = array_keys( wc_get_order_statuses() );
+		$filters      = WC_Inventory_Overview_Order_Profit_Query::get_filters_from_request();
+		$all_st       = array_keys( wc_get_order_statuses() );
 		$status_value = count( $filters['statuses'] ) === count( $all_st ) ? 'all' : (string) $filters['statuses'][0];
 
 		echo '<form id="wc-io-order-profit-filter" method="get">';
@@ -2324,7 +2324,7 @@ class WC_Inventory_Overview_Plugin {
 			$avg_export = '';
 			$val_export = '';
 			if ( current_user_can( 'manage_woocommerce' ) && ( $product->is_type( 'variation' ) || $product->is_type( 'simple' ) ) ) {
-				$af = WC_Inventory_Overview_Costing::get_average_float( $product );
+				$af         = WC_Inventory_Overview_Costing::get_average_float( $product );
 				$avg_export = null !== $af ? wc_format_decimal( $af, 4 ) : '';
 				$vm         = $product->get_meta( WC_Inventory_Overview_Costing::META_VAL, true );
 				$val_export = ( '' !== $vm && null !== $vm ) ? wc_format_decimal( $vm, 4 ) : '';
@@ -2385,10 +2385,10 @@ class WC_Inventory_Overview_Plugin {
 		}
 
 		return array(
-			'search'            => $search,
-			'category_tt_id'    => $tt_id,
-			'stock_status'      => $stock_args,
-			'exclude_private'   => WC_Inventory_Overview_Repository::request_excludes_private(),
+			'search'          => $search,
+			'category_tt_id'  => $tt_id,
+			'stock_status'    => $stock_args,
+			'exclude_private' => WC_Inventory_Overview_Repository::request_excludes_private(),
 		);
 	}
 

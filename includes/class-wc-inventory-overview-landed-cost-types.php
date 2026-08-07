@@ -45,17 +45,19 @@ class WC_Inventory_Overview_Landed_Cost_Types {
 	 */
 	public static function landed_cost_type_labels() {
 		return array(
-			self::COST_TYPE_SHIPPING           => __( 'Shipping', 'wc-inventory-overview' ),
-			self::COST_TYPE_CUSTOMS_VAT        => __( 'Customs / VAT', 'wc-inventory-overview' ),
-			self::COST_TYPE_EXCHANGE_FEE       => __( 'Exchange fee', 'wc-inventory-overview' ),
-			self::COST_TYPE_CRYPTO_TRANSFER    => __( 'Crypto transfer fee', 'wc-inventory-overview' ),
-			self::COST_TYPE_PAYMENT_PROCESSOR  => __( 'Payment processor fee', 'wc-inventory-overview' ),
-			self::COST_TYPE_BANK_FEE           => __( 'Bank fee', 'wc-inventory-overview' ),
-			self::COST_TYPE_MISCELLANEOUS      => __( 'Miscellaneous', 'wc-inventory-overview' ),
+			self::COST_TYPE_SHIPPING          => __( 'Shipping', 'wc-inventory-overview' ),
+			self::COST_TYPE_CUSTOMS_VAT       => __( 'Customs / VAT', 'wc-inventory-overview' ),
+			self::COST_TYPE_EXCHANGE_FEE      => __( 'Exchange fee', 'wc-inventory-overview' ),
+			self::COST_TYPE_CRYPTO_TRANSFER   => __( 'Crypto transfer fee', 'wc-inventory-overview' ),
+			self::COST_TYPE_PAYMENT_PROCESSOR => __( 'Payment processor fee', 'wc-inventory-overview' ),
+			self::COST_TYPE_BANK_FEE          => __( 'Bank fee', 'wc-inventory-overview' ),
+			self::COST_TYPE_MISCELLANEOUS     => __( 'Miscellaneous', 'wc-inventory-overview' ),
 		);
 	}
 
 	/**
+	 * Allowed landed cost type slugs.
+	 *
 	 * @return string[]
 	 */
 	public static function allowed_cost_types() {

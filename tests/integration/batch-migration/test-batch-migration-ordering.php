@@ -38,9 +38,24 @@ class Test_WC_IO_Batch_Migration_Ordering extends WC_Inventory_Overview_Test_Cas
 	}
 
 	public function test_descending_migration_order_yields_same_per_batch_results_as_ascending() {
-		$a = $this->create_legacy_batch( array( 'qty' => 3, 'line_cost' => 30 ) );
-		$b = $this->create_legacy_batch( array( 'qty' => 5, 'line_cost' => 50 ) );
-		$c = $this->create_legacy_batch( array( 'qty' => 2, 'line_cost' => 20 ) );
+		$a = $this->create_legacy_batch(
+			array(
+				'qty'       => 3,
+				'line_cost' => 30,
+			)
+		);
+		$b = $this->create_legacy_batch(
+			array(
+				'qty'       => 5,
+				'line_cost' => 50,
+			)
+		);
+		$c = $this->create_legacy_batch(
+			array(
+				'qty'       => 2,
+				'line_cost' => 20,
+			)
+		);
 
 		$before = array(
 			$a['product_id'] => $this->snapshot( $a['product_id'] ),

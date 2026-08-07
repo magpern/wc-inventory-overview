@@ -34,13 +34,13 @@ class Test_WC_IO_Batch_Migration_Retirement_Regression extends WC_Inventory_Over
 	}
 
 	public function test_restock_subview_no_longer_includes_batch() {
-		$plugin  = WC_Inventory_Overview_Plugin::instance();
-		$method  = new ReflectionMethod( $plugin, 'get_restock_subview' );
+		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$method = new ReflectionMethod( $plugin, 'get_restock_subview' );
 		$method->setAccessible( true );
 
-		$_GET['tab']           = WC_Inventory_Overview_Plugin::TAB_RESTOCK;
+		$_GET['tab']          = WC_Inventory_Overview_Plugin::TAB_RESTOCK;
 		$_GET['restock_view'] = 'batch';
-		$result                = $method->invoke( $plugin );
+		$result               = $method->invoke( $plugin );
 		unset( $_GET['restock_view'], $_GET['tab'] );
 
 		$this->assertSame( WC_Inventory_Overview_Plugin::RESTOCK_VIEW_QUICK, $result, 'A stale restock_view=batch request must fall back to Quick Restock, not error.' );

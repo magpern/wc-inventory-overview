@@ -87,9 +87,9 @@ class WC_Inventory_Overview_Migrate_Batches_CLI_Command {
 	 * @param array<string,string> $assoc_args Associative args.
 	 */
 	private function run_migrate( array $assoc_args ): void {
-		$apply     = isset( $assoc_args['apply'] );
-		$batch_id  = isset( $assoc_args['batch'] ) ? absint( $assoc_args['batch'] ) : 0;
-		$limit     = isset( $assoc_args['limit'] ) ? absint( $assoc_args['limit'] ) : 0;
+		$apply    = isset( $assoc_args['apply'] );
+		$batch_id = isset( $assoc_args['batch'] ) ? absint( $assoc_args['batch'] ) : 0;
+		$limit    = isset( $assoc_args['limit'] ) ? absint( $assoc_args['limit'] ) : 0;
 
 		$eligible_ids = WC_Inventory_Overview_Batch_Migration_Service::list_eligible_batch_ids( $limit, $batch_id );
 
@@ -188,8 +188,8 @@ class WC_Inventory_Overview_Migrate_Batches_CLI_Command {
 	/**
 	 * Roll back one batch's migration after explicit operator confirmation.
 	 *
-	 * @param int                   $batch_id   Legacy batch id.
-	 * @param array<string,string>  $assoc_args Associative args (for --yes).
+	 * @param int                  $batch_id   Legacy batch id.
+	 * @param array<string,string> $assoc_args Associative args (for --yes).
 	 */
 	private function run_rollback( int $batch_id, array $assoc_args ): void {
 		WP_CLI::confirm(

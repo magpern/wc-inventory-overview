@@ -62,7 +62,12 @@ class Test_WC_IO_Batch_Migration_Movements extends WC_Inventory_Overview_Test_Ca
 	}
 
 	public function test_movement_other_columns_unchanged_by_backfill() {
-		$fixture = $this->create_legacy_batch( array( 'qty' => 6, 'line_cost' => 60 ) );
+		$fixture = $this->create_legacy_batch(
+			array(
+				'qty'       => 6,
+				'line_cost' => 60,
+			)
+		);
 		$before  = $this->purchase_batch_movements_for( $fixture['batch_id'] )[0];
 
 		WC_Inventory_Overview_Batch_Migration_Service::migrate_batch( $fixture['batch_id'] );

@@ -28,7 +28,12 @@ class Test_WC_IO_Goods_Receipt_Migrated_Void_Guard extends WC_Inventory_Overview
 	}
 
 	public function test_void_rejects_migrated_receipt_with_zero_mutation() {
-		$fixture = $this->create_legacy_batch( array( 'qty' => 4, 'line_cost' => 40 ) );
+		$fixture = $this->create_legacy_batch(
+			array(
+				'qty'       => 4,
+				'line_cost' => 40,
+			)
+		);
 		$result  = WC_Inventory_Overview_Batch_Migration_Service::migrate_batch( $fixture['batch_id'] );
 		$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
 

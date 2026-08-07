@@ -35,8 +35,13 @@ class Test_WC_IO_Batch_Migration_Rollback extends WC_Inventory_Overview_Test_Cas
 	}
 
 	public function test_rollback_deletes_receipt_lines_and_costs() {
-		$fixture = $this->create_legacy_batch( array( 'landed_type' => 'shipping', 'landed_amount' => 5 ) );
-		$result  = WC_Inventory_Overview_Batch_Migration_Service::migrate_batch( $fixture['batch_id'] );
+		$fixture    = $this->create_legacy_batch(
+			array(
+				'landed_type'   => 'shipping',
+				'landed_amount' => 5,
+			)
+		);
+		$result     = WC_Inventory_Overview_Batch_Migration_Service::migrate_batch( $fixture['batch_id'] );
 		$receipt_id = $result['receipt_id'];
 
 		$rolled_back = WC_Inventory_Overview_Batch_Migration_Service::rollback_batch( $fixture['batch_id'] );
@@ -52,7 +57,7 @@ class Test_WC_IO_Batch_Migration_Rollback extends WC_Inventory_Overview_Test_Cas
 		WC_Inventory_Overview_Batch_Migration_Service::migrate_batch( $fixture['batch_id'] );
 
 		global $wpdb;
-		$table = WC_Inventory_Overview_Movements::table_name();
+		$table  = WC_Inventory_Overview_Movements::table_name();
 		$before = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$table} WHERE movement_type = %s AND note LIKE %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -83,7 +88,12 @@ class Test_WC_IO_Batch_Migration_Rollback extends WC_Inventory_Overview_Test_Cas
 	}
 
 	public function test_rollback_never_touches_current_stock_or_cost() {
-		$fixture = $this->create_legacy_batch( array( 'qty' => 8, 'line_cost' => 96 ) );
+		$fixture = $this->create_legacy_batch(
+			array(
+				'qty'       => 8,
+				'line_cost' => 96,
+			)
+		);
 
 		$before_migration = $this->snapshot( $fixture['product_id'] );
 		WC_Inventory_Overview_Batch_Migration_Service::migrate_batch( $fixture['batch_id'] );

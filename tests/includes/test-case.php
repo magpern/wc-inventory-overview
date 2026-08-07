@@ -59,15 +59,15 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 	 */
 	protected function create_simple_product( $props = array() ): WC_Product_Simple {
 		$defaults = array(
-			'name'      => 'Test Product',
-			'type'      => 'simple',
-			'status'    => 'publish',
-			'stock_qty' => 0,
+			'name'         => 'Test Product',
+			'type'         => 'simple',
+			'status'       => 'publish',
+			'stock_qty'    => 0,
 			'manage_stock' => true,
 		);
 
-		$props    = array_merge( $defaults, $props );
-		$product  = new WC_Product_Simple();
+		$props   = array_merge( $defaults, $props );
+		$product = new WC_Product_Simple();
 		$product->set_name( $props['name'] );
 		$product->set_status( $props['status'] );
 		$product->set_manage_stock( $props['manage_stock'] );
@@ -87,9 +87,9 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 	 */
 	protected function create_variable_product( $props = array(), $variations = array() ): WC_Product_Variable {
 		$defaults = array(
-			'name'      => 'Test Variable Product',
-			'type'      => 'variable',
-			'status'    => 'publish',
+			'name'   => 'Test Variable Product',
+			'type'   => 'variable',
+			'status' => 'publish',
 		);
 
 		$props   = array_merge( $defaults, $props );
@@ -193,7 +193,7 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 			'name'             => 'Test Supplier ' . uniqid(),
 			'default_currency' => 'EUR',
 		);
-		$data = wp_parse_args( $props, $defaults );
+		$data     = wp_parse_args( $props, $defaults );
 
 		$id = WC_Inventory_Overview_Suppliers::create( $data );
 		if ( is_wp_error( $id ) ) {
@@ -219,7 +219,7 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 		$defaults = array(
 			'currency' => 'EUR',
 		);
-		$data = wp_parse_args( $props, $defaults );
+		$data     = wp_parse_args( $props, $defaults );
 
 		$id = WC_Inventory_Overview_Purchase_Orders::create_draft( $data );
 		if ( is_wp_error( $id ) ) {
@@ -247,7 +247,7 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 			'qty_ordered' => 1,
 			'unit_cost'   => 1,
 		);
-		$data = wp_parse_args( $props, $defaults );
+		$data     = wp_parse_args( $props, $defaults );
 
 		$id = WC_Inventory_Overview_Purchase_Order_Lines::create( $po_id, $data );
 		if ( is_wp_error( $id ) ) {
@@ -277,23 +277,23 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 
 		$post = array(
 			'wc_io_batch_supplier'             => $props['supplier_name'] ?? 'Legacy Supplier',
-			'wc_io_batch_reference'             => $props['reference'] ?? 'INV-0001',
-			'wc_io_batch_note'                  => $props['note'] ?? '',
-			'wc_io_batch_purchase_currency'     => $props['currency'] ?? 'EUR',
-			'wc_io_batch_exchange_rate_date'    => $props['fx_date'] ?? wp_date( 'Y-m-d', null, wp_timezone() ),
-			'wc_io_batch_exchange_rate_to_eur'  => $props['fx_rate'] ?? '1',
-			'wc_io_batch_line_product'          => array( $product->get_id() ),
-			'wc_io_batch_line_qty'              => array( (string) ( $props['qty'] ?? 10 ) ),
-			'wc_io_batch_line_cost'             => array( (string) ( $props['line_cost'] ?? 100 ) ),
-			'wc_io_batch_confirm'               => '1',
+			'wc_io_batch_reference'            => $props['reference'] ?? 'INV-0001',
+			'wc_io_batch_note'                 => $props['note'] ?? '',
+			'wc_io_batch_purchase_currency'    => $props['currency'] ?? 'EUR',
+			'wc_io_batch_exchange_rate_date'   => $props['fx_date'] ?? wp_date( 'Y-m-d', null, wp_timezone() ),
+			'wc_io_batch_exchange_rate_to_eur' => $props['fx_rate'] ?? '1',
+			'wc_io_batch_line_product'         => array( $product->get_id() ),
+			'wc_io_batch_line_qty'             => array( (string) ( $props['qty'] ?? 10 ) ),
+			'wc_io_batch_line_cost'            => array( (string) ( $props['line_cost'] ?? 100 ) ),
+			'wc_io_batch_confirm'              => '1',
 		);
 
 		if ( isset( $props['landed_type'] ) ) {
-			$post['wc_io_batch_cost_type']            = array( $props['landed_type'] );
-			$post['wc_io_batch_cost_amount']           = array( (string) ( $props['landed_amount'] ?? 10 ) );
-			$post['wc_io_batch_cost_note']              = array( '' );
-			$post['wc_io_batch_cost_currency']          = array( $props['currency'] ?? 'EUR' );
-			$post['wc_io_batch_cost_exchange_rate']     = array( (string) ( $props['fx_rate'] ?? '1' ) );
+			$post['wc_io_batch_cost_type']          = array( $props['landed_type'] );
+			$post['wc_io_batch_cost_amount']        = array( (string) ( $props['landed_amount'] ?? 10 ) );
+			$post['wc_io_batch_cost_note']          = array( '' );
+			$post['wc_io_batch_cost_currency']      = array( $props['currency'] ?? 'EUR' );
+			$post['wc_io_batch_cost_exchange_rate'] = array( (string) ( $props['fx_rate'] ?? '1' ) );
 		}
 
 		$batch_id = WC_Inventory_Overview_Batch_Intake_Service::apply_batch_from_post( $post );

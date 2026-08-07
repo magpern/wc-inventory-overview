@@ -49,7 +49,7 @@ class Test_WC_IO_Batch_Migration_Performance extends WC_Inventory_Overview_Test_
 					'line_cost' => 20,
 				)
 			);
-			$ids[] = $fixture['batch_id'];
+			$ids[]   = $fixture['batch_id'];
 		}
 
 		$count   = 0;
@@ -78,10 +78,10 @@ class Test_WC_IO_Batch_Migration_Performance extends WC_Inventory_Overview_Test_
 	 * (small, fixed) row count, never by how many other batches exist.
 	 */
 	public function test_per_batch_query_cost_does_not_grow_with_total_batch_count() {
-		$q20  = $this->migrate_n_batches_and_count_queries( 20 );
+		$q20   = $this->migrate_n_batches_and_count_queries( 20 );
 		$avg20 = $q20 / 20;
 
-		$q100  = $this->migrate_n_batches_and_count_queries( 100 );
+		$q100   = $this->migrate_n_batches_and_count_queries( 100 );
 		$avg100 = $q100 / 100;
 
 		// Generous headroom (2x) to absorb fixed per-run overhead while still
@@ -104,7 +104,14 @@ class Test_WC_IO_Batch_Migration_Performance extends WC_Inventory_Overview_Test_
 		global $wpdb;
 		$table = $wpdb->prefix . 'wc_io_purchase_batches';
 		for ( $i = 0; $i < 220; $i++ ) {
-			$wpdb->insert( $table, array( 'batch_total' => '1.0000', 'user_id' => $this->admin_id ), array( '%s', '%d' ) );
+			$wpdb->insert(
+				$table,
+				array(
+					'batch_total' => '1.0000',
+					'user_id'     => $this->admin_id,
+				),
+				array( '%s', '%d' )
+			);
 		}
 
 		$count   = 0;

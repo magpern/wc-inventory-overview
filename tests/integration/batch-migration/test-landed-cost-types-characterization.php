@@ -18,12 +18,12 @@ class Test_WC_IO_Landed_Cost_Types_Characterization extends WP_UnitTestCase {
 	private function golden_labels(): array {
 		return array(
 			'shipping'              => 'Shipping',
-			'customs_vat'            => 'Customs / VAT',
-			'exchange_fee'           => 'Exchange fee',
-			'crypto_transfer_fee'    => 'Crypto transfer fee',
-			'payment_processor_fee'  => 'Payment processor fee',
-			'bank_fee'               => 'Bank fee',
-			'miscellaneous'          => 'Miscellaneous',
+			'customs_vat'           => 'Customs / VAT',
+			'exchange_fee'          => 'Exchange fee',
+			'crypto_transfer_fee'   => 'Crypto transfer fee',
+			'payment_processor_fee' => 'Payment processor fee',
+			'bank_fee'              => 'Bank fee',
+			'miscellaneous'         => 'Miscellaneous',
 		);
 	}
 

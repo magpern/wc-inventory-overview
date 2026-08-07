@@ -118,7 +118,7 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 			$drift[] = sprintf( 'status: expected "posted", actual "%s"', (string) $receipt['status'] );
 		}
 
-		$expected_header    = self::map_header( $batch );
+		$expected_header   = self::map_header( $batch );
 		$comparable_fields = array(
 			'supplier_name_snapshot',
 			'currency',
@@ -165,8 +165,8 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 			global $wpdb;
 			$table = WC_Inventory_Overview_Movements::table_name();
 			$in    = implode( ',', array_fill( 0, count( $movement_ids ), '%d' ) );
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $in is built entirely from %d placeholders.
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, reference_id FROM {$table} WHERE id IN ({$in})", $movement_ids ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $in is built entirely from %d placeholders (one per $movement_ids element); $table is a fixed, non-user-supplied table name.
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, reference_id FROM {$table} WHERE id IN ({$in})", $movement_ids ), ARRAY_A );
 			foreach ( (array) $rows as $row ) {
 				if ( (int) $row['reference_id'] !== $receipt_id ) {
 					$drift[] = sprintf( 'movement #%d reference_id: expected %d, actual %d', (int) $row['id'], $receipt_id, (int) $row['reference_id'] );
@@ -284,11 +284,11 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 			return array_map( 'intval', (array) $ids );
 		}
 
-		$sql = "SELECT id FROM {$table} WHERE migrated_receipt_id IS NULL ORDER BY id ASC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$sql = "SELECT id FROM {$table} WHERE migrated_receipt_id IS NULL ORDER BY id ASC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a fixed, non-user-supplied table name.
 		if ( $limit > 0 ) {
-			$sql = $wpdb->prepare( $sql . ' LIMIT %d', $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$sql = $wpdb->prepare( $sql . ' LIMIT %d', $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is the fixed string built immediately above.
 		}
-		return array_map( 'intval', (array) $wpdb->get_col( $sql ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return array_map( 'intval', (array) $wpdb->get_col( $sql ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is either the fixed string above or its $wpdb->prepare() result.
 	}
 
 	/**
@@ -306,7 +306,7 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 			return array_map( 'intval', (array) $ids );
 		}
 
-		$ids = $wpdb->get_col( "SELECT id FROM {$table} WHERE migrated_receipt_id IS NOT NULL ORDER BY id ASC" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$ids = $wpdb->get_col( "SELECT id FROM {$table} WHERE migrated_receipt_id IS NOT NULL ORDER BY id ASC" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a fixed, non-user-supplied table name.
 		return array_map( 'intval', (array) $ids );
 	}
 
@@ -316,7 +316,7 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 	public static function count_all_batches(): int {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wc_io_purchase_batches';
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is a fixed, non-user-supplied table name.
 	}
 
 	/**
@@ -440,9 +440,9 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 	 * set_stock_quantity(), never writes cost meta, never calls
 	 * Goods_Receipt_Service or Restock_Service.
 	 *
-	 * @param array<string,mixed>               $batch Legacy batch row.
-	 * @param array<int,array<string,mixed>>    $lines Legacy batch lines, id ASC.
-	 * @param array<int,array<string,mixed>>    $costs Legacy batch landed-cost rows, id ASC.
+	 * @param array<string,mixed>            $batch Legacy batch row.
+	 * @param array<int,array<string,mixed>> $lines Legacy batch lines, id ASC.
+	 * @param array<int,array<string,mixed>> $costs Legacy batch landed-cost rows, id ASC.
 	 * @return array{batch_id:int,receipt_id:int,receipt_number:string,lines_migrated:int,costs_migrated:int,movements_backfilled:int}
 	 * @throws WC_Inventory_Overview_Batch_Migration_Exception On any failure (bridged from throw_if_error()).
 	 */
@@ -454,7 +454,7 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 
 		$receipt_number = self::throw_if_error( WC_Inventory_Overview_Goods_Receipt_Numbering::allocate( $year ) );
 
-		$header                    = self::map_header( $batch );
+		$header                   = self::map_header( $batch );
 		$header['receipt_number'] = $receipt_number;
 
 		$inserted = $wpdb->insert( WC_Inventory_Overview_Goods_Receipts::table_name(), $header, self::formats_for( $header, self::header_format_map() ) );
@@ -556,6 +556,8 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 	}
 
 	/**
+	 * Whether a batch row already carries a valid migrated_receipt_id.
+	 *
 	 * @param array<string,mixed> $batch Legacy batch row.
 	 */
 	private static function already_migrated( array $batch ): bool {
@@ -563,6 +565,8 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 	}
 
 	/**
+	 * Fetch one legacy batch header row.
+	 *
 	 * @param int $batch_id Legacy batch id.
 	 * @return array<string,mixed>|WP_Error
 	 */
@@ -577,6 +581,8 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 	}
 
 	/**
+	 * Fetch a legacy batch's lines, id ASC (original apply-time order).
+	 *
 	 * @param int $batch_id Legacy batch id.
 	 * @return array<int,array<string,mixed>>
 	 */
@@ -588,6 +594,8 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 	}
 
 	/**
+	 * Fetch a legacy batch's landed-cost rows, id ASC.
+	 *
 	 * @param int $batch_id Legacy batch id.
 	 * @return array<int,array<string,mixed>>
 	 */
@@ -617,6 +625,8 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 	}
 
 	/**
+	 * Column => $wpdb format for the Goods Receipt header insert.
+	 *
 	 * @return array<string,string>
 	 */
 	private static function header_format_map(): array {
@@ -647,6 +657,8 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 	}
 
 	/**
+	 * Column => $wpdb format for each Goods Receipt line insert.
+	 *
 	 * @return array<string,string>
 	 */
 	private static function line_format_map(): array {
@@ -678,6 +690,8 @@ class WC_Inventory_Overview_Batch_Migration_Service {
 	}
 
 	/**
+	 * Column => $wpdb format for each Goods Receipt landed-cost row insert.
+	 *
 	 * @return array<string,string>
 	 */
 	private static function cost_format_map(): array {
