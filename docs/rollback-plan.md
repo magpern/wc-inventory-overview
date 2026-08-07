@@ -2,6 +2,21 @@
 
 ---
 
+## ✓ M6 (v1.23.0): code rollback after batch migration is safe by construction
+
+Unlike M4/M5 below, **M6 does not add a new "code rollback is unsafe" risk class.** A plugin-code rollback to a pre-M6 version (v1.22.0) after `wp wc-io migrate-batches --apply` has already migrated some batches is safe:
+
+- Migrated Goods Receipts (`source = 'migrated'`) are purely **additive rows**. No v1.22.0 code path filters, joins, or otherwise queries `source = 'migrated'` — that value, and the two `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at` tracking columns, simply did not exist before M6 and v1.22.0 code never reads them. Rolling back leaves them present in the database but entirely inert to the older code.
+- The legacy `wc_io_purchase_batches`/`wc_io_purchase_batch_lines`/`wc_io_purchase_batch_costs` tables were **never modified** by migration — only the two new nullable tracking columns were added (schema v10), which v1.22.0 code simply ignores (dbDelta-created columns are additive; older code never selects them by name).
+- Reverting **code** without reverting the **schema** leaves the database in a strict superset of what v1.22.0 expects — nothing v1.22.0 does breaks, errors, or behaves differently because those extra rows/columns exist.
+- A schema rollback (dropping `migrated_receipt_id`/`migrated_at`) is **optional and never required** for a safe code rollback.
+
+**This is a distinct concept from the migration CLI's own `--rollback=<batch_id>` mode** (`wp wc-io migrate-batches --rollback=<id>`), which undoes *one specific batch's migration* (deletes its migrated receipt/lines/costs, clears its movement reference, clears its tracking columns) while the plugin is still running the *current* code — see `docs/milestones/m6-implementation-plan.md` §Migration model / §Rollback and `docs/migration-guide-batch-intake.md` for that operator workflow. The section here is about reverting the *plugin version* itself, not undoing an individual migration.
+
+Batch Intake's retirement (the admin_post/AJAX entry points removed in M6) also introduces no rollback risk: no batch data was deleted, and a code rollback to v1.22.0 simply restores the old Batch Intake UI, unaffected by anything M6 did.
+
+---
+
 ## ⚠ M5 and later: code rollback does not reverse qty_received/PO-status effects
 
 **Starting with M5 (v1.22.0), a plugin-code rollback to a pre-M5 version does NOT reverse the `qty_received` or Purchase Order status effects of PO-linked receipts already posted under M5** — in addition to the stock/cost effects M4 already introduced this same risk for (see the M4 section immediately below, which still applies unchanged and in full to any receipt, PO-linked or direct).

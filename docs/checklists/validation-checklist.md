@@ -136,6 +136,50 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **Batch Intake, Quick Restock, Cost Adjustment, Supplier admin, and M4's Quick Receive Without PO all unaffected** — all continue to function exactly as in v1.21.0.
 
+### For M6 (Migration & Retirement, v1.23.0)
+
+- [ ] **Schema v10**: `DB_VERSION` is `10`; `migrated_receipt_id`/`migrated_at` exist on `wc_io_purchase_batches`, both `NULL` on every pre-existing row immediately after upgrade:
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  wp db query "SHOW COLUMNS FROM \`$(wp config get table_prefix)wc_io_purchase_batches\` LIKE 'migrated%'"
+  ```
+
+- [ ] **Batch Intake create/apply is gone**: the Restock / Cost Adjustment tab shows only "Quick Restock" and "Cost Adjustment" — no "Batch Intake" link; visiting an old `restock_view=batch` bookmark falls back to Quick Restock without an error.
+
+- [ ] **Legacy batch data untouched**: `wc_io_purchase_batches`/`wc_io_purchase_batch_lines`/`wc_io_purchase_batch_costs` row counts are unchanged by the v1.23.0 deploy itself (before any migration CLI run) — the schema upgrade is additive-columns-only.
+
+- [ ] **Dry-run migration preview makes zero writes**:
+  ```bash
+  wp wc-io migrate-batches
+  ```
+  (Lists what would be migrated; `wc_io_goods_receipts` row count is unchanged after running this.)
+
+- [ ] **Migration apply, on a staging/test copy first** — never run `--apply` directly against production without a fresh backup (see `docs/migration-guide-batch-intake.md`):
+  ```bash
+  wp wc-io migrate-batches --apply
+  ```
+  Every migrated batch produces exactly one new `source='migrated'`, `status='posted'` Goods Receipt; `migrated_receipt_id` is set on the corresponding batch row.
+
+- [ ] **Stock and cost unchanged by migration** — for at least one product affected by a migrated batch, `_stock`/`_wc_io_average_unit_cost`/`_wc_io_inventory_value` are identical before and after running `--apply` (the headline guarantee this milestone exists to provide).
+
+- [ ] **Verify mode reports zero drift after a clean migration**:
+  ```bash
+  wp wc-io migrate-batches --verify
+  ```
+
+- [ ] **Movement provenance replaced**: every `purchase_batch` movement row for a migrated batch now carries `reference_type='goods_receipt'` and the correct `reference_id`; the movement note text and quantities are byte-for-byte unchanged.
+
+- [ ] **Migrated receipts cannot be voided**: attempting to void a `source='migrated'` Goods Receipt through the normal admin Void action is rejected with a clear message; voiding a normal (`direct`/`po`/`mixed`) receipt is unaffected.
+
+- [ ] **CLI rollback works and stays scoped to one batch**:
+  ```bash
+  wp wc-io migrate-batches --rollback=<batch_id>
+  ```
+  Deletes only that batch's migrated receipt/lines/costs, clears its movement reference, clears its tracking columns; current stock/cost are unchanged; the batch becomes eligible for migration again.
+
+- [ ] **Quick Restock, Cost Adjustment, Goods Receipts (M4), PO Receiving (M5), Supplier admin, and Inventory Position all unaffected** — all continue to function exactly as in v1.22.0.
+
 ## Sign-off
 
 Once all checks pass:

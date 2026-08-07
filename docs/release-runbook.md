@@ -178,6 +178,32 @@ No additional steps. The release is a pure-tooling change with no functional or 
 9. **No alternative receiving pipeline:** confirm `Goods_Receipt_Service` remains the only code path that mutates stock/cost, and `PO_Receiving_Sync` remains the only code path that mutates `qty_received` (architecture-guard tests pass in CI; this is a documentation cross-check, not a new manual step).
 10. **Rollback awareness:** read `docs/rollback-plan.md`'s new M5 note before deploying — a code rollback does not reverse `qty_received`/PO-status effects of receipts already posted under M5.
 
+### M6: Migration & Retirement
+
+**Before tagging v1.23.0:**
+
+0. **Release notes file:** Confirm `docs/GITHUB_RELEASE_NOTES_1.23.0.md` exists and matches `CHANGELOG.md` for 1.23.0.
+1. **Verify schema version bump:** Check that `DB_VERSION = '10'` in `includes/class-wc-inventory-overview-install.php`.
+2. **Test schema-shape assertion on a production-data copy:**
+   - Upgrade to the M6 release on a copy of production database.
+   - Verify `wp option get wc_io_db_version` returns `10`.
+   - Verify `wp option get wc_io_schema_assertion --format=json` shows `ok: true` and `version: "10"`.
+   - Verify `migrated_receipt_id`/`migrated_at` now exist on `wc_io_purchase_batches`, both `NULL` on every pre-existing row.
+3. **Dispatcher-routing check (mandatory — the exact trap M4/M5's own runbooks flagged, repeats identically at v9/v10):** confirm `DB_VERSION` 10 routes to `expected_schema_v10()`, not silently falling back to v9's assertion (which never checks the new tracking columns at all). If schema-shape assertion reports `ok: true` at `version: "10"`, the dispatcher is correct.
+4. **Deploy makes zero data changes:** confirm that immediately after deploying v1.23.0 (before running the migration CLI), Batch Intake data is unchanged and no new Goods Receipts exist beyond what was already there — the schema upgrade is additive-columns-only; migration is a deliberate, separate operator action (see `docs/migration-guide-batch-intake.md`).
+5. **Migration dry run, apply, verify — on a copy of production first:**
+   - `wp wc-io migrate-batches` (no flags) — confirm it lists the expected batches and makes zero writes (spot-check `wc_io_goods_receipts` row count before/after).
+   - `wp wc-io migrate-batches --apply` — confirm every eligible batch reports success; note the migrated/failed counts.
+   - `wp wc-io migrate-batches --verify` — confirm `Drift found: 0`.
+6. **Historical-integrity check (mandatory — the headline guarantee of this milestone, mirrors M4's stock-mutation-correctness check):** for at least one product affected by a migrated batch, note `_stock`/`_wc_io_average_unit_cost`/`_wc_io_inventory_value` before running `--apply`, and confirm they are **byte-for-byte identical** afterward.
+7. **Movement provenance replaced:** confirm a migrated batch's `purchase_batch` movement row(s) now carry `reference_type='goods_receipt'` and the correct `reference_id`, with the note text and quantities unchanged.
+8. **Migrated-void guard:** confirm attempting to void a migrated Goods Receipt through the normal admin action is rejected with a clear error; confirm voiding a normal receipt is unaffected.
+9. **CLI rollback works:** `wp wc-io migrate-batches --rollback=<batch_id>` on one migrated batch — confirm it deletes only that batch's migrated receipt/lines/costs, clears its movement reference, and leaves current stock/cost unchanged.
+10. **Batch Intake create/apply retired:** confirm `admin_post_wc_io_batch_apply`/`wp_ajax_wc_io_batch_preview` no longer register, the Batch Intake tab is gone from the Restock/Cost Adjustment nav, and a stale `restock_view=batch` bookmark falls back to Quick Restock without erroring.
+11. **Quick Restock, Cost Adjustment, Goods Receipts, PO Receiving, Supplier admin unaffected:** confirm all continue to function exactly as in v1.22.0.
+12. **Legacy tables frozen:** confirm `wc_io_purchase_batches`/`wc_io_purchase_batch_lines`/`wc_io_purchase_batch_costs` are never dropped or truncated by any code path (D14).
+13. **Rollback awareness:** unlike M4/M5, M6 does **not** introduce a new "code rollback is unsafe" risk — read `docs/rollback-plan.md`'s new M6 note for why (migrated Goods Receipts are purely additive, invisible to pre-M6 code).
+
 ## Post-release communication
 
 After a successful release:

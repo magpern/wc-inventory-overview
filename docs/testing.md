@@ -46,7 +46,7 @@ docker compose -f docker-compose.phpunit.yml up -d db
 docker compose -f docker-compose.phpunit.yml run --rm phpunit
 ```
 
-The default run filters M1/M2/M3-focused suites plus schema/supplier smoke tests. Pass explicit PHPUnit args to override:
+The default run filters M1–M6-focused suites plus schema/supplier smoke tests. Pass explicit PHPUnit args to override:
 
 ```bash
 docker compose -f docker-compose.phpunit.yml run --rm phpunit --testsuite=unit
@@ -151,18 +151,20 @@ tests/
 │   ├── suppliers/            # Supplier value-normalization tests
 │   ├── inventory-position/   # M3 Resolver unit tests + D12 architecture guards
 │   ├── goods-receipt/        # M4 numbering, lifecycle, architecture guards (sole-mutator, throw_if_error bridge, no row locking, no po_line_id/qty_received, no PO writes)
-│   └── po-receiving/         # M5 full INV-4 formula, PO_Statuses::recompute_for_receiving(), architecture guards (qty_received sole-mutator chain)
+│   ├── po-receiving/         # M5 full INV-4 formula, PO_Statuses::recompute_for_receiving(), architecture guards (qty_received sole-mutator chain)
+│   └── batch-migration/      # M6 pure field-mapping (map_header/map_line/map_cost), architecture guards (no live-mutation calls, sole backfill_reference() caller, one transaction per public entry method)
 ├── integration/
 │   ├── costing/              # Weighted-average costing characterization
 │   ├── exchange-rates/       # FX rate resolution characterization
-│   ├── batch-intake/         # Batch preview/apply parity and rollback
+│   ├── batch-intake/         # Batch preview/apply parity and rollback (Batch_Intake_Service is M6-deprecated but still directly callable; see M6 note below)
 │   ├── movements/            # Ledger record creation characterization
 │   ├── cost-adjustment/      # Cost-adjustment (average/value without stock change)
 │   ├── suppliers/            # M1 supplier CRUD, migration, admin PRG
-│   ├── install/              # Schema-shape assertion (v6/v7/v8/v9)
+│   ├── install/              # Schema-shape assertion (v6/v7/v8/v9/v10)
 │   ├── inventory-position/   # M3 open-line repository, Service, Inventory Overview list-table, query-scaling
-│   ├── goods-receipt/        # M4 repositories, costing/allocation, Restock reversal, post/void transactional + rollback, idempotency, capability
-│   └── po-receiving/         # M5 increment_qty_received(), PO_Receiving_Sync (apply_line_delta/reconcile_line), PO-linked post/void + rollback + void-order regressions, validation, M3 Incoming regression, performance
+│   ├── goods-receipt/        # M4 repositories, costing/allocation, Restock reversal, post/void transactional + rollback, idempotency, capability, M6 migrated-source void guard
+│   ├── po-receiving/         # M5 increment_qty_received(), PO_Receiving_Sync (apply_line_delta/reconcile_line), PO-linked post/void + rollback + void-order regressions, validation, M3 Incoming regression, performance
+│   └── batch-migration/      # M6 end-to-end mapping correctness, historical-integrity golden test (stock/cost byte-for-byte unchanged), movement backfill, idempotency, forced-failure transactional rollback (Invariant M6-1), order independence (Invariant M6-2), rollback_batch() symmetry, retirement regression, landed-cost-type extraction characterization, per-batch query-cost performance
 ├── fixtures/
 │   ├── costing/              # Golden fixture data
 │   └── exchange-rates/
@@ -340,6 +342,41 @@ including the forced-failure rollback test and both mandatory intervening-
 receipt regression scenarios — post-A/post-B/void-A and post-A/post-B/void-B/
 void-A — pre-transaction validation, `Receipt_Lines` po_line_id persistence,
 the M3 Incoming regression, and a linear-query-growth performance guard).
+
+The M1–M6-focused suite (default `run-phpunit.sh` filter, extended with the
+`Test_WC_IO_Batch_Migration_`/`Test_WC_IO_Landed_Cost_Types_` prefixes) is
+**371 tests / 1,547 assertions as of M6/v1.23.0, all passing** (0 failures).
+The full cumulative suite (`--exclude-group ajax,ms-files,external-http`,
+387 tests / 1,583 assertions) has the **identical 4 errors + 7 failures + 2
+skips** itemized above — same tests, same root causes, unchanged in count
+and identity by M6, confirmed by diffing against a pre-M6 `main` run.
+`Test_DB_Transaction`'s pre-existing "table already exists" output warning
+(itemized above) additionally surfaces as PHPUnit's own "risky" classification
+in the full cumulative run — a reporting artifact of test-discovery ordering
+(present, unflagged, in an isolated `--filter Test_DB_Transaction` run on
+`main` too), not a functional regression; `Test_DB_Transaction` itself was
+not modified by M6.
+
+New M6 test directories: `tests/unit/batch-migration/` (pure
+`map_header()`/`map_line()`/`map_cost()` field-mapping tests against fixture
+batch rows, and the architecture guard suite enforcing the no-live-mutation
+prohibition, the sole `backfill_reference()` caller, and Invariant M6-1's
+one-transaction-per-public-method shape) and `tests/integration/batch-migration/`
+(end-to-end mapping correctness including receipt-numbering year and
+provenance reference, the historical-integrity golden test — byte-for-byte
+unchanged stock/cost across simple-EUR/USD-with-landed-cost/blended-average/
+multi-batch-multi-currency scenarios — movement-reference backfill including
+the exact-prefix-match regression guard, idempotency/resumability, a
+deterministic forced-failure transactional-rollback test proving Invariant
+M6-1 via receipt-number-retry exhaustion, order independence (Invariant M6-2)
+via descending and arbitrary-subset migration orders, `rollback_batch()`
+symmetry with the forward golden test, retirement regression (hooks
+deregistered, Quick Restock/Cost Adjustment unaffected), the landed-cost-type
+extraction characterization, and per-batch query-cost performance tests).
+`tests/integration/goods-receipt/test-goods-receipt-migrated-void-guard.php`
+and `tests/integration/install/test-schema-v10-upgrade.php` extend the M4
+and M1–M5 test directories in place, following their existing per-milestone
+pattern rather than adding new top-level directories for a single file each.
 
 ## See also
 
