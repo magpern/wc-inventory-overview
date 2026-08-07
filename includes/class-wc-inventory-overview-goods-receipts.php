@@ -17,6 +17,20 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Goods_Receipts {
 
+	const SOURCE_DIRECT = 'direct';
+	const SOURCE_PO = 'po';
+	const SOURCE_MIXED = 'mixed';
+
+	/**
+	 * Historical record materialization from a legacy Batch Intake row (M6) —
+	 * never a live receiving event. See the M6 implementation plan's Migration
+	 * model section: a receipt with this source was never posted through
+	 * Goods_Receipt_Service::post() and must never be voided through
+	 * Goods_Receipt_Service::void() (that path assumes current-state-relative
+	 * reversal, which does not apply to historical replay rows).
+	 */
+	const SOURCE_MIGRATED = 'migrated';
+
 	/**
 	 * Prefixed table name.
 	 */
@@ -105,9 +119,9 @@ class WC_Inventory_Overview_Goods_Receipts {
 		$now     = current_time( 'mysql', true );
 		$user_id = get_current_user_id();
 
-		$source = isset( $data['source'] ) ? sanitize_key( (string) $data['source'] ) : 'direct';
-		if ( ! in_array( $source, array( 'direct', 'po', 'mixed' ), true ) ) {
-			$source = 'direct';
+		$source = isset( $data['source'] ) ? sanitize_key( (string) $data['source'] ) : self::SOURCE_DIRECT;
+		if ( ! in_array( $source, array( self::SOURCE_DIRECT, self::SOURCE_PO, self::SOURCE_MIXED ), true ) ) {
+			$source = self::SOURCE_DIRECT;
 		}
 
 		$row = array(
@@ -212,7 +226,7 @@ class WC_Inventory_Overview_Goods_Receipts {
 					break;
 				case 'source':
 					$source         = sanitize_key( (string) $data[ $key ] );
-					$update[ $key ] = in_array( $source, array( 'direct', 'po', 'mixed' ), true ) ? $source : 'direct';
+					$update[ $key ] = in_array( $source, array( self::SOURCE_DIRECT, self::SOURCE_PO, self::SOURCE_MIXED ), true ) ? $source : self::SOURCE_DIRECT;
 					$formats[]      = '%s';
 					break;
 				default:
