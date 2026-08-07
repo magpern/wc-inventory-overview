@@ -311,6 +311,26 @@ M5/v1.22.0, all passing.** The full unit test suite (`--testsuite=unit`) is
 same root causes, unchanged in count and identity by M5. M5 introduced
 **zero new failures** anywhere in the suite.
 
+**Post-release audit remediation** (same v1.22.0, pre-tag — four gaps an
+independent audit found against the M5 plan's own Definition of Done, fixed
+on this branch; see `docs/architecture-audit.md`'s "M5 audit remediation"
+subsection): the focused suite grew to **292 tests / 1,317 assertions**, the
+unit suite to **148 tests / 774 assertions**, and the integration suite to
+**160 tests / 576 assertions** — the added tests are
+`tests/integration/po-receiving/test-close-short-with-qty-received.php` (new
+file, 3 tests) and two new methods in
+`tests/integration/po-receiving/test-po-receiving-performance.php` proving
+the pre-transaction PO-line validation query cost is now constant regardless
+of line count, exercised at the plan's own named ~100-line scale. The
+integration suite's **4 errors + 7 failures + 2 skips remain byte-for-byte
+identical** to the baseline above — zero new failures. One pre-existing
+architecture guard (`test_po_service_never_writes_receiving_status_or_qty_received`
+in `tests/unit/purchase-orders/test-po-service.php`) was deliberately
+narrowed from a blanket "never reference qty_received" substring check to a
+"never write qty_received" check, since `close_short()`'s fix legitimately
+reads an already-fetched line's `qty_received` to compute a correct
+`qty_cancelled` — the guard still fails on any write attempt.
+
 New M5 test directories: `tests/unit/po-receiving/` (full INV-4 formula,
 `recompute_for_receiving()` direction-agnostic behavior, architecture guards
 for the qty_received sole-mutator chain) and `tests/integration/po-receiving/`

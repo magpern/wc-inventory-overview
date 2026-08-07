@@ -747,11 +747,16 @@ class WC_Inventory_Overview_PO_Service {
 		$cancelled_map = array();
 		foreach ( $lines as $line ) {
 			$ordered     = (float) $line['qty_ordered'];
+			$received    = (float) ( $line['qty_received'] ?? 0 );
 			$outstanding = WC_Inventory_Overview_Purchase_Order_Lines::outstanding( $line );
 			if ( $outstanding <= 0 ) {
 				continue;
 			}
-			$new_cancelled = $ordered; // Preserve ordered; cancel all remaining.
+			// Cancel exactly what remains unreceived, never the full ordered qty
+			// (M5 audit remediation WP4) — preserves qty_received + qty_cancelled
+			// == qty_ordered so the "Cancelled" figure stays accurate to display
+			// even when some of the line was already received before closing short.
+			$new_cancelled = round( $ordered - $received, 4 );
 			$updated       = WC_Inventory_Overview_Purchase_Order_Lines::update(
 				(int) $line['id'],
 				array( 'qty_cancelled' => $new_cancelled )

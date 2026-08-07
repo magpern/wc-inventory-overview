@@ -664,13 +664,23 @@ class Test_WC_IO_PO_Service extends WC_Inventory_Overview_Test_Case {
 	 * ownership). Superseded from the pre-M5 "no receiving columns exist at all"
 	 * assertion (qty_received is now a real column, schema v9) to this narrower,
 	 * still-true claim: PO_Service itself never produces these values.
+	 *
+	 * Revised again for the M5 audit remediation (WP4): close_short() now READS
+	 * qty_received (already-fetched line data, not a new query) to correctly cancel
+	 * only a line's unreceived remainder instead of its full ordered quantity —
+	 * this is not a violation of the sole-writer invariant, which governs the
+	 * physical column WRITE, not reads of an already-fetched value. The blanket
+	 * substring guard is narrowed accordingly to specifically catch a WRITE attempt
+	 * (a repository update() call passing 'qty_received', or raw SQL setting it),
+	 * which remains, and must remain, absent from this file.
 	 */
 	public function test_po_service_never_writes_receiving_status_or_qty_received() {
 		$src = file_get_contents( WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-service.php' );
 		$src = preg_replace( '#/\*.*?\*/#s', '', $src );
 		$src = preg_replace( '#//[^\n]*#', '', $src );
 
-		$this->assertStringNotContainsString( 'qty_received', $src, 'PO_Service must never reference qty_received — only PO_Receiving_Sync writes it.' );
+		$this->assertStringNotContainsString( "'qty_received' =>", $src, 'PO_Service must never pass qty_received as a repository update() field — only PO_Receiving_Sync writes it (reading an already-fetched line\'s qty_received, e.g. to compute qty_cancelled correctly, is legitimate).' );
+		$this->assertStringNotContainsString( 'qty_received =', $src, 'PO_Service must never write qty_received via raw SQL.' );
 		$this->assertStringNotContainsString( "'partially_received'", $src, 'PO_Service must never write the partially_received status — it is auto-transitioned only.' );
 		$this->assertStringNotContainsString( 'PO_Statuses::RECEIVED', $src, 'PO_Service must never write the received status — it is auto-transitioned only.' );
 		$this->assertStringNotContainsString( 'PO_Receiving_Sync', $src, 'PO_Service must never call PO_Receiving_Sync — Goods_Receipt_Service is its sole caller.' );

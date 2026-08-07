@@ -103,6 +103,31 @@ class WC_Inventory_Overview_Purchase_Orders {
 	}
 
 	/**
+	 * Bulk-fetch PO headers by ID (M5 — avoids per-PO get() calls when a caller
+	 * already has a batch of PO ids, e.g. pre-transaction receiving validation).
+	 *
+	 * @param int[] $ids PO ids.
+	 * @return array<int,array<string,mixed>> Rows keyed by PO id. Ids that don't
+	 *         resolve to a row are simply absent from the result.
+	 */
+	public static function list_by_ids( array $ids ): array {
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+		if ( empty( $ids ) ) {
+			return array();
+		}
+		global $wpdb;
+		$table        = self::table_name();
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$sql          = "SELECT * FROM {$table} WHERE id IN ({$placeholders})"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $ids ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$by_id        = array();
+		foreach ( (array) $rows as $row ) {
+			$by_id[ (int) $row['id'] ] = $row;
+		}
+		return $by_id;
+	}
+
+	/**
 	 * Sum of ordered line totals (qty_ordered × unit_cost) for a PO.
 	 *
 	 * @param int $po_id PO id.
