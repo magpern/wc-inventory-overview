@@ -104,7 +104,7 @@ cd "${PLUGIN_DIR}"
 FILTER_ARGS=("$@")
 if [[ ${#FILTER_ARGS[@]} -eq 0 ]]; then
 	# Default: M1/M2 focused suites, M3 Inventory Position, plus existing unit/integration smoke.
-	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_' )
+	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_' )
 fi
 
 echo "Running PHPUnit ${FILTER_ARGS[*]}..."
