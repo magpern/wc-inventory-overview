@@ -166,6 +166,41 @@ class WC_Inventory_Overview_Movements {
 	}
 
 	/**
+	 * Backfill a typed reference onto an existing movement row (M6 migration only).
+	 *
+	 * Updates reference_type/reference_id of one already-existing row in place —
+	 * never inserts a new movement row (that would double the ledger), never
+	 * touches quantity/cost/note/timestamp columns. Replaces the batch↔movement
+	 * regex linkage (movements-list-table.php's `Batch ID: (\d+)` note parse)
+	 * with the typed reference Architecture v1.0 §1 (D14) promised, for
+	 * `purchase_batch` movement rows only. See the M6 implementation plan's
+	 * Migration model — "Movement linkage becomes typed, in place."
+	 *
+	 * @param int         $movement_id    Movement row id.
+	 * @param string|null $reference_type Reference type (e.g. self::REFERENCE_TYPE_GOODS_RECEIPT),
+	 *                                     or null to clear it back to NULL (M6 migration rollback).
+	 * @param int|null    $reference_id   Referenced row id, or null to clear it back to NULL.
+	 * @return bool True unless the UPDATE itself failed (0 rows affected — e.g.
+	 *              a value already matching the target — is still success).
+	 */
+	public static function backfill_reference( int $movement_id, ?string $reference_type, ?int $reference_id ): bool {
+		global $wpdb;
+
+		$result = $wpdb->update(
+			self::table_name(),
+			array(
+				'reference_type' => null === $reference_type ? null : sanitize_key( $reference_type ),
+				'reference_id'   => $reference_id,
+			),
+			array( 'id' => $movement_id ),
+			array( '%s', '%d' ),
+			array( '%d' )
+		);
+
+		return false !== $result;
+	}
+
+	/**
 	 * Insert a cost adjustment movement (no stock change).
 	 *
 	 * @param array<string, mixed> $r Column values.
