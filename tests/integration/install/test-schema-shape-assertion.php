@@ -197,7 +197,7 @@ class Test_WC_IO_Schema_Assertion extends WP_UnitTestCase {
 			$this->assertEquals( $table, $exists, "Expected table {$table}" );
 		}
 
-		$this->assertSame( '9', WC_Inventory_Overview_Install::DB_VERSION );
+		$this->assertSame( '10', WC_Inventory_Overview_Install::DB_VERSION );
 		$this->assertTrue( WC_Inventory_Overview_Install::assert_schema_shape() );
 	}
 

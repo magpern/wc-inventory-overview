@@ -256,4 +256,72 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 
 		return WC_Inventory_Overview_Purchase_Order_Lines::get( $id );
 	}
+
+	/**
+	 * Create a legacy Batch Intake batch via the real (M6-deprecated, but
+	 * still directly callable) apply path --
+	 * WC_Inventory_Overview_Batch_Intake_Service::apply_batch_from_post().
+	 * Only that class's admin-post/AJAX entry points were retired in M6; the
+	 * method itself still works exactly as it always did, so a batch built
+	 * this way is a realistic historical fixture -- it has already mutated
+	 * current stock/cost precisely like a real pre-M6 batch would have,
+	 * before any M6 migration test runs against it.
+	 *
+	 * @param array<string,mixed> $props Overrides: product (WC_Product), supplier_name,
+	 *                                    reference, note, currency, qty, line_cost,
+	 *                                    landed_type, landed_amount.
+	 * @return array{batch_id:int, product_id:int}
+	 */
+	protected function create_legacy_batch( array $props = array() ): array {
+		$product = $props['product'] ?? $this->create_simple_product( array( 'stock_qty' => 0 ) );
+
+		$post = array(
+			'wc_io_batch_supplier'             => $props['supplier_name'] ?? 'Legacy Supplier',
+			'wc_io_batch_reference'             => $props['reference'] ?? 'INV-0001',
+			'wc_io_batch_note'                  => $props['note'] ?? '',
+			'wc_io_batch_purchase_currency'     => $props['currency'] ?? 'EUR',
+			'wc_io_batch_exchange_rate_date'    => $props['fx_date'] ?? wp_date( 'Y-m-d', null, wp_timezone() ),
+			'wc_io_batch_exchange_rate_to_eur'  => $props['fx_rate'] ?? '1',
+			'wc_io_batch_line_product'          => array( $product->get_id() ),
+			'wc_io_batch_line_qty'              => array( (string) ( $props['qty'] ?? 10 ) ),
+			'wc_io_batch_line_cost'             => array( (string) ( $props['line_cost'] ?? 100 ) ),
+			'wc_io_batch_confirm'               => '1',
+		);
+
+		if ( isset( $props['landed_type'] ) ) {
+			$post['wc_io_batch_cost_type']            = array( $props['landed_type'] );
+			$post['wc_io_batch_cost_amount']           = array( (string) ( $props['landed_amount'] ?? 10 ) );
+			$post['wc_io_batch_cost_note']              = array( '' );
+			$post['wc_io_batch_cost_currency']          = array( $props['currency'] ?? 'EUR' );
+			$post['wc_io_batch_cost_exchange_rate']     = array( (string) ( $props['fx_rate'] ?? '1' ) );
+		}
+
+		$batch_id = WC_Inventory_Overview_Batch_Intake_Service::apply_batch_from_post( $post );
+		if ( is_wp_error( $batch_id ) ) {
+			$this->fail( 'Failed to create legacy batch: ' . $batch_id->get_error_message() );
+		}
+
+		return array(
+			'batch_id'   => (int) $batch_id,
+			'product_id' => $product->get_id(),
+		);
+	}
+
+	/**
+	 * Backdate a legacy batch's created_at (direct SQL — simulates a batch
+	 * genuinely applied in a prior year, for receipt-numbering-year tests).
+	 *
+	 * @param int    $batch_id Legacy batch id.
+	 * @param string $datetime MySQL datetime string, e.g. '2023-05-01 10:00:00'.
+	 */
+	protected function backdate_legacy_batch( int $batch_id, string $datetime ): void {
+		global $wpdb;
+		$wpdb->update(
+			$wpdb->prefix . 'wc_io_purchase_batches',
+			array( 'created_at' => $datetime ),
+			array( 'id' => $batch_id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	}
 }

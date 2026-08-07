@@ -28,7 +28,11 @@ class Test_WC_IO_PO_Receiving_Schema_V9_Upgrade extends WP_UnitTestCase {
 
 		WC_Inventory_Overview_Install::maybe_upgrade();
 
-		$this->assertSame( '9', get_option( 'wc_io_db_version' ) );
+		// maybe_upgrade() always targets the current DB_VERSION directly
+		// (never stops partway at an intermediate version) — since M6, that's
+		// '10', not '9'; qty_received (this test's own subject) still arrives
+		// as part of that same single upgrade regardless.
+		$this->assertSame( WC_Inventory_Overview_Install::DB_VERSION, get_option( 'wc_io_db_version' ) );
 		$after_columns = array_column( $wpdb->get_results( "SHOW COLUMNS FROM {$table}" ), 'Field' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$this->assertContains( 'qty_received', $after_columns );
 
