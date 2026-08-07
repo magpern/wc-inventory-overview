@@ -351,6 +351,26 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 	}
 
 	/**
+	 * Read-only preview of PO over-receipt status for a draft receipt's lines, for
+	 * the mandatory post-confirmation warning (M5 plan §Receiving workflow — "the
+	 * warning text is mandatory and cannot be suppressed"). Reuses the exact same
+	 * assessment validate_and_assess_po_linked_lines() computes at real post time —
+	 * no calculation is duplicated. This is a preview only: the authoritative
+	 * assessment is always recomputed fresh inside post() itself, since outstanding
+	 * may shift between viewing this confirmation screen and actually posting.
+	 *
+	 * @param int $id Draft receipt id.
+	 * @return array<int, array{over_receipt:bool, qty_over:float}>|WP_Error Map keyed by receipt line id.
+	 */
+	public static function preview_po_over_receipt( int $id ) {
+		$lines = WC_Inventory_Overview_Receipt_Lines::list_for_receipt( $id );
+		if ( empty( $lines ) ) {
+			return array();
+		}
+		return self::validate_and_assess_po_linked_lines( $lines );
+	}
+
+	/**
 	 * Cheap, side-effect-free pre-transaction check for PO-linked lines (M5) — runs
 	 * before the transaction opens, so a request that's obviously invalid never
 	 * starts one (same discipline M4 established for draft/status/no-lines checks).
@@ -372,27 +392,51 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 	private static function validate_and_assess_po_linked_lines( array $lines ) {
 		$assessment = array();
 
+		$po_line_ids = array();
+		foreach ( $lines as $line ) {
+			$po_line_id = (int) ( $line['po_line_id'] ?? 0 );
+			if ( $po_line_id > 0 ) {
+				$po_line_ids[] = $po_line_id;
+			}
+		}
+		if ( empty( $po_line_ids ) ) {
+			return $assessment;
+		}
+
+		// Bulk-fetch every referenced PO line, then every owning PO, in two
+		// queries total regardless of line count — avoids the per-line N+1
+		// pattern a naive get()-per-line loop would produce (M5 plan §Performance).
+		$po_lines_by_id = WC_Inventory_Overview_Purchase_Order_Lines::list_by_ids( $po_line_ids );
+
+		$po_ids = array();
+		foreach ( $po_lines_by_id as $po_line ) {
+			$po_ids[] = (int) $po_line['po_id'];
+		}
+		$pos_by_id = WC_Inventory_Overview_Purchase_Orders::list_by_ids( $po_ids );
+
+		$receivable_statuses = array(
+			WC_Inventory_Overview_PO_Statuses::PLACED,
+			WC_Inventory_Overview_PO_Statuses::PARTIALLY_RECEIVED,
+			WC_Inventory_Overview_PO_Statuses::RECEIVED,
+		);
+
 		foreach ( $lines as $line ) {
 			$po_line_id = (int) ( $line['po_line_id'] ?? 0 );
 			if ( $po_line_id <= 0 ) {
 				continue;
 			}
 
-			$po_line = WC_Inventory_Overview_Purchase_Order_Lines::get( $po_line_id );
-			if ( is_wp_error( $po_line ) ) {
-				return $po_line;
+			if ( ! isset( $po_lines_by_id[ $po_line_id ] ) ) {
+				return new WP_Error( 'wc_io_po_line_not_found', sprintf( 'Purchase order line %d not found', $po_line_id ) );
 			}
+			$po_line = $po_lines_by_id[ $po_line_id ];
 
-			$po = WC_Inventory_Overview_Purchase_Orders::get( (int) $po_line['po_id'] );
-			if ( is_wp_error( $po ) ) {
-				return $po;
+			$po_id = (int) $po_line['po_id'];
+			if ( ! isset( $pos_by_id[ $po_id ] ) ) {
+				return new WP_Error( 'wc_io_po_not_found', sprintf( 'Purchase order %d not found', $po_id ) );
 			}
+			$po = $pos_by_id[ $po_id ];
 
-			$receivable_statuses = array(
-				WC_Inventory_Overview_PO_Statuses::PLACED,
-				WC_Inventory_Overview_PO_Statuses::PARTIALLY_RECEIVED,
-				WC_Inventory_Overview_PO_Statuses::RECEIVED,
-			);
 			if ( ! in_array( $po['status'], $receivable_statuses, true ) ) {
 				return new WP_Error(
 					'wc_io_gr_po_not_receivable',

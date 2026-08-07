@@ -85,6 +85,30 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	}
 
 	/**
+	 * Bulk-fetch lines by ID (M5 — avoids per-line get() calls when a caller already
+	 * has a batch of PO line ids, e.g. pre-transaction receiving validation).
+	 *
+	 * @param int[] $ids Line ids.
+	 * @return array<int,array<string,mixed>> Rows keyed by line id. Ids that don't
+	 *         resolve to a row are simply absent from the result.
+	 */
+	public static function list_by_ids( array $ids ): array {
+		$ids = self::normalize_ids( $ids );
+		if ( empty( $ids ) ) {
+			return array();
+		}
+		global $wpdb;
+		$table = self::table_name();
+		$sql   = "SELECT * FROM {$table} WHERE id IN (" . self::placeholders( $ids ) . ')'; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows  = $wpdb->get_results( $wpdb->prepare( $sql, $ids ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$by_id = array();
+		foreach ( (array) $rows as $row ) {
+			$by_id[ (int) $row['id'] ] = $row;
+		}
+		return $by_id;
+	}
+
+	/**
 	 * Insert a line. Caller (PO_Service) enforces lifecycle and validation.
 	 *
 	 * @param int                 $po_id PO id.

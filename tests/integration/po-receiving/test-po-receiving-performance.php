@@ -5,6 +5,14 @@
  * bounded/driven by bulk operations, growing linearly (not superlinearly) with
  * line count.
  *
+ * Extended per the M5 audit remediation (WP3): the plan's own explicit
+ * acceptance criterion is "approximately 100 lines," and
+ * Goods_Receipt_Service::validate_and_assess_po_linked_lines() now reads via
+ * bulk repository methods (Purchase_Order_Lines::list_by_ids(),
+ * Purchase_Orders::list_by_ids()) instead of one get() call per line — this
+ * file asserts that bulk-ness directly (constant query cost regardless of N),
+ * not merely a loose linear-growth ratio at small N.
+ *
  * @package WC_Inventory_Overview_Tests
  */
 
@@ -28,18 +36,13 @@ class Test_WC_IO_PO_Receiving_Performance extends WC_Inventory_Overview_Test_Cas
 	}
 
 	/**
-	 * Build a placed PO with $n lines, and a matching draft receipt covering all
-	 * of them, then post it while counting queries. Query count for N=4 lines
-	 * must not exceed roughly double the count for N=2 lines — linear, not
-	 * quadratic, growth. (A fixed per-line cost — one Restock_Service mutation,
-	 * one movement insert, one PO sync call each with its own bounded, mostly
-	 * bulk queries — is expected and unavoidable per INV-1/INV-7; the guard is
-	 * against avoidable, non-bulk per-line re-reads on top of that.)
+	 * Build a placed PO with $n lines and a matching draft receipt covering all
+	 * of them. Shared by every test below so the fixture shape is defined once.
 	 *
 	 * @param int $n Number of lines.
-	 * @return int Query count for posting.
+	 * @return int Draft receipt id.
 	 */
-	private function post_n_line_receipt_and_count_queries( int $n ): int {
+	private function build_po_linked_draft_receipt( int $n ): int {
 		$supplier    = $this->create_supplier();
 		$product_ids = array();
 		$po_line_ids = array();
@@ -71,8 +74,19 @@ class Test_WC_IO_PO_Receiving_Performance extends WC_Inventory_Overview_Test_Cas
 		);
 		$this->assertIsInt( $draft_id, is_wp_error( $draft_id ) ? $draft_id->get_error_message() : '' );
 
-		global $wpdb;
-		$count = 0;
+		return $draft_id;
+	}
+
+	/**
+	 * Build an N-line PO-linked draft and post it while counting queries.
+	 *
+	 * @param int $n Number of lines.
+	 * @return int Query count for posting.
+	 */
+	private function post_n_line_receipt_and_count_queries( int $n ): int {
+		$draft_id = $this->build_po_linked_draft_receipt( $n );
+
+		$count   = 0;
 		$counter = static function ( $query ) use ( &$count ) {
 			++$count;
 			return $query;
@@ -87,8 +101,40 @@ class Test_WC_IO_PO_Receiving_Performance extends WC_Inventory_Overview_Test_Cas
 	}
 
 	/**
+	 * Reflectively invoke the private validate_and_assess_po_linked_lines()
+	 * directly, isolating exactly its own query cost from post()'s other,
+	 * separately-expected per-line writes (Restock_Service / Movements /
+	 * PO_Receiving_Sync — each unavoidably per-line per INV-1/INV-7). Isolating
+	 * this method proves the WP3 fix's specific claim: the validation phase
+	 * itself is now bulk, not driven by per-line count.
+	 *
+	 * @param int $n Number of PO-linked lines to build and validate.
+	 * @return int Query count for the validation call alone.
+	 */
+	private function count_queries_for_po_line_validation( int $n ): int {
+		$draft_id = $this->build_po_linked_draft_receipt( $n );
+		$lines    = WC_Inventory_Overview_Receipt_Lines::list_for_receipt( $draft_id );
+
+		$method = new ReflectionMethod( 'WC_Inventory_Overview_Goods_Receipt_Service', 'validate_and_assess_po_linked_lines' );
+		$method->setAccessible( true );
+
+		$count   = 0;
+		$counter = static function ( $query ) use ( &$count ) {
+			++$count;
+			return $query;
+		};
+		add_filter( 'query', $counter );
+		$result = $method->invoke( null, $lines );
+		remove_filter( 'query', $counter );
+
+		$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+
+		return $count;
+	}
+
+	/**
 	 * Query count grows linearly, not superlinearly (e.g. quadratically), as
-	 * line count doubles.
+	 * line count doubles. Cheap sanity check at small N.
 	 */
 	public function test_query_count_grows_linearly_not_quadratically() {
 		$q2 = $this->post_n_line_receipt_and_count_queries( 2 );
@@ -101,6 +147,47 @@ class Test_WC_IO_PO_Receiving_Performance extends WC_Inventory_Overview_Test_Cas
 			$q2 * 3,
 			$q4,
 			"Query count grew superlinearly: 2 lines = {$q2} queries, 4 lines = {$q4} queries."
+		);
+	}
+
+	/**
+	 * WP3 remediation — validate_and_assess_po_linked_lines()'s own query cost
+	 * must be a constant regardless of PO-linked line count, proving it reads
+	 * via bulk repository methods (list_by_ids()) rather than one get() call
+	 * per line. Tested directly at the plan's named scale (100 lines).
+	 */
+	public function test_po_line_validation_query_count_is_constant_not_per_line() {
+		$q_2   = $this->count_queries_for_po_line_validation( 2 );
+		$q_100 = $this->count_queries_for_po_line_validation( 100 );
+
+		$this->assertSame(
+			$q_2,
+			$q_100,
+			"PO-line validation query count must be constant regardless of line count (bulk-fetch, not per-line): 2 lines = {$q_2} queries, 100 lines = {$q_100} queries."
+		);
+	}
+
+	/**
+	 * The M5 plan's own measurable acceptance criterion, tested at the scale it
+	 * names: receiving a Purchase Order with approximately 100 lines must not
+	 * exhibit N+1 query growth end-to-end through post(). The unavoidable
+	 * per-line writes (Restock_Service, Movements, PO_Receiving_Sync — each
+	 * bounded and mostly bulk internally per INV-1/INV-7) still scale with N;
+	 * this asserts nothing ADDITIONAL scales worse than that fixed per-line
+	 * cost as N grows 50x.
+	 */
+	public function test_100_line_po_receipt_posts_with_linear_not_quadratic_query_growth() {
+		$q_2   = $this->post_n_line_receipt_and_count_queries( 2 );
+		$q_100 = $this->post_n_line_receipt_and_count_queries( 100 );
+
+		// 50x more lines. A 75x ceiling (rather than a tight 50x) absorbs the
+		// fixed one-time overhead (schema/status checks, header operations)
+		// that does not scale with N, while still failing hard on genuine
+		// quadratic blow-up, which would push this ratio into the thousands.
+		$this->assertLessThanOrEqual(
+			$q_2 * 75,
+			$q_100,
+			"Query count grew superlinearly at scale: 2 lines = {$q_2} queries, 100 lines = {$q_100} queries."
 		);
 	}
 }

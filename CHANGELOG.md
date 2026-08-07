@@ -20,6 +20,10 @@
 ### Fixed
 
 - **M3's Inventory Position "Incoming" figure** now correctly reflects receiving: the raw SQL `GREATEST()` literal in `Purchase_Order_Lines::query_open_lines()` gained the `qty_received` term, and its `WHERE` clause now includes `partially_received`/`received` POs (previously `placed` only) so a partially-received PO's remaining outstanding still surfaces as Incoming.
+- **Outstanding-quantity display** — the receipt line editor now shows a live "Outstanding: X.XXXX" figure next to the qty field for every PO-linked line, read fresh at render time (found missing during a pre-tag independent audit against the M5 plan's own Definition of Done).
+- **Mandatory over-receipt warning** — the post-confirmation screen now shows a non-suppressible warning naming every over-receiving line and its over-received quantity whenever any line's quantity exceeds its current outstanding, reusing the same server-side over-receipt assessment already computed at post time (found missing during the same audit).
+- **N+1 query pattern in pre-transaction PO-line validation** — `Goods_Receipt_Service::validate_and_assess_po_linked_lines()` now bulk-fetches every referenced PO line and owning PO (two new repository methods, `Purchase_Order_Lines::list_by_ids()` / `Purchase_Orders::list_by_ids()`) instead of one `get()` call per line; the performance test suite now verifies constant query cost and exercises the plan's own named ~100-line scale, previously untested past 4 lines.
+- **`PO_Service::close_short()` and `qty_received`** — closing a PO short now cancels exactly a line's unreceived remainder (`qty_ordered - qty_received`) instead of the full ordered quantity, restoring the invariant `qty_received + qty_cancelled == qty_ordered` for lines closed short after a partial receipt (previously the displayed "Cancelled" figure could exceed what was actually never received).
 
 ### Verified unchanged
 

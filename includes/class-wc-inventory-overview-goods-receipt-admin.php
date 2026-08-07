@@ -482,6 +482,12 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 					</select>
 					<?php if ( $po_line_id > 0 ) : ?>
 						<p class="description"><?php echo esc_html( sprintf( /* translators: %s: PO line id */ __( 'From PO line #%s', 'wc-inventory-overview' ), (string) $po_line_id ) ); ?></p>
+						<?php $outstanding = self::current_po_line_outstanding( $po_line_id ); ?>
+						<?php if ( null !== $outstanding ) : ?>
+							<p class="description wc-io-gr-line-outstanding" data-po-line-id="<?php echo esc_attr( (string) $po_line_id ); ?>" data-outstanding="<?php echo esc_attr( (string) $outstanding ); ?>">
+								<?php echo esc_html( sprintf( /* translators: %s: outstanding quantity, 4 decimals */ __( 'Outstanding: %s', 'wc-inventory-overview' ), number_format( $outstanding, 4, '.', '' ) ) ); ?>
+							</p>
+						<?php endif; ?>
 					<?php endif; ?>
 				<?php else : ?>
 					<?php echo esc_html( $name ); ?>
@@ -518,6 +524,23 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 			<?php endif; ?>
 		</tr>
 		<?php
+	}
+
+	/**
+	 * Current outstanding quantity for a PO-linked line, read fresh at render time
+	 * (M5 plan §Receiving workflow — never cached/stale, since another receipt may
+	 * have posted against the same line moments ago). Reuses the existing computed
+	 * outstanding figure; no business logic duplicated here.
+	 *
+	 * @param int $po_line_id PO line id.
+	 * @return float|null Outstanding quantity, or null if the PO line can no longer be resolved.
+	 */
+	private static function current_po_line_outstanding( int $po_line_id ): ?float {
+		$po_line = WC_Inventory_Overview_Purchase_Order_Lines::get( $po_line_id );
+		if ( is_wp_error( $po_line ) ) {
+			return null;
+		}
+		return WC_Inventory_Overview_Purchase_Order_Lines::outstanding( $po_line );
 	}
 
 	/**
@@ -688,11 +711,46 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'Only a draft Goods Receipt can be posted.', 'wc-inventory-overview' ) . '</p></div>';
 			return;
 		}
-		$lines = WC_Inventory_Overview_Receipt_Lines::list_for_receipt( $id );
+		$lines            = WC_Inventory_Overview_Receipt_Lines::list_for_receipt( $id );
+		$over_receipt_map = WC_Inventory_Overview_Goods_Receipt_Service::preview_po_over_receipt( $id );
+		if ( is_wp_error( $over_receipt_map ) ) {
+			$over_receipt_map = array();
+		}
+		$over_receipt_lines = array();
+		foreach ( $lines as $line ) {
+			$assessment = $over_receipt_map[ (int) $line['id'] ] ?? null;
+			if ( $assessment && ! empty( $assessment['over_receipt'] ) ) {
+				$over_receipt_lines[ (int) $line['id'] ] = $assessment;
+			}
+		}
 		?>
 		<p><a href="<?php echo esc_url( self::detail_url( $id ) ); ?>">&larr; <?php esc_html_e( 'Back', 'wc-inventory-overview' ); ?></a></p>
 		<h2><?php echo esc_html( sprintf( /* translators: %s: receipt number */ __( 'Confirm posting %s', 'wc-inventory-overview' ), $receipt['receipt_number'] ) ); ?></h2>
 		<p class="notice notice-info inline"><strong><?php esc_html_e( 'Preview only — nothing has been saved and stock has not changed.', 'wc-inventory-overview' ); ?></strong></p>
+		<?php if ( ! empty( $over_receipt_lines ) ) : ?>
+			<div class="notice notice-warning inline wc-io-gr-over-receipt-warning">
+				<p><strong><?php esc_html_e( 'Over-receipt warning', 'wc-inventory-overview' ); ?></strong></p>
+				<ul>
+					<?php foreach ( $lines as $line ) : ?>
+						<?php $assessment = $over_receipt_lines[ (int) $line['id'] ] ?? null; ?>
+						<?php if ( $assessment ) : ?>
+							<li>
+								<?php
+								echo esc_html(
+									sprintf(
+										/* translators: 1: product name, 2: over-received quantity, 4 decimals */
+										__( '%1$s exceeds the current outstanding quantity by %2$s units. Posting will over-receive this PO line.', 'wc-inventory-overview' ),
+										(string) $line['name_snapshot'],
+										number_format( (float) $assessment['qty_over'], 4, '.', '' )
+									)
+								);
+								?>
+							</li>
+						<?php endif; ?>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		<?php endif; ?>
 		<table class="widefat striped">
 			<thead><tr>
 				<th><?php esc_html_e( 'Product', 'wc-inventory-overview' ); ?></th>
@@ -708,8 +766,9 @@ class WC_Inventory_Overview_Goods_Receipt_Admin {
 				$purchasable_id = (int) $line['variation_id'] > 0 ? (int) $line['variation_id'] : (int) $line['product_id'];
 				$product        = wc_get_product( $purchasable_id );
 				$preview        = $product ? WC_Inventory_Overview_Goods_Receipt_Costing::preview_line( $product, (float) $line['qty'], (float) $line['true_unit_cost'] ) : null;
+				$is_over        = isset( $over_receipt_lines[ (int) $line['id'] ] );
 				?>
-				<tr>
+				<tr<?php echo $is_over ? ' class="wc-io-gr-line-over-receipt"' : ''; ?>>
 					<td><?php echo esc_html( (string) $line['name_snapshot'] ); ?></td>
 					<td><?php echo esc_html( (string) $line['qty'] ); ?></td>
 					<td><?php echo esc_html( (string) $line['true_unit_cost'] ); ?></td>
