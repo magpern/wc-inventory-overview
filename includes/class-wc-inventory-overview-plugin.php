@@ -61,7 +61,6 @@ class WC_Inventory_Overview_Plugin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_restock_assets' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_settings_shipping_assets' ) );
 		add_action( 'admin_post_wc_io_restock', array( $this, 'handle_restock_post' ) );
-		add_action( 'admin_post_wc_io_batch_apply', array( $this, 'handle_batch_apply_post' ) );
 		add_action( 'admin_post_wc_io_cost_adjustment', array( $this, 'handle_cost_adjustment_post' ) );
 		add_action( 'admin_post_wc_io_save_settings', array( $this, 'handle_save_settings_post' ) );
 		add_action( 'admin_post_wc_io_add_exchange_rate', array( $this, 'handle_add_exchange_rate_post' ) );
@@ -70,7 +69,6 @@ class WC_Inventory_Overview_Plugin {
 		add_action( 'admin_post_wc_io_danger_reset_apply', array( $this, 'handle_danger_reset_apply_post' ) );
 		add_action( 'wp_ajax_wc_io_save_inline_stock', array( $this, 'ajax_save_inline_stock' ) );
 		add_action( 'wp_ajax_wc_io_get_cost_adjustment_preview', array( $this, 'ajax_get_cost_adjustment_preview' ) );
-		add_action( 'wp_ajax_wc_io_batch_preview', array( $this, 'ajax_batch_preview' ) );
 		add_action( 'wp_ajax_wc_io_get_exchange_rate', array( $this, 'ajax_get_exchange_rate' ) );
 	}
 
@@ -103,7 +101,7 @@ class WC_Inventory_Overview_Plugin {
 			if ( ! current_user_can( 'manage_woocommerce' ) ) {
 				return;
 			}
-			wp_safe_redirect( $this->admin_url_tab( self::TAB_RESTOCK, array( 'restock_view' => self::RESTOCK_VIEW_BATCH ) ) );
+			wp_safe_redirect( $this->admin_url_tab( self::TAB_RESTOCK, array( 'restock_view' => self::RESTOCK_VIEW_QUICK ) ) );
 			exit;
 		}
 	}
@@ -206,33 +204,36 @@ class WC_Inventory_Overview_Plugin {
 	}
 
 	/**
-	 * Restock tab internal sub-view (batch intake default).
+	 * Restock tab internal sub-view (Quick Restock default — Batch Intake was
+	 * retired in M6; requesting restock_view=batch now falls back here rather
+	 * than erroring, so a stale bookmark from before v1.23.0 still resolves
+	 * to a working screen).
 	 *
-	 * @return string batch|quick|adjust
+	 * @return string quick|adjust
 	 */
 	protected function get_restock_subview() {
 		if ( self::TAB_RESTOCK !== $this->get_requested_tab() ) {
-			return self::RESTOCK_VIEW_BATCH;
+			return self::RESTOCK_VIEW_QUICK;
 		}
 		$raw = isset( $_GET['restock_view'] ) ? sanitize_key( wp_unslash( $_GET['restock_view'] ) ) : '';
 		$allowed = array(
-			self::RESTOCK_VIEW_BATCH,
 			self::RESTOCK_VIEW_QUICK,
 			self::RESTOCK_VIEW_ADJUST,
 		);
 		if ( in_array( $raw, $allowed, true ) ) {
 			return $raw;
 		}
-		return self::RESTOCK_VIEW_BATCH;
+		return self::RESTOCK_VIEW_QUICK;
 	}
 
 	/**
-	 * Secondary nav under Restock / Cost Adjustment.
+	 * Secondary nav under Restock / Cost Adjustment. Batch Intake was removed
+	 * from this nav in M6 — see the M6 implementation plan's Retirement
+	 * strategy ("Removed (in M6)": the two admin entry points that reached it).
 	 */
 	protected function render_restock_subnav() {
 		$cur   = $this->get_restock_subview();
 		$items = array(
-			self::RESTOCK_VIEW_BATCH  => __( 'Batch Intake', 'wc-inventory-overview' ),
 			self::RESTOCK_VIEW_QUICK  => __( 'Quick Restock', 'wc-inventory-overview' ),
 			self::RESTOCK_VIEW_ADJUST => __( 'Cost Adjustment', 'wc-inventory-overview' ),
 		);
@@ -1568,38 +1569,11 @@ class WC_Inventory_Overview_Plugin {
 				),
 			)
 		);
-		wp_enqueue_script(
-			'wc-io-batch-intake',
-			plugins_url( 'assets/batch-intake.js', WC_INVENTORY_OVERVIEW_FILE ),
-			array( 'jquery', 'wc-enhanced-select' ),
-			WC_INVENTORY_OVERVIEW_VERSION,
-			true
-		);
-		wp_localize_script(
-			'wc-io-batch-intake',
-			'wcIoBatchIntake',
-			array(
-				'ajaxUrl'                 => admin_url( 'admin-ajax.php' ),
-				'nonce'                   => wp_create_nonce( 'wc_io_batch_preview' ),
-				'exchangeRateNonce'       => wp_create_nonce( 'wc_io_get_exchange_rate' ),
-				'currencyEur'             => WC_Inventory_Overview_Settings::CURRENCY_EUR,
-				'currencyUsd'             => WC_Inventory_Overview_Settings::CURRENCY_USD,
-				'currencySek'             => WC_Inventory_Overview_Settings::CURRENCY_SEK,
-				'defaultPurchaseCurrency' => WC_Inventory_Overview_Settings::get_default_purchase_currency(),
-				'siteTodayYmd'            => wp_date( 'Y-m-d', null, wp_timezone() ),
-				'lineSubtotalHeadingTpl'  => __( 'Line subtotal (%s)', 'wc-inventory-overview' ),
-				'strings'                 => array(
-					'previewError'           => __( 'Could not load batch preview.', 'wc-inventory-overview' ),
-					'loading'                => __( 'Loading preview…', 'wc-inventory-overview' ),
-					'previewBusy'            => __( 'Checking…', 'wc-inventory-overview' ),
-					'rateHintHistory'        => __( 'Using historical rate from %s.', 'wc-inventory-overview' ),
-					'rateHintNoHistory'      => __( 'No historical exchange rate found for this date. Please enter a manual rate.', 'wc-inventory-overview' ),
-					'rateHintEur'            => __( 'EUR always uses 1.', 'wc-inventory-overview' ),
-					'rateHintManual'         => __( 'Manual override.', 'wc-inventory-overview' ),
-					'rateHintAjaxError'      => __( 'Could not load rate from server.', 'wc-inventory-overview' ),
-				),
-			)
-		);
+		// M6: wc-io-batch-intake (assets/batch-intake.js) is no longer enqueued —
+		// Batch Intake's admin markup was retired in M6, so the script would only
+		// ever bind to a DOM section that no longer renders. The asset file itself
+		// is left in place (disabled-not-deleted), matching the M6 implementation
+		// plan's Retirement strategy.
 		wp_add_inline_script(
 			'wc-enhanced-select',
 			'jQuery(function($){ $(document.body).trigger("wc-enhanced-select-init"); });',
@@ -1676,6 +1650,11 @@ class WC_Inventory_Overview_Plugin {
 
 	/**
 	 * AJAX: authoritative batch preview (Stage 1 — no DB writes).
+	 *
+	 * @deprecated M6 (v1.23.0) — unreachable. The wp_ajax_wc_io_batch_preview
+	 * hook registration was removed in init(); this method is retained only
+	 * for reference during a migration audit (see the M6 implementation
+	 * plan's Retirement strategy — "Disabled, not deleted").
 	 */
 	public function ajax_batch_preview() {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
@@ -1751,6 +1730,11 @@ class WC_Inventory_Overview_Plugin {
 
 	/**
 	 * Process batch intake apply (admin-post).
+	 *
+	 * @deprecated M6 (v1.23.0) — unreachable. The admin_post_wc_io_batch_apply
+	 * hook registration was removed in init(); this method is retained only
+	 * for reference during a migration audit (see the M6 implementation
+	 * plan's Retirement strategy — "Disabled, not deleted").
 	 */
 	public function handle_batch_apply_post() {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
@@ -1954,9 +1938,7 @@ class WC_Inventory_Overview_Plugin {
 		$this->render_restock_subnav();
 
 		$sub = $this->get_restock_subview();
-		if ( self::RESTOCK_VIEW_BATCH === $sub ) {
-			WC_Inventory_Overview_Batch_Intake_UI::render_panel( $form_action );
-		} elseif ( self::RESTOCK_VIEW_QUICK === $sub ) {
+		if ( self::RESTOCK_VIEW_QUICK === $sub ) {
 			echo '<h2 id="wc-io-restock-section" class="wp-heading-inline wc-io-tab-panel-title">' . esc_html__( 'Quick Restock', 'wc-inventory-overview' ) . '</h2>';
 			echo '<p class="description">' . esc_html__( 'Record a purchase restock. This increases stock and recalculates weighted average unit cost for the selected variation or simple product.', 'wc-inventory-overview' ) . '</p>';
 
