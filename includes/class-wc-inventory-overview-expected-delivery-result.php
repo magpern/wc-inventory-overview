@@ -17,31 +17,43 @@ defined( 'ABSPATH' ) || exit;
 final class WC_Inventory_Overview_Expected_Delivery_Result implements WC_Inventory_Overview_Expected_Delivery_Result_Interface {
 
 	/**
+	 * API_VERSION of the producing Service.
+	 *
 	 * @var int
 	 */
 	private $api_version;
 
 	/**
+	 * WooCommerce's is_in_stock() answer, echoed.
+	 *
 	 * @var bool
 	 */
 	private $available_now;
 
 	/**
+	 * One of the STATE_* constants.
+	 *
 	 * @var string
 	 */
 	private $state;
 
 	/**
+	 * Raw Y-m-d, only for STATE_EXPECTED_DATE.
+	 *
 	 * @var string|null
 	 */
 	private $expected_date;
 
 	/**
+	 * 'exact'|'estimated', only for STATE_EXPECTED_DATE.
+	 *
 	 * @var string|null
 	 */
 	private $confidence;
 
 	/**
+	 * Private -- construct only via create().
+	 *
 	 * @param int         $api_version   API_VERSION of the producing Service.
 	 * @param bool        $available_now WooCommerce's is_in_stock() answer.
 	 * @param string      $state         One of the STATE_* constants.
@@ -57,6 +69,8 @@ final class WC_Inventory_Overview_Expected_Delivery_Result implements WC_Invento
 	}
 
 	/**
+	 * Sole factory -- the constructor is private.
+	 *
 	 * @param int         $api_version   API_VERSION of the producing Service.
 	 * @param bool        $available_now WooCommerce's is_in_stock() answer.
 	 * @param string      $state         One of the STATE_* constants.
@@ -69,6 +83,8 @@ final class WC_Inventory_Overview_Expected_Delivery_Result implements WC_Invento
 	}
 
 	/**
+	 * The API_VERSION of the Service that produced this Result. Informational only.
+	 *
 	 * @inheritDoc
 	 */
 	public function api_version(): int {
@@ -76,6 +92,8 @@ final class WC_Inventory_Overview_Expected_Delivery_Result implements WC_Invento
 	}
 
 	/**
+	 * WooCommerce's own is_in_stock() answer, echoed.
+	 *
 	 * @inheritDoc
 	 */
 	public function available_now(): bool {
@@ -83,6 +101,8 @@ final class WC_Inventory_Overview_Expected_Delivery_Result implements WC_Invento
 	}
 
 	/**
+	 * One of the four STATE_* constants.
+	 *
 	 * @inheritDoc
 	 */
 	public function state(): string {
@@ -90,6 +110,8 @@ final class WC_Inventory_Overview_Expected_Delivery_Result implements WC_Invento
 	}
 
 	/**
+	 * Raw Y-m-d date, never localized.
+	 *
 	 * @inheritDoc
 	 */
 	public function expected_date(): ?string {
@@ -97,6 +119,8 @@ final class WC_Inventory_Overview_Expected_Delivery_Result implements WC_Invento
 	}
 
 	/**
+	 * 'exact' or 'estimated'. Never 'unknown'.
+	 *
 	 * @inheritDoc
 	 */
 	public function confidence(): ?string {

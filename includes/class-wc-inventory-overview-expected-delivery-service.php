@@ -34,6 +34,8 @@ final class WC_Inventory_Overview_Expected_Delivery_Service {
 	private static $memo = array();
 
 	/**
+	 * Resolves the expected-delivery Result for one purchasable item.
+	 *
 	 * @param WC_Product|int $product Product/variation instance or ID.
 	 * @return WC_Inventory_Overview_Expected_Delivery_Result_Interface
 	 */
@@ -44,6 +46,8 @@ final class WC_Inventory_Overview_Expected_Delivery_Service {
 	}
 
 	/**
+	 * Resolves the expected-delivery Result for many purchasable items in one pass.
+	 *
 	 * @param array<int,WC_Product|int> $products Product/variation instances or IDs.
 	 * @return array<int,WC_Inventory_Overview_Expected_Delivery_Result_Interface> Keyed by item ID.
 	 */
@@ -86,7 +90,7 @@ final class WC_Inventory_Overview_Expected_Delivery_Service {
 			if ( $wc_product instanceof WC_Product_Variation ) {
 				$variation_on_hand[ $id ] = 0.0;
 			} elseif ( $wc_product->is_type( 'variable' ) ) {
-				$children             = array_map( 'absint', $wc_product->get_children() );
+				$children               = array_map( 'absint', $wc_product->get_children() );
 				$parent_children[ $id ] = $children;
 				foreach ( $children as $child_id ) {
 					$variation_on_hand[ $child_id ] = 0.0;
@@ -138,9 +142,9 @@ final class WC_Inventory_Overview_Expected_Delivery_Service {
 	 * free from fabrication — this rolls up "does any variation have open
 	 * supply" (Position's own `incoming` total), never a per-variation date.
 	 *
-	 * @param bool              $available_now Parent's own is_in_stock() answer.
-	 * @param array<int,int>    $child_ids     Variation IDs.
-	 * @param array<int,array>  $positions     Bulk positions keyed by item ID.
+	 * @param bool             $available_now Parent's own is_in_stock() answer.
+	 * @param array<int,int>   $child_ids     Variation IDs.
+	 * @param array<int,array> $positions     Bulk positions keyed by item ID.
 	 * @return array{state: string, expected_date: string|null, confidence: string|null}
 	 */
 	private static function resolve_variable_parent( bool $available_now, array $child_ids, array $positions ): array {
@@ -208,6 +212,9 @@ final class WC_Inventory_Overview_Expected_Delivery_Service {
 		add_action( 'wc_io_purchase_order_closed_short', array( __CLASS__, 'flush_memo' ) );
 	}
 
+	/**
+	 * Clears the request-scoped memo.
+	 */
 	public static function flush_memo(): void {
 		self::$memo = array();
 	}

@@ -21,6 +21,8 @@ defined( 'ABSPATH' ) || exit;
 final class WC_Inventory_Overview_Expected_Delivery_Resolver {
 
 	/**
+	 * Selects the one credible expected receipt out of an item's open PO lines.
+	 *
 	 * @param bool   $available_now WooCommerce's is_in_stock() answer for this item.
 	 * @param array  $incoming_lines Raw open PO-line rows (as returned inside
 	 *                               Inventory_Position_Service::get_positions_bulk()'s
@@ -75,10 +77,10 @@ final class WC_Inventory_Overview_Expected_Delivery_Resolver {
 	}
 
 	/**
-	 * customer_safe(line) predicate. Named after the governance test it applies,
-	 * not "credible" — see the plan's terminology note. A line fails not because
-	 * it is improbable but because it is delayed, undated, unknown-confidence,
-	 * or already in the past (Invariant M7-1).
+	 * The customer_safe(line) predicate. Named after the governance test it
+	 * applies, not "credible" — see the plan's terminology note. A line fails
+	 * not because it is improbable but because it is delayed, undated,
+	 * unknown-confidence, or already in the past (Invariant M7-1).
 	 *
 	 * @param array  $line        Raw PO-line row.
 	 * @param float  $outstanding Pre-computed `(float) $line['outstanding']`.
@@ -150,6 +152,8 @@ final class WC_Inventory_Overview_Expected_Delivery_Resolver {
 	}
 
 	/**
+	 * Sort rank for a confidence string: exact beats estimated beats anything else.
+	 *
 	 * @param string $confidence 'exact'|'estimated'|other.
 	 * @return int
 	 */
