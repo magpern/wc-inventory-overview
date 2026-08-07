@@ -718,6 +718,7 @@ class WC_Inventory_Overview_Plugin {
 		$range       = WC_Inventory_Overview_Settings::get_default_reporting_range();
 		$neg_hi      = WC_Inventory_Overview_Settings::highlight_negative_profit();
 		$def_cur     = WC_Inventory_Overview_Settings::get_default_purchase_currency();
+		$exp_deliv   = WC_Inventory_Overview_Settings::expected_delivery_renderer_enabled();
 
 		echo '<h2 class="wp-heading-inline wc-io-tab-panel-title">' . esc_html__( 'Settings', 'wc-inventory-overview' ) . '</h2>';
 		echo '<p class="description">' . esc_html__( 'Configure how snapshots, costs, shipping, reporting ranges, and low-stock thresholds behave across Inventory & Profit.', 'wc-inventory-overview' ) . '</p>';
@@ -853,6 +854,14 @@ class WC_Inventory_Overview_Plugin {
 		echo '</select>';
 		echo '<p class="description">' . esc_html__( 'Batch Intake line costs are entered in this currency unless you change it on the batch form.', 'wc-inventory-overview' ) . '</p></td></tr>';
 
+		echo '</tbody></table>';
+
+		echo '<h3>' . esc_html__( 'Storefront', 'wc-inventory-overview' ) . '</h3>';
+		echo '<table class="form-table" role="presentation"><tbody>';
+		echo '<tr><th scope="row">' . esc_html__( 'Enable Expected Delivery display', 'wc-inventory-overview' ) . '</th><td>';
+		echo '<fieldset><label><input type="radio" name="wc_io_expected_delivery_renderer_enabled" value="yes"' . checked( true, $exp_deliv, false ) . ' /> ' . esc_html__( 'Yes', 'wc-inventory-overview' ) . '</label> ';
+		echo '<label><input type="radio" name="wc_io_expected_delivery_renderer_enabled" value="no"' . checked( false, $exp_deliv, false ) . ' /> ' . esc_html__( 'No', 'wc-inventory-overview' ) . '</label></fieldset>';
+		echo '<p class="description">' . esc_html__( 'When Yes, an out-of-stock product with a customer-safe incoming delivery shows wording such as "Expected back around 1 September" instead of "Out of stock". Never shows supplier, PO, or quantity details.', 'wc-inventory-overview' ) . '</p></td></tr>';
 		echo '</tbody></table>';
 
 		submit_button( __( 'Save settings', 'wc-inventory-overview' ) );

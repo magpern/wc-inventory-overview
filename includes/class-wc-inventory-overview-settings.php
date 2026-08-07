@@ -37,6 +37,8 @@ class WC_Inventory_Overview_Settings {
 
 	public const OPTION_DEFAULT_PURCHASE_CURRENCY = 'wc_io_default_purchase_currency';
 
+	public const OPTION_EXPECTED_DELIVERY_RENDERER_ENABLED = 'wc_io_expected_delivery_renderer_enabled';
+
 	public const CURRENCY_EUR = 'EUR';
 
 	public const CURRENCY_USD = 'USD';
@@ -391,6 +393,18 @@ class WC_Inventory_Overview_Settings {
 	}
 
 	/**
+	 * Whether the built-in storefront renderer replaces WooCommerce's
+	 * "Out of stock" text with expected-delivery wording (M7). Default
+	 * 'yes': a feature that ships off by default ships untested in
+	 * production.
+	 *
+	 * @return bool
+	 */
+	public static function expected_delivery_renderer_enabled() {
+		return self::is_yes( get_option( self::OPTION_EXPECTED_DELIVERY_RENDERER_ENABLED, 'yes' ) );
+	}
+
+	/**
 	 * @return string[]
 	 */
 	public static function allowed_purchase_currencies() {
@@ -457,6 +471,8 @@ class WC_Inventory_Overview_Settings {
 			$cur = self::CURRENCY_EUR;
 		}
 		update_option( self::OPTION_DEFAULT_PURCHASE_CURRENCY, $cur, false );
+
+		update_option( self::OPTION_EXPECTED_DELIVERY_RENDERER_ENABLED, self::normalize_yes_no( $post, 'wc_io_expected_delivery_renderer_enabled' ), false );
 
 		return true;
 	}
