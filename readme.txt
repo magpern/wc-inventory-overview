@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.22.0
+Stable tag: 1.23.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,14 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.23.0 =
+* Milestone M6 — Migration & Retirement: legacy Batch Intake history is migrated into Goods Receipts as historical record materialization, not replay -- current stock and cost are byte-for-byte unchanged (verified by a dedicated golden test). Schema v10 (migration-tracking columns only, no new business schema).
+* New WP-CLI command: wp wc-io migrate-batches [--apply] [--verify] [--batch=<id>] [--rollback=<id>] [--limit=<n>] -- dry-run by default; --verify is the permanent reconciliation tool for this data.
+* Batch<->movement regex linkage replaced with typed reference_type/reference_id columns.
+* Batch Intake's create/apply admin entry points are retired -- no new batch can be created; legacy tables/rows are frozen, never deleted.
+* Migrated Goods Receipts cannot be voided through the normal admin action (use the CLI's --rollback mode instead); all other receipts are unaffected.
+* Landed-cost-type vocabulary extracted into a small, neutral class shared by Goods Receipt costing.
 
 = 1.22.0 =
 * Milestone M5 — Purchase Order Receiving: qty_received becomes a real, maintained column on wc_io_purchase_order_lines (full INV-4 formula: outstanding = ordered - received - cancelled). Schema v9.
