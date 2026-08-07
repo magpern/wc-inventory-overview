@@ -490,6 +490,12 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 		if ( WC_Inventory_Overview_Goods_Receipt_Lifecycle::STATUS_POSTED !== $receipt['status'] ) {
 			return new WP_Error( 'wc_io_gr_not_posted', __( 'Only a posted Goods Receipt can be voided.', 'wc-inventory-overview' ) );
 		}
+		if ( WC_Inventory_Overview_Goods_Receipts::SOURCE_MIGRATED === $receipt['source'] ) {
+			return new WP_Error(
+				'wc_io_gr_migrated_no_void',
+				__( 'Migrated historical receipts cannot be voided; use the migration CLI\'s --rollback mode instead.', 'wc-inventory-overview' )
+			);
+		}
 		$lines = WC_Inventory_Overview_Receipt_Lines::list_for_receipt( $id );
 
 		$user_id             = get_current_user_id();
