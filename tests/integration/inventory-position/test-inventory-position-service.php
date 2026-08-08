@@ -337,4 +337,73 @@ class Test_WC_IO_Inventory_Position_Service extends WC_Inventory_Overview_Test_C
 			'get_positions_bulk() must issue at most one product-line query and one variation-line query, regardless of row count'
 		);
 	}
+
+	/**
+	 * Release Readiness Gate (M8): GA-scale confirmatory extension of the
+	 * query-scaling guard above. Not a new technique -- the same bulk-call/
+	 * count-SELECTs proof, run once more at a size closer to a real
+	 * catalog (150 simple + 50 variable-with-variation = 200 items).
+	 * Confirmatory only: no caching or optimization change is implied by
+	 * this test either way.
+	 */
+	public function test_bulk_call_over_two_hundred_mixed_items_issues_at_most_two_queries() {
+		$product_on_hand   = array();
+		$variation_on_hand = array();
+
+		for ( $i = 0; $i < 150; $i++ ) {
+			$product = $this->create_simple_product();
+			$po      = $this->create_purchase_order();
+			$this->add_po_line(
+				$po['id'],
+				array(
+					'product_id'  => $product->get_id(),
+					'qty_ordered' => 1,
+				)
+			);
+			$this->place_po( $po['id'] );
+			$product_on_hand[ $product->get_id() ] = 0.0;
+		}
+
+		for ( $i = 0; $i < 50; $i++ ) {
+			$variable     = $this->create_variable_product( array(), array( array( 'name' => 'Variation ' . $i ) ) );
+			$children     = $this->variation_ids( $variable );
+			$variation_id = (int) $children[0];
+			$po           = $this->create_purchase_order();
+			$this->add_po_line(
+				$po['id'],
+				array(
+					'product_id'   => $variable->get_id(),
+					'variation_id' => $variation_id,
+					'qty_ordered'  => 1,
+				)
+			);
+			$this->place_po( $po['id'] );
+			$variation_on_hand[ $variation_id ] = 0.0;
+		}
+
+		$this->assertSame(
+			200,
+			count( $product_on_hand ) + count( $variation_on_hand ),
+			'GA-scale query-scaling guard requires 200 mixed items'
+		);
+
+		$lines_table      = WC_Inventory_Overview_Purchase_Order_Lines::table_name();
+		$position_queries = array();
+		$counter          = static function ( $query ) use ( $lines_table, &$position_queries ) {
+			if ( false !== strpos( $query, $lines_table ) && false !== stripos( $query, 'SELECT' ) ) {
+				$position_queries[] = $query;
+			}
+			return $query;
+		};
+
+		add_filter( 'query', $counter );
+		WC_Inventory_Overview_Inventory_Position_Service::get_positions_bulk( $product_on_hand, $variation_on_hand );
+		remove_filter( 'query', $counter );
+
+		$this->assertLessThanOrEqual(
+			2,
+			count( $position_queries ),
+			'get_positions_bulk() must issue at most one product-line query and one variation-line query at GA scale (200 items), same bound as at 20'
+		);
+	}
 }

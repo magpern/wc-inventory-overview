@@ -258,4 +258,37 @@ class Test_WC_IO_Expected_Delivery_Performance extends WC_Inventory_Overview_Tes
 		);
 		$this->assertSame( 0, $second_call_count, 'A memoized item must cost zero further queries' );
 	}
+
+	/**
+	 * Release Readiness Gate (M8): GA-scale confirmatory extension of
+	 * Invariant M7-3's own equality-based acceptance criterion. Not a new
+	 * technique -- the same 20-vs-40 proof above, run once more at a size
+	 * closer to a real catalog. Confirmatory only: no caching or
+	 * optimization change is implied by this test either way.
+	 */
+	public function test_two_hundred_products_issue_the_same_query_count_as_twenty() {
+		$items_20 = $this->build_catalog( 15, 5 );
+		$this->assertCount( 20, $items_20 );
+
+		$count_20 = $this->count_lines_table_queries(
+			static function () use ( $items_20 ) {
+				WC_Inventory_Overview_Expected_Delivery_Service::get_for_products_bulk( $items_20 );
+			}
+		);
+
+		WC_Inventory_Overview_Expected_Delivery_Service::flush_memo();
+		$this->purge_po_tables();
+		delete_option( WC_Inventory_Overview_PO_Numbering::OPTION_KEY );
+
+		$items_200 = $this->build_catalog( 150, 50 );
+		$this->assertCount( 200, $items_200 );
+
+		$count_200 = $this->count_lines_table_queries(
+			static function () use ( $items_200 ) {
+				WC_Inventory_Overview_Expected_Delivery_Service::get_for_products_bulk( $items_200 );
+			}
+		);
+
+		$this->assertSame( $count_20, $count_200, '20 and 200 mixed products must issue the same query count (bounded, not merely small)' );
+	}
 }
