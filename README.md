@@ -1,20 +1,27 @@
 # WC Inventory Overview
 
-Operational inventory, costing, and profitability dashboard for WooCommerce (HPOS-compatible).
+Purchasing, receiving, inventory-position, and storefront expected-delivery platform for WooCommerce (HPOS-compatible).
 
-**Version:** 1.18.0 (see plugin header)  
+**Version:** 1.24.0 (see plugin header)  
 **Releases:** https://github.com/magpern/wc-inventory-overview/releases (tag `v*`)  
 **Requires:** WordPress 6.0+, PHP 7.4+, WooCommerce with HPOS supported
+**Platform status:** Milestones M0–M7 complete (schema `DB_VERSION` 10) — see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md).
 
 ## Features
 
 - Inventory overview with inline stock editing, filters, and CSV export
-- Purchase batches, quick restock, and average-cost adjustments
+- Quick restock and average-cost adjustments
 - Inventory movement ledger
 - Order profit and product profitability reporting
-- Exchange rate history and multi-currency batch intake
+- Exchange rate history and multi-currency purchasing
 - Dashboard charts (Chart.js bundled in `assets/vendor/`)
-- **Purchasing (M1):** WooCommerce → **Purchasing** submenu with first-class **Suppliers** (schema v6)
+- **Suppliers (M1):** WooCommerce → **Purchasing** submenu with first-class supplier entities (schema v6)
+- **Purchase Orders (M2):** four-state PO lifecycle, PO numbering, expected dates/confidence, append-only event log (schema v7)
+- **Inventory Position (M3):** read-only, derived `{On Hand, Incoming, Position}` with per-supply drill-down (no schema change)
+- **Goods Receipts (M4):** the sole stock/cost mutation point — "Receive Stock" tab, Quick Receive Without PO (schema v8)
+- **PO Receiving (M5):** receive directly against a Purchase Order; `qty_received` tracking with reconciliation CLI (schema v9)
+- **Migration & Retirement (M6):** legacy Batch Intake history migrated into Goods Receipts; Batch Intake retired (schema v10)
+- **Storefront Expected Delivery (M7):** customer-facing "Expected back around …" / "Expected during week …" / "Expected soon" text via a versioned public API (no schema change)
 
 ## Installation
 
@@ -51,6 +58,7 @@ Automated tests: see [docs/testing.md](docs/testing.md) (PHPUnit, PHPCS, Docker-
 
 | Doc | Purpose |
 |-----|---------|
+| [docs/ARCHITECTURE_BASELINE_v1.24.0.md](docs/ARCHITECTURE_BASELINE_v1.24.0.md) | Frozen post-M7 architecture baseline (start here for any new milestone) |
 | [docs/OWNERSHIP.md](docs/OWNERSHIP.md) | Inbound vs outbound domain ownership |
 | [docs/adr/](docs/adr/) | Architecture decision records |
 | [docs/testing.md](docs/testing.md) | Test strategy and golden fixtures |

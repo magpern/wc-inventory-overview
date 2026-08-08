@@ -168,24 +168,31 @@ Set the **Default lead time** to a conservative middle value:
 
 ---
 
-## Current Milestone Limitations
+## Platform Status
 
-### Not Yet Available
-
-The following features are planned but not yet implemented in the current milestone:
-
-- **Purchase Orders**: The full purchase order functionality (creation, editing, tracking) arrives in a future release. For now, suppliers are registered for future use.
-- **Lead-time statistics**: Observed average/minimum/maximum delivery times are computed in a future milestone.
-- **Supplier analytics**: Spend analysis, reliability scoring, and order history are deferred.
-- **Supplier merge tool**: Consolidating duplicate suppliers into one record is a manual process for now; a dedicated merge tool is planned.
+As of v1.24.0 (Milestones M0–M7 complete — see
+[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md)),
+the purchasing platform built on top of Suppliers is fully shipped:
 
 ### What Is Available Now
 
-✓ Supplier register with contact and currency information  
-✓ Supplier archive/reactivate lifecycle  
-✓ Supplier autocomplete in purchasing workflows  
-✓ Inline supplier creation  
-✓ Configured lead-time default  
+✓ Supplier register with contact and currency information
+✓ Supplier archive/reactivate lifecycle
+✓ Supplier autocomplete in purchasing workflows
+✓ Inline supplier creation
+✓ Configured lead-time default
+✓ **Purchase Orders** (M2): full creation, editing, and lifecycle tracking — WooCommerce → Purchasing → Purchase Orders
+✓ **Inventory Position** (M3): live On Hand / Incoming / Position figures per item, driven by each supplier's open PO lines
+✓ **Goods Receipts** (M4/M5): receiving against a PO or directly, with automatic PO status updates
+✓ **Storefront Expected Delivery** (M7): customer-facing "Expected back around …" text, derived from each supplier's confirmed expected dates
+
+### Not Yet Available
+
+The following remain deferred to a future milestone:
+
+- **Lead-time statistics**: Observed average/minimum/maximum delivery times (computed from actual receiving history) — the configured lead time is today's fallback.
+- **Supplier analytics**: Spend analysis, reliability scoring, and order history reporting.
+- **Supplier merge tool**: Consolidating duplicate suppliers into one record is a manual process for now; a dedicated merge tool is planned.
 
 ---
 

@@ -4,6 +4,18 @@
 
 **Auto-loaded by Claude Code:** this file is discovered at the plugin repository root and serves as project-level instructions/context for the IDE extension and CLI tool.
 
+## Platform status: M0–M7 COMPLETE
+
+**Current baseline: plugin 1.24.0, `DB_VERSION` 10.** All eight foundational
+milestones (M0 Delivery Foundations through M7 Storefront Expected Delivery)
+are shipped and frozen. **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)**
+is the consolidated post-M7 snapshot — completed milestones, frozen
+ownership boundaries, public APIs, schema, invariants, and future-governance
+rules. Any new milestone (M8 onward) should start from that document rather
+than re-deriving M0–M7 from this file's Part I–III text below. The
+Implementation Status table at the end of this file remains the authoritative
+per-milestone release ledger.
+
 ---
 
 # PART I — Architecture v1.0
@@ -174,8 +186,8 @@ This table is updated as each milestone is implemented. Each milestone links to 
 | M7 | Storefront | ✅ Complete | 1.24.0 | [docs/milestones/m7-implementation-plan.md](docs/milestones/m7-implementation-plan.md) | Schema unchanged (v10), `Expected_Delivery_Result_Interface`/`Result`/`Resolver`/`Service`/`Renderer` (API v1, sole public API + sole-entry-point rule), built-in `woocommerce_get_availability` renderer, one merchant toggle, two generic extension filters, Invariants M7-1/M7-2/M7-3; this plugin now owns customer-facing expected-delivery presentation |
 | M8 | Hardening & GA | ⏳ Planned | 2.0.0 | docs/milestones/m8-implementation-plan.md *(not yet written)* | Integrity checks, conformance audit, GA readiness |
 
-**Release note:** v1.18.0 (M1) is on `main`. GitHub tag **`v1.18.0` is pending** — see `docs/GITHUB_RELEASE_NOTES_1.18.0.md` before tagging.
+**Release note:** v1.24.0 (M7) is on `main`, tagged, and published as a GitHub Release — see `docs/GITHUB_RELEASE_NOTES_1.24.0.md`. All prior milestone releases (M0–M6, tags `v1.17.3`–`v1.23.0`) are tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
 
 ---
 
-**Planning baseline:** Detailed bodies for Part I §6–§20, Delivery Roadmap R1–R9, and M0.1–M0.24 were **never committed to this repository** (the bracket placeholders above are stubs only). For milestone planning today, treat **Part I §1–§5** (executive summary, current state, decisions D1–D19, invariants INV-1–INV-8, entity model §5.1–§5.2) and **this status table** as the authoritative baseline. M1 detail: `docs/milestones/m1-implementation-plan.md`.
+**Planning baseline:** Detailed bodies for Part I §6–§20, Delivery Roadmap R1–R9, and M0.1–M0.24 were **never committed to this repository** (the bracket placeholders above are stubs only). For milestone planning today, treat **Part I §1–§5** (executive summary, current state, decisions D1–D19, invariants INV-1–INV-8, entity model §5.1–§5.2), **this status table**, and — for any milestone from M8 onward — **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)** as the authoritative baseline. M1 detail: `docs/milestones/m1-implementation-plan.md`.
