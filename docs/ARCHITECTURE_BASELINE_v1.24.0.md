@@ -268,13 +268,19 @@ have an external consumer to version against yet (D16).
 **Public entry point:** `WC_Inventory_Overview_Inventory_Position_Service`
 
 ```php
-Inventory_Position_Service::get_position( $product_id, $variation_id = 0 ): array
-Inventory_Position_Service::get_positions_bulk( array $items ): array
+Inventory_Position_Service::get_position( string $item_type, int $item_id, float $on_hand ): array
+Inventory_Position_Service::get_positions_bulk( array $product_on_hand, array $variation_on_hand ): array
 ```
 
-Returns `{on_hand, incoming, position, incoming_delayed, incoming_lines}`.
-`get_position()` is defined as `get_positions_bulk()` with a single-item map
-— single and bulk always share one code path and can never disagree.
+`$item_type` is `Inventory_Position_Service::TYPE_PRODUCT` or `TYPE_VARIATION`.
+`$on_hand`/`$product_on_hand`/`$variation_on_hand` are always **caller-supplied**
+— the Service never fetches On Hand itself; `get_positions_bulk()` takes two
+separate ID-keyed maps (product IDs and variation IDs), not one combined list,
+matching the Resolver's separate product-scoped and variation-scoped queries.
+Returns `{on_hand, incoming, position, incoming_delayed, incoming_lines}`,
+keyed by item ID for the bulk call. `get_position()` is defined as
+`get_positions_bulk()` with a single-item map — single and bulk always share
+one code path and can never disagree.
 
 This API predates M7's formal `API_VERSION` convention and has no version
 number of its own; its contract has been stable since v1.20.0 and is treated
@@ -291,9 +297,12 @@ second entry point.
 `API_VERSION = 1` (versioned independently of the plugin version).
 
 ```php
-Expected_Delivery_Service::get_for_product( WC_Product $product ): Result_Interface
-Expected_Delivery_Service::get_for_products_bulk( array $products ): array  // keyed by product ID
+Expected_Delivery_Service::get_for_product( WC_Product|int $product ): Result_Interface
+Expected_Delivery_Service::get_for_products_bulk( array $products ): array  // keyed by item ID
 ```
+
+Both methods accept a `WC_Product`/`WC_Product_Variation` instance **or** a
+bare product/variation ID — not the instance only.
 
 **The public contract is the interface**,
 `WC_Inventory_Overview_Expected_Delivery_Result_Interface` — four
