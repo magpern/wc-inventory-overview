@@ -31,6 +31,12 @@ class Test_WC_IO_PO_Delay extends WP_UnitTestCase {
 			array( 'placed', 1.0, '2026-08-04', 'estimated', 1, '2026-08-05', false ), // 4+1=5 not < 5.
 			array( 'placed', 1.0, '2026-08-03', 'estimated', 1, '2026-08-05', true ),  // 3+1=4 < 5.
 			array( 'placed', 1.0, '2026-08-05', 'estimated', 0, '2026-08-05', false ), // equal not delayed.
+			// M8/WP2: partially_received lines with real outstanding can be
+			// delayed too (the gap M5 left open, closed here) -- and a fully
+			// received line (outstanding = 0) never can, regardless of status.
+			array( 'partially_received', 1.0, '2026-08-01', 'estimated', 0, '2026-08-05', true ),
+			array( 'partially_received', 1.0, '2026-08-10', 'estimated', 0, '2026-08-05', false ),
+			array( 'received', 0.0, '2026-08-01', 'estimated', 0, '2026-08-05', false ),
 		);
 	}
 

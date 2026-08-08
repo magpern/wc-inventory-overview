@@ -44,7 +44,18 @@ class WC_Inventory_Overview_PO_Delay {
 		int $grace_days = 0,
 		$today = null
 	): bool {
-		if ( WC_Inventory_Overview_PO_Statuses::PLACED !== $po_status ) {
+		// M8/WP2: extends the placed-only gate to partially_received -- a PO
+		// that has received some, but not all, of a line's ordered quantity
+		// can still be genuinely overdue on its remaining outstanding. The
+		// $outstanding <= 0 check just below already excludes a partially
+		// received line with nothing left outstanding, and a fully received
+		// PO (status = received) always has outstanding = 0 by INV-4, so
+		// this gate is deliberately not widened to "received" as well.
+		$delayable_statuses = array(
+			WC_Inventory_Overview_PO_Statuses::PLACED,
+			WC_Inventory_Overview_PO_Statuses::PARTIALLY_RECEIVED,
+		);
+		if ( ! in_array( $po_status, $delayable_statuses, true ) ) {
 			return false;
 		}
 		if ( $outstanding <= 0 ) {
@@ -130,8 +141,14 @@ class WC_Inventory_Overview_PO_Delay {
 		$effective_conf = "COALESCE(NULLIF(pol.expected_confidence, ''), NULLIF(po.expected_confidence, ''), 'unknown')";
 		$outstanding    = 'GREATEST(0, pol.qty_ordered - pol.qty_received - pol.qty_cancelled)';
 
+		// M8/WP2: 'placed' and 'partially_received' only -- mirrors
+		// is_line_delayed()'s PHP-side gate above and the same M5 precedent
+		// query_open_lines() already established for Incoming purposes.
+		// 'received' is deliberately excluded: a fully received line always
+		// has outstanding = 0 (INV-4), so it can never satisfy the
+		// "(%s) > 0" clause below regardless.
 		return sprintf(
-			"po.status = 'placed'
+			"po.status IN ('placed', 'partially_received')
 			AND (%s) > 0
 			AND (%s) <> 'unknown'
 			AND (%s) IS NOT NULL
