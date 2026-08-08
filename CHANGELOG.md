@@ -1,5 +1,44 @@
 # Changelog — WC Inventory Overview
 
+## [1.25.0] - 2026-08-08
+
+**Milestone M8 — Hardening & GA.** Not a feature milestone: a hardening, cleanup, and conformance pass that closes out every genuinely-justified, previously-deferred item from M0–M7, so the platform can be called production-finished. **Zero new domain concepts, zero schema change (`DB_VERSION` stays 10), zero public API change.** With M8 complete, M0–M8 is considered **Version 1.0 / GA ready** — see `docs/ARCHITECTURE_BASELINE_v1.24.0.md`'s updated milestone table and `docs/architecture-audit.md`'s M8 GA-readiness statement. **Prerequisite:** v1.24.0 (M7 Storefront Expected Delivery).
+
+### Removed
+
+- **The M6-deprecated Batch Intake create/apply code**, physically deleted per the governance rule reserving that deletion for M8 (M6's own "disabled, not deleted, slated for physical removal in M8"): `WC_Inventory_Overview_Batch_Intake_Service`'s `build_preview_from_post()`/`apply_batch_from_post()`/`rollback_batch_apply()`/`build_movement_note_for_line()`/`render_preview_markup()` and their private-only helpers; `WC_Inventory_Overview_Batch_Intake_UI` (deleted entirely — its one method had zero remaining callers); `WC_Inventory_Overview_Plugin::ajax_batch_preview()`/`handle_batch_apply_post()` and the already-unreachable `RESTOCK_VIEW_BATCH` admin-notice code path. `landed_cost_type_labels()`/`allowed_cost_types()` are retained as live delegation shims to `WC_Inventory_Overview_Landed_Cost_Types`. This removes code, not history — legacy `wc_io_purchase_batches`/`_lines`/`_costs` tables and rows are completely untouched (D14, frozen forever).
+
+### Fixed
+
+- **`PO_Delay`'s `partially_received` gap.** A partially-received Purchase Order's remaining outstanding could be genuinely overdue and never show "Delayed" in the admin (PO detail page, Inventory Overview drill-down) — `is_line_delayed()` and `sql_line_delayed_predicate()` both gated on `status = 'placed'` only. Now also covers `partially_received`, mirroring the M5 precedent already applied to the sibling Incoming query. Deliberately not extended to `received` (INV-4 guarantees a fully received line's outstanding is always 0). This is the admin-side root cause the M7 storefront Resolver already defended against independently (Invariant M7-1) without fixing.
+- The one live PHP 8.4 deprecation notice in the codebase (`WC_Inventory_Overview_Suppliers::validate()`'s implicitly-nullable parameter).
+- 11 pre-existing test-content bugs across the FX, Movements, Costing, and Cost Adjustment characterization suites (stale method signatures, wrong class names, wrong column names, a stale bare-float return-shape assumption) — every fix verified against current, unmodified production behavior; zero production code changed, per the M0.14 golden-fixture governance rule. The full integration suite is now clean for the first time (245 tests / 834 assertions, 0 errors, 0 failures, 0 skips).
+
+### Added
+
+- **Repo-wide sibling-plugin-coupling conformance guard** (`tests/unit/conformance/test-no-sibling-plugin-coupling.php`) — the guard M7 explicitly deferred to "M8's conformance audit." Confirms, mechanically rather than by prose, ADR-0003's claim that this plugin has zero named dependency on any sibling plugin: every `class_exists()`/`function_exists()` check across all of `includes/` is on a closed WordPress/WooCommerce/PHP-core allowlist, zero `remove_filter()`/`remove_action()` calls exist, and zero hardcoded sibling-plugin identifiers appear anywhere.
+- GA-scale (200-item) confirmatory performance tests extending the existing Inventory Position (D12) and Expected Delivery (Invariant M7-3) query-scaling guards, proven at ~20–40 items, to a size closer to a real catalog. Confirmatory only — no caching or optimization change.
+
+### CI / Infrastructure
+
+- The cumulative integration suite is now a normal CI-blocking gate (`tests.yml`'s `continue-on-error: true` removed) — closes `docs/testing.md`'s own named unblock condition.
+- `Test_WC_IO_Close_Short_With_Qty_Received` (an M5 audit-remediation test) added to `run-phpunit.sh`'s blocking filter alongside the new conformance guard.
+- `ci.yml` and `release.yml` aligned to PHP 8.4, the version `tests.yml` already exercised (previously 8.2 — validating lint/build/release against a PHP version nothing else in the pipeline tested).
+
+### Explicitly not in this release
+
+- No schema change of any kind — `DB_VERSION` stays `10`.
+- No new domain concepts, no new public API surface, no new settings, no new hooks/filters.
+- No general PHPCS cleanup (the pre-existing ~559 errors / 634 warnings are unchanged — evaluated and deliberately excluded as disproportionate to a hardening pass).
+- No split of the `class-wc-inventory-overview-plugin.php` "god class" into tab controllers — real, documented tech debt with a named remediation direction, deliberately evaluated and deferred past GA rather than attempted under release-time pressure; not a silent drop.
+
+### Testing
+
+- Unit suite: 216 tests / 1,456 assertions (0 failures; 7 pre-existing risky `Test_DB_Transaction` tests, unrelated to M8).
+- M1–M8-focused (CI-blocking) suite: 450 tests / 2,247 assertions (0 failures).
+- Full integration suite: 245 tests / 834 assertions (0 errors, 0 failures, 0 skips) — now itself a CI-blocking gate.
+- All seven architecture guard files (six pre-existing per-milestone guards plus this milestone's own repo-wide conformance guard) pass: 64 tests / 818 assertions.
+
 ## [1.24.0] - 2026-08-07
 
 **Milestone M7 — Storefront Expected Delivery** — the first milestone that a customer sees. Exposes exactly **one** governed fact for an out-of-stock item: the earliest credible expected receipt, worded by confidence ("Expected back around 1 September" / "Expected during week 36" / "Expected soon") — never suppliers, PO numbers, quantities, or delay details. Ships behind a stable public API (`API_VERSION = 1`, versioned independently of the plugin version) that stays stable for its whole v1 lifetime: the interface's method set never shrinks, the `STATE_*` constants are never removed or repurposed, and `expected_date()` never changes format. **Schema unchanged (v10)** — zero new tables, columns, or indexes; M7 derives, it does not store. **Prerequisite:** v1.23.0 (M6 Migration & Retirement).

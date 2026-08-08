@@ -2,10 +2,10 @@
 
 Purchasing, receiving, inventory-position, and storefront expected-delivery platform for WooCommerce (HPOS-compatible).
 
-**Version:** 1.24.0 (see plugin header)  
+**Version:** 1.25.0 (see plugin header)  
 **Releases:** https://github.com/magpern/wc-inventory-overview/releases (tag `v*`)  
 **Requires:** WordPress 6.0+, PHP 7.4+, WooCommerce with HPOS supported
-**Platform status:** Milestones M0–M7 complete (schema `DB_VERSION` 10) — see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md).
+**Platform status:** Milestones M0–M8 complete — Version 1.0 / GA ready (schema `DB_VERSION` 10) — see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md).
 
 ## Features
 
@@ -58,7 +58,7 @@ Automated tests: see [docs/testing.md](docs/testing.md) (PHPUnit, PHPCS, Docker-
 
 | Doc | Purpose |
 |-----|---------|
-| [docs/ARCHITECTURE_BASELINE_v1.24.0.md](docs/ARCHITECTURE_BASELINE_v1.24.0.md) | Frozen post-M7 architecture baseline (start here for any new milestone) |
+| [docs/ARCHITECTURE_BASELINE_v1.24.0.md](docs/ARCHITECTURE_BASELINE_v1.24.0.md) | Frozen architecture baseline, updated through M8 (start here for any new milestone) |
 | [docs/OWNERSHIP.md](docs/OWNERSHIP.md) | Inbound vs outbound domain ownership |
 | [docs/adr/](docs/adr/) | Architecture decision records |
 | [docs/testing.md](docs/testing.md) | Test strategy and golden fixtures |
