@@ -36,17 +36,24 @@ class Test_Costing_Characterization extends WC_Inventory_Overview_Test_Case {
 		);
 
 		// Apply the operation: add 10 units at cost 15.5.
-		if ( class_exists( 'Restock_Service' ) ) {
-			$result = Restock_Service::apply_purchase_line_change(
+		// apply_purchase_line_change( $line_id, $qty_added, $supplier_unit_cost )
+		// takes a single line_id (simple product ID or variation ID), not a
+		// separate product_id/variation_id pair.
+		if ( class_exists( 'WC_Inventory_Overview_Restock_Service' ) ) {
+			$result = WC_Inventory_Overview_Restock_Service::apply_purchase_line_change(
 				$product->get_id(),
-				0, // variation_id for simple product
 				$fixture['operation']['added_stock'],
 				$fixture['operation']['unit_cost_entered']
 			);
 
 			// Verify operation succeeded.
-			$this->assertIsArray( $result, 'apply_purchase_line_change should return a snapshot array' );
+			$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : 'apply_purchase_line_change should return a snapshot array' );
 		}
+
+		// Refresh the product: the in-memory $product object predates the
+		// mutation, which apply_purchase_line_change() applied to its own
+		// internally-fetched instance.
+		$product = wc_get_product( $product->get_id() );
 
 		// Assert final product state matches golden fixture.
 		$this->assertDecimalEqual(
@@ -101,16 +108,15 @@ class Test_Costing_Characterization extends WC_Inventory_Overview_Test_Case {
 		$product = wc_get_product( $product->get_id() );
 
 		// Apply the operation: add 50 units at cost 12.0.
-		if ( class_exists( 'Restock_Service' ) ) {
-			$result = Restock_Service::apply_purchase_line_change(
+		if ( class_exists( 'WC_Inventory_Overview_Restock_Service' ) ) {
+			$result = WC_Inventory_Overview_Restock_Service::apply_purchase_line_change(
 				$product->get_id(),
-				0, // variation_id for simple product
 				$fixture['operation']['added_stock'],
 				$fixture['operation']['unit_cost_entered']
 			);
 
 			// Verify operation succeeded.
-			$this->assertIsArray( $result, 'apply_purchase_line_change should return a snapshot array' );
+			$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : 'apply_purchase_line_change should return a snapshot array' );
 		}
 
 		// Refresh the product to get updated meta.
@@ -157,23 +163,26 @@ class Test_Costing_Characterization extends WC_Inventory_Overview_Test_Case {
 			)
 		);
 
-		// Get the created variation.
+		// Re-fetch the parent: the in-memory $parent object was saved (and its
+		// children cached) before any variation existed.
+		$parent     = wc_get_product( $parent->get_id() );
 		$variations = $parent->get_children();
 		$this->assertCount( 1, $variations, 'Should have one variation' );
 
 		$variation = wc_get_product( $variations[0] );
 
-		// Apply costing to the variation.
-		if ( class_exists( 'Restock_Service' ) ) {
-			$result = Restock_Service::apply_purchase_line_change(
-				$parent->get_id(),
+		// Apply costing to the variation. apply_purchase_line_change() takes a
+		// single line_id -- for a variation, that's the variation's own ID,
+		// not a separate product_id/variation_id pair.
+		if ( class_exists( 'WC_Inventory_Overview_Restock_Service' ) ) {
+			$result = WC_Inventory_Overview_Restock_Service::apply_purchase_line_change(
 				$variation->get_id(),
 				10,
 				15.5
 			);
 
 			// Verify operation succeeded.
-			$this->assertIsArray( $result );
+			$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
 		}
 
 		// Verify variation's costing is identical to what we'd expect for a simple product.
@@ -221,14 +230,17 @@ class Test_Costing_Characterization extends WC_Inventory_Overview_Test_Case {
 		$pre_value = $this->get_product_inventory_value( $product );
 
 		// Apply an operation and capture its snapshot.
-		$snapshot = null;
-		if ( class_exists( 'Restock_Service' ) ) {
-			$snapshot = Restock_Service::apply_purchase_line_change(
+		// apply_purchase_line_change() returns {line_id, snapshot, movement};
+		// restore_snapshot() takes the line_id and that inner 'snapshot' array
+		// (not the whole returned array).
+		$applied = null;
+		if ( class_exists( 'WC_Inventory_Overview_Restock_Service' ) ) {
+			$applied = WC_Inventory_Overview_Restock_Service::apply_purchase_line_change(
 				$product->get_id(),
-				0,
 				50,
 				12.0
 			);
+			$this->assertIsArray( $applied, is_wp_error( $applied ) ? $applied->get_error_message() : '' );
 		}
 
 		// Verify state changed.
@@ -237,8 +249,8 @@ class Test_Costing_Characterization extends WC_Inventory_Overview_Test_Case {
 		$this->assertNotSame( $pre_stock, $post_stock, 'Stock should have changed' );
 
 		// Restore the snapshot (if method exists).
-		if ( $snapshot && method_exists( 'Restock_Service', 'restore_snapshot' ) ) {
-			Restock_Service::restore_snapshot( $product->get_id(), 0, $snapshot );
+		if ( $applied && method_exists( 'WC_Inventory_Overview_Restock_Service', 'restore_snapshot' ) ) {
+			WC_Inventory_Overview_Restock_Service::restore_snapshot( $product->get_id(), $applied['snapshot'] );
 
 			// Verify state is fully restored.
 			$product = wc_get_product( $product->get_id() );

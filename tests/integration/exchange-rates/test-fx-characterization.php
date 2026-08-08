@@ -24,14 +24,17 @@ class Test_FX_Characterization extends WC_Inventory_Overview_Test_Case {
 			$this->markTestSkipped( 'Exchange_Rates class not found' );
 		}
 
-		$rate = WC_Inventory_Overview_Exchange_Rates::get_exchange_rate_to_eur(
+		$result = WC_Inventory_Overview_Exchange_Rates::get_exchange_rate_to_eur(
 			$fixture['operation']['from_currency'],
 			$fixture['operation']['rate_date']
 		);
 
+		// get_exchange_rate_to_eur() returns {rate, source, rate_date}, not a bare float
+		// (production contract, includes/class-wc-inventory-overview-exchange-rates.php).
+		$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
 		$this->assertSame(
 			$fixture['expected']['rate'],
-			$rate,
+			$result['rate'],
 			"EUR→EUR must always return 1.0"
 		);
 	}
@@ -56,7 +59,9 @@ class Test_FX_Characterization extends WC_Inventory_Overview_Test_Case {
 			$this->markTestSkipped( 'Exchange rates table not found (may not exist until later milestones)' );
 		}
 
-		// Insert seed rate.
+		// Insert seed rate. Column is "exchange_rate" (see expected_schema_v5()
+		// in class-wc-inventory-overview-install.php) -- the fixture's own key
+		// is "rate_value", a fixture-authoring name mismatch, not a schema fact.
 		foreach ( $fixture['setup']['seeded_rates'] as $seed ) {
 			$wpdb->insert(
 				$table,
@@ -64,7 +69,7 @@ class Test_FX_Characterization extends WC_Inventory_Overview_Test_Case {
 					'from_currency' => $seed['from_currency'],
 					'to_currency'   => $seed['to_currency'],
 					'rate_date'     => $seed['rate_date'],
-					'rate_value'    => $seed['rate_value'],
+					'exchange_rate' => $seed['rate_value'],
 					'created_at'    => current_time( 'mysql' ),
 				),
 				array( '%s', '%s', '%s', '%f', '%s' )
@@ -72,15 +77,18 @@ class Test_FX_Characterization extends WC_Inventory_Overview_Test_Case {
 		}
 
 		// Request rate after seeded date.
-		$rate = WC_Inventory_Overview_Exchange_Rates::get_exchange_rate_to_eur(
+		$result = WC_Inventory_Overview_Exchange_Rates::get_exchange_rate_to_eur(
 			$fixture['operation']['from_currency'],
 			$fixture['operation']['rate_date']
 		);
 
+		// get_exchange_rate_to_eur() returns {rate, source, rate_date}, not a bare float.
+		$this->assertIsArray( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
+
 		// Should get fallback rate (the one before requested date).
 		$this->assertSame(
 			$fixture['expected']['rate'],
-			$rate,
+			$result['rate'],
 			"Should use latest rate before requested date (no interpolation)"
 		);
 	}
