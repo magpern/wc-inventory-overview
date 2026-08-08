@@ -206,6 +206,30 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **Quick Restock, Cost Adjustment, Inventory Overview, Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), and Supplier admin all unaffected** — all continue to function exactly as in v1.23.0.
 
+### For M8 (Hardening & GA, v1.25.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`; `wc_io_schema_assertion` reports `ok: true` at `version: "10"`.
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  ```
+
+- [ ] **Batch Intake removal is operationally invisible**: Restock / Cost Adjustment tab still shows only Quick Restock and Cost Adjustment (unchanged since M6); no PHP fatal/warning anywhere in the admin referencing a missing Batch Intake class or method.
+
+- [ ] **`PO_Delay` fix works on a real PO**: a `partially_received` PO with a past-due expected date on its remaining outstanding line now shows "Delayed" (PO detail page, Inventory Overview drill-down) — it would not have before M8. A `partially_received` PO that is on-time does not show Delayed. `placed`/`received` PO delayed-badge behavior is unchanged.
+
+- [ ] **Sibling-plugin conformance guard passes**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_No_Sibling_Plugin_Coupling'
+  ```
+  (0 failures.)
+
+- [ ] **Full test suite green, integration suite now a blocking CI gate** — unit, M1–M8-focused, and full integration suites all pass with 0 failures (previously the integration suite carried known pre-existing failures and ran `continue-on-error` in CI; both are resolved as of M8).
+
+- [ ] **GA-scale (200-item) performance confirmation passes** — covered by the integration suite run above, not a separate manual step.
+
+- [ ] **Quick Restock, Cost Adjustment, Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), Supplier admin, Inventory Position (M3), and Storefront Expected Delivery (M7) all unaffected** — all continue to function exactly as in v1.24.0.
+
 ## Sign-off
 
 Once all checks pass:
