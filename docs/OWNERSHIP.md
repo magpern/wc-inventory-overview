@@ -35,6 +35,7 @@ mirror: MP Commerce Fulfillment
 | Landed cost | wc-inventory-overview |
 | Inbound stock mutation | wc-inventory-overview |
 | Inventory reconciliation | wc-inventory-overview |
+| Storefront expected-delivery presentation (`woocommerce_get_availability` text) | wc-inventory-overview — see [ADR-0003](adr/0003-storefront-expected-delivery-ownership.md) |
 | Fulfillment (outbound) | MPCF |
 | Warehouse workflow (outbound states) | MPCF |
 | Picking progress | MPCF |
@@ -56,5 +57,6 @@ only**. No direct reads or writes of another plugin's tables.
 
 ## Planning baseline
 
-Inbound milestone planning uses [`CLAUDE.md`](../CLAUDE.md) Part I §1–§5 and the
-milestone status table in that file.
+Inbound milestone planning uses [`CLAUDE.md`](../CLAUDE.md) Part I §1–§5, the
+milestone status table in that file, and — for milestones from M8 onward —
+[`ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md).
