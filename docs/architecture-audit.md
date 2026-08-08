@@ -1,7 +1,7 @@
-# Architecture audit — WC Inventory Overview 1.20.0
+# Architecture audit — WC Inventory Overview 1.24.0
 
-**Date:** 2026-08-05  
-**Scope:** Standalone repo `magpern/wc-inventory-overview` with Milestone M3 implementation (Inventory Position, read-only, schema v7 unchanged)
+**Date:** 2026-08-08 (updated through Milestone M7)
+**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M7 complete (schema `DB_VERSION` 10). For the consolidated post-M7 status snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md); this document remains the per-milestone code/schema audit trail, section-by-section below.
 
 ---
 
@@ -33,7 +33,7 @@ If WooCommerce is missing, shows admin notice only.
 
 ## Custom database tables
 
-Created/upgraded via `WC_Inventory_Overview_Install` (`DB_VERSION = 7`, option `wc_io_db_version`):
+Created/upgraded via `WC_Inventory_Overview_Install` (current `DB_VERSION = 10` as of M6/v1.23.0, unchanged through M7/v1.24.0; option `wc_io_db_version`):
 
 | Table | Purpose | Version |
 |-------|---------|---------|
