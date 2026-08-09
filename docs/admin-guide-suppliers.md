@@ -147,17 +147,32 @@ If a supplier changes their invoicing currency:
 
 ---
 
-## Lead Time — Configured, Not Observed
+## Lead Time — Configured vs. Observed (M9)
 
-The **Default lead time (days)** field is a **configured fallback** — a number you enter based on the supplier's typical delivery schedule. It is used:
+Two lead-time figures now sit side by side on the supplier edit screen, and they answer two different questions:
 
-- When creating a new purchase order for this supplier, the system suggests this lead time to estimate the expected receipt date.
-- In future planning features, it will inform inventory coverage calculations.
+| | Configured Lead Time | Observed Lead Time |
+|---|---|---|
+| **What it is** | A number *you* enter — your estimate of the supplier's typical delivery schedule. | Computed automatically from your actual receiving history — evidence, not opinion. |
+| **Editable?** | Yes — the **Default lead time (days)** field. | No — read-only. There is no way to type in or override an observed figure. |
+| **Used for** | Suggesting an expected receipt date when you create a new purchase order for this supplier. | Comparing what you planned against what actually happened. |
+| **Available from day one?** | Yes, as soon as you set it. | Only once the supplier has at least 2 fully-received purchase orders on record (see below). |
 
-**Current milestone limitations:**
+### Observed Lead Time
 
-- **Lead time is never computed automatically** (no observed statistics yet). It is always the number you enter.
-- Observed lead-time statistics (average, fastest, slowest, completed orders) are a future feature (planned for a later milestone). For now, maintain the default lead time manually based on your experience with the supplier.
+The **Observed Lead Time** panel on the supplier edit screen shows:
+
+- **Average** — the mean number of calendar days from placing an order to fully receiving it, across every completed order, rounded to the nearest whole day for display.
+- **Fastest** / **Slowest** — the quickest and slowest completed orders on record.
+- **Completed Orders** — how many orders the statistics are based on.
+
+**How it's computed:** only purchase orders that reached the fully-`received` status count. For each one, the lead time is measured from when the order was **placed** to when it was **fully received** — if a supplier delivered your order in several shipments, the date used is the *last* shipment, the one that actually completed the order, not the first partial delivery. Orders that were closed short (never fully delivered), still open, or received via a receipt that was later voided are never counted.
+
+**"Not enough data yet":** with fewer than 2 completed orders on record, the panel shows this message instead of statistics that would be misleading from a single data point. The order(s) you do have are still on record and will count once more arrive.
+
+**Archived suppliers** keep showing their observed statistics — archiving only hides a supplier from active lists and autocomplete; it never erases purchasing history.
+
+Observed Lead Time does not (yet) feed into the expected-date suggestion when creating a new purchase order, or into any other part of the platform — it is a report, for you to read and act on manually. Maintain the **Default lead time** field yourself, informed by what you see here.
 
 ### Best Practice
 
@@ -165,12 +180,13 @@ Set the **Default lead time** to a conservative middle value:
 - Too low: purchase orders may arrive late, causing stock-outs.
 - Too high: you over-order early, tying up capital.
 - Example: If a supplier usually arrives in 10–14 days, set the default to 12 days.
+- Once Observed Lead Time has enough data, use its average as a sanity check against your configured default — a large, persistent gap between the two is worth investigating.
 
 ---
 
 ## Platform Status
 
-As of v1.24.0 (Milestones M0–M7 complete — see
+As of v1.26.0 (Milestones M0–M9 complete — see
 [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md)),
 the purchasing platform built on top of Suppliers is fully shipped:
 
@@ -185,12 +201,12 @@ the purchasing platform built on top of Suppliers is fully shipped:
 ✓ **Inventory Position** (M3): live On Hand / Incoming / Position figures per item, driven by each supplier's open PO lines
 ✓ **Goods Receipts** (M4/M5): receiving against a PO or directly, with automatic PO status updates
 ✓ **Storefront Expected Delivery** (M7): customer-facing "Expected back around …" text, derived from each supplier's confirmed expected dates
+✓ **Observed Lead Time** (M9): read-only average/fastest/slowest/completed-order statistics, computed from actual receiving history, alongside the configured default
 
 ### Not Yet Available
 
 The following remain deferred to a future milestone:
 
-- **Lead-time statistics**: Observed average/minimum/maximum delivery times (computed from actual receiving history) — the configured lead time is today's fallback.
 - **Supplier analytics**: Spend analysis, reliability scoring, and order history reporting.
 - **Supplier merge tool**: Consolidating duplicate suppliers into one record is a manual process for now; a dedicated merge tool is planned.
 

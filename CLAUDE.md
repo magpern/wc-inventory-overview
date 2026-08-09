@@ -4,25 +4,30 @@
 
 **Auto-loaded by Claude Code:** this file is discovered at the plugin repository root and serves as project-level instructions/context for the IDE extension and CLI tool.
 
-## Platform status: M0–M8 COMPLETE — Version 1.0 / GA ready
+## Platform status: M0–M8 GA baseline, M9 shipped as first post-GA milestone
 
-**Current baseline: plugin 1.25.0, `DB_VERSION` 10.** All nine foundational
+**Current baseline: plugin 1.26.0, `DB_VERSION` 10.** All nine foundational
 milestones (M0 Delivery Foundations through M8 Hardening & GA) are shipped
-and frozen. M8 added zero new domain concepts, zero schema change, and zero
-public API change — it physically removed the M6-deprecated Batch Intake
-code, closed the `partially_received` delay-detection gap, added a
-repo-wide sibling-plugin-coupling conformance guard, repaired the last
-pre-existing test-content bugs (the full integration suite is now a
-CI-blocking gate, clean for the first time), and hardened the CI pipeline.
+and frozen, and M9 (Supplier Observed Lead-Time Statistics) has shipped on
+top as the first post-GA product-evolution milestone. M8 added zero new
+domain concepts, zero schema change, and zero public API change — it
+physically removed the M6-deprecated Batch Intake code, closed the
+`partially_received` delay-detection gap, added a repo-wide
+sibling-plugin-coupling conformance guard, repaired the last pre-existing
+test-content bugs (the full integration suite is now a CI-blocking gate,
+clean for the first time), and hardened the CI pipeline. M9 adds one
+read-only reporting feature (observed supplier lead-time, computed from
+existing Purchase Order / Goods Receipt history) — zero schema change, zero
+new public API (the new service is Internal, not Public — D16), zero change
+to any existing business behavior.
 **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)**
 remains the consolidated architecture snapshot — completed milestones, frozen
 ownership boundaries, public APIs, schema, invariants, and future-governance
-rules (updated in place for M8, not superseded — see its own §12 rule and
-the M8 entry added to its milestone table). Any new milestone (M9 onward)
-should start from that document rather than re-deriving M0–M8 from this
-file's Part I–III text below. The Implementation Status table at the end
-of this file remains the authoritative
-per-milestone release ledger.
+rules (updated in place for M8 and M9, not superseded — see its own §12 rule
+and the M8/M9 entries added to its milestone table). Any new milestone (M10
+onward) should start from that document rather than re-deriving M0–M9 from
+this file's Part I–III text below. The Implementation Status table at the
+end of this file remains the authoritative per-milestone release ledger.
 
 ---
 
@@ -193,8 +198,9 @@ This table is updated as each milestone is implemented. Each milestone links to 
 | M6 | Migration & Retirement | ✅ Complete | 1.23.0 | [docs/milestones/m6-implementation-plan.md](docs/milestones/m6-implementation-plan.md) | Schema v10 (migration-tracking columns only), `Batch_Migration_Service` (record materialization, never receiving-replay; per-batch transactions; order-independent), `wp wc-io migrate-batches` CLI (apply/verify/rollback), migrated-receipt void guard, Batch Intake create/apply retired (legacy tables frozen, never deleted) |
 | M7 | Storefront | ✅ Complete | 1.24.0 | [docs/milestones/m7-implementation-plan.md](docs/milestones/m7-implementation-plan.md) | Schema unchanged (v10), `Expected_Delivery_Result_Interface`/`Result`/`Resolver`/`Service`/`Renderer` (API v1, sole public API + sole-entry-point rule), built-in `woocommerce_get_availability` renderer, one merchant toggle, two generic extension filters, Invariants M7-1/M7-2/M7-3; this plugin now owns customer-facing expected-delivery presentation |
 | M8 | Hardening & GA | ✅ Complete | 1.25.0 | [docs/milestones/m8-implementation-plan.md](docs/milestones/m8-implementation-plan.md) | Schema unchanged (v10); physically removed M6-deprecated Batch Intake create/apply surface (fixture builder rewritten first); closed `PO_Delay`'s `partially_received` gap; repo-wide sibling-plugin-coupling conformance guard; repaired all remaining pre-existing golden-test bugs (integration suite now CI-blocking, 245 tests / 834 assertions, 0 failures); CI hardening (PHP 8.4 aligned across all workflows); GA-scale (200-item) performance confirmation. Zero new domain concepts, zero public API change. First milestone this program calls Version 1.0 / GA ready. |
+| M9 | Supplier Observed Lead-Time Statistics | ✅ Complete | 1.26.0 | [docs/milestones/m9-implementation-plan.md](docs/milestones/m9-implementation-plan.md) | Schema unchanged (v10); first post-GA milestone. `Supplier_Lead_Time_Service` (new Internal, not Public, sole-owner boundary — D16) computes read-only average/fastest/slowest/completed-order statistics per supplier from posted Goods Receipts linked to fully-`received` Purchase Orders, one bulk query, no persistence, no N+1 (proven at 10/40/200-supplier scale). Read-only panel on the Supplier admin screen alongside the existing configured-lead-time field. Fills the D8 "designed-for-later" slot named in `docs/admin-guide-suppliers.md` since M1. Zero new domain concepts, zero public API, zero schema change. |
 
-**Release note:** v1.25.0 (M8) is prepared on branch `feature/m8-hardening-ga`, pending independent audit before tagging — see `docs/GITHUB_RELEASE_NOTES_1.25.0.md`. All prior milestone releases (M0–M7, tags `v1.17.3`–`v1.24.0`) are tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
+**Release note:** v1.25.0 (M8) and v1.26.0 (M9) are both tagged and published — see `docs/GITHUB_RELEASE_NOTES_1.25.0.md` and `docs/GITHUB_RELEASE_NOTES_1.26.0.md`. All prior milestone releases (M0–M7, tags `v1.17.3`–`v1.24.0`) are likewise tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
 
 ---
 

@@ -236,6 +236,20 @@ No additional steps. The release is a pure-tooling change with no functional or 
 7. **Quick Restock, Cost Adjustment, Goods Receipts, PO Receiving, batch migration CLI, Supplier admin, Inventory Position, and Storefront Expected Delivery unaffected:** confirm all continue to function exactly as in v1.24.0.
 8. **Rollback awareness:** M8 is code/test/CI-only — no data written, no schema changed, no mutation anywhere in its surface. A code rollback 1.25.0 → 1.24.0 is unconditionally safe (see `docs/rollback-plan.md`'s M8 note).
 
+### M9: Supplier Observed Lead-Time Statistics
+
+**Before tagging v1.26.0:**
+
+0. **Release notes file:** Confirm `docs/GITHUB_RELEASE_NOTES_1.26.0.md` exists and matches `CHANGELOG.md` for 1.26.0.
+1. **No schema change:** confirm `DB_VERSION` is still `'10'` in `includes/class-wc-inventory-overview-install.php` — M9 adds no table, column, or index. `wp option get wc_io_db_version` returns `10`; `wp option get wc_io_schema_assertion --format=json` shows `ok: true` at `version: "10"`.
+2. **Observed Lead Time panel verified on a real supplier:** find or create a supplier with at least 2 fully-`received` Purchase Orders on record; confirm Purchasing → Suppliers → edit that supplier shows average/fastest/slowest/completed-order figures matching a manual `DATEDIFF()` spot-check against `wc_io_purchase_orders.placed_at` and the linked `wc_io_goods_receipts.posted_at`. Confirm a supplier with 0–1 completed orders shows "not enough data yet", never `0 days`.
+3. **Read-only, not editable:** confirm no form field or admin-post action anywhere lets an operator type in or override an observed figure — only the existing "Default Lead Time (days)" field remains editable.
+4. **Architecture guard passes:** `docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Supplier_Lead_Time_Architecture'` reports 0 failures.
+5. **Full test suite green:** unit suite, M1–M9-focused suite, and the full integration suite all pass with 0 failures (226 / 476 / 261 tests respectively as of this milestone).
+6. **Query-count-equality performance confirmation:** the 10/40/200-supplier Supplier Lead-Time query-scaling test passes (part of the integration suite run above — no separate manual step, listed here for visibility).
+7. **Suppliers, Purchase Orders, Inventory Position, Goods Receipts, PO Receiving, Batch Migration CLI, and Storefront Expected Delivery unaffected:** confirm all continue to function exactly as in v1.25.0.
+8. **Rollback awareness:** M9 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (the new service is read-only by construction, guard-enforced). A code rollback 1.26.0 → 1.25.0 is unconditionally safe (see `docs/rollback-plan.md`'s M9 note).
+
 ## Post-release communication
 
 After a successful release:

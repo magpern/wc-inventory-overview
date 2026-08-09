@@ -230,6 +230,36 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **Quick Restock, Cost Adjustment, Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), Supplier admin, Inventory Position (M3), and Storefront Expected Delivery (M7) all unaffected** — all continue to function exactly as in v1.24.0.
 
+### For M9 (Supplier Observed Lead-Time Statistics, v1.26.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`; `wc_io_schema_assertion` reports `ok: true` at `version: "10"`.
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  ```
+
+- [ ] **Observed Lead Time panel shows correct figures**: on a supplier with ≥2 fully-`received` Purchase Orders, Purchasing → Suppliers → edit that supplier shows average/fastest/slowest/completed-order figures matching a manual `DATEDIFF()` spot-check between each PO's `placed_at` and its completing receipt's `posted_at`.
+
+- [ ] **"Not enough data yet" below threshold**: a supplier with 0–1 completed orders shows this message, never `0 days` or a misleadingly precise figure from a single data point.
+
+- [ ] **Read-only, not editable**: no field or admin-post action anywhere lets an operator type in or override an observed figure; only the existing "Default Lead Time (days)" field remains editable.
+
+- [ ] **Excludes correctly**: a `closed_short` or still-open (`placed`/`partially_received`) PO never contributes; a voided receipt never contributes.
+
+- [ ] **Archived suppliers keep their statistics**: archiving a supplier does not change or hide its observed lead-time figures.
+
+- [ ] **Architecture guard passes**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Supplier_Lead_Time_Architecture'
+  ```
+  (0 failures.)
+
+- [ ] **Full test suite green** — unit, M1–M9-focused, and full integration suites all pass with 0 failures.
+
+- [ ] **Query-count-equality (10/40/200-supplier) performance confirmation passes** — covered by the integration suite run above, not a separate manual step.
+
+- [ ] **Suppliers, Purchase Orders, Inventory Position (M3), Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), and Storefront Expected Delivery (M7) all unaffected** — all continue to function exactly as in v1.25.0.
+
 ## Sign-off
 
 Once all checks pass:
