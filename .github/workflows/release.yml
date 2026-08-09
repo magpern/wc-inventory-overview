@@ -43,7 +43,7 @@ jobs:
       - name: Build and audit
         run: |
           bash scripts/build-zip.sh
-          bash scripts/release-audit.sh
+          bash scripts/release-audit.sh --release
 
       - name: Set release metadata
         id: meta

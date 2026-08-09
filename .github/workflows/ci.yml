@@ -28,3 +28,8 @@ jobs:
 
       - name: Build release zip
         run: bash scripts/build-zip.sh
+
+      # Feature-train compatible: validates ZIP + version consistency without
+      # requiring docs/GITHUB_RELEASE_NOTES_{VERSION}.md for unreleased milestones.
+      - name: Release audit (development mode)
+        run: bash scripts/release-audit.sh --development
