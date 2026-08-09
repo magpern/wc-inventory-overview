@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.28.0
+Stable tag: 1.29.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,11 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.29.0 =
+* Milestone M12 — Supplier List Performance Surface (feature train). Zero schema change (v10 unchanged), zero mutation, zero new public API.
+* Purchasing → Suppliers list adds read-only Observed Lead Time and On-Time Rate columns (same thresholds as the supplier detail panel), via one bulk statistics call per page.
+* Not individually released — joins the unreleased M9–M12 feature train pending a bundled release.
 
 = 1.26.0 =
 * Milestone M9 — Supplier Observed Lead-Time Statistics: the first post-GA milestone. Zero new domain concepts, zero schema change (v10 unchanged), zero new public API.

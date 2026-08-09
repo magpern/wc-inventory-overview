@@ -468,6 +468,22 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ---
 
+## Milestone M12: Supplier List Performance Surface (v1.29.0)
+
+**Scope:** Presentation-only. Add read-only **Observed Lead Time** and **On-Time Rate** columns to the Purchasing → Suppliers list table so merchants can compare suppliers without opening each detail screen. Reuses `Supplier_Lead_Time_Service::get_stats_bulk()` and the same usability predicates as the detail panel (`is_observed_value_usable` / `is_on_time_rate_usable`). Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API, zero new statistics engine.
+
+**UI:** `WC_Inventory_Overview_Suppliers_List_Table` column order becomes Name → Currency → Lead Time (configured, unchanged) → Observed Lead Time → On-Time Rate. New columns are non-sortable. Insufficient data shows an em dash (—). Grace days come from `PO_Delay::grace_days_from_option()`.
+
+**Data access:** Exactly one `get_stats_bulk()` call during `prepare_items()` for the current page's supplier IDs. Empty page → no stats work. No per-row `get_stats_for_supplier()`. No direct PO/GR SQL in the list-table class.
+
+**Architecture guards:** INV-M12-1 (list must not duplicate lead-time/on-time computation or deadline SQL); INV-M12-2 (one bulk call per prepare; no N+1). Lead Time service allowlist deliberately extended to `class-wc-inventory-overview-suppliers-list-table.php`. Query invariant: the existing service contract guarantees **exactly one** `observed_days` SQL statement per non-empty `get_stats_bulk()` call (asserted at 10/40/200 page sizes); empty ID list → zero stats SQL.
+
+**Testing:** `tests/unit/suppliers/test-suppliers-list-performance.php`, `tests/integration/suppliers/test-suppliers-list-performance.php`, `tests/integration/suppliers/test-suppliers-list-performance-queries.php`; architecture coverage in `tests/unit/supplier-lead-time/test-supplier-lead-time-architecture.php`.
+
+**Explicitly excluded from M12:** spend analysis, order-history reporting, supplier merge, grace-days Settings UI, expected-date suggestion source UI, Inventory Position supplier column, storefront Expected Delivery confidence changes, printable PO, Coverage/Forecast, warehouse locations, Plugin god-class refactor, unrelated PHPCS cleanup. Next process step after freeze: **feature-train closure**, not M13.
+
+---
+
 ## Known risks / tech debt
 
 1. **Large god class:** `class-wc-inventory-overview-plugin.php` centralizes UI, handlers, and exports — harder to test and review. Evaluated for M8 and deliberately deferred (see the M8 section above) — a whole-admin-surface refactor is the opposite of hardening under GA time pressure; remains open for a future, dedicated milestone.
@@ -475,7 +491,7 @@ An independent audit of the completed M5 implementation (before this branch was 
 3. **`posts_clauses` filter:** Global filter at priority 999; scoped by query depth and admin context — avoid front-end product queries while filter is active.
 4. **Danger zone reset:** Can bulk-delete plugin tables/meta snapshots; gated by capability + nonces + preview token — still high impact for operators.
 5. **Inline stock AJAX:** Uses `edit_products` (broader than `manage_woocommerce`) with per-product `edit_product` — intentional for catalog editors.
-6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery + M8 conformance/hardening + M9 supplier-lead-time + M10 expected-date-suggestion + M11 expected-deadline/on-time-rate), PHPCS (local, not CI-gated — ~559 pre-existing errors/634 warnings as of M8/M9, not re-measured since; evaluated and deliberately excluded from M8 as disproportionate to a hardening pass), and GitHub Actions CI (PHP lint + release ZIP + the full integration suite, blocking since M8). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
+6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery + M8 conformance/hardening + M9 supplier-lead-time + M10 expected-date-suggestion + M11 expected-deadline/on-time-rate + M12 suppliers-list-performance), PHPCS (local, not CI-gated — ~559 pre-existing errors/634 warnings as of M8/M9, not re-measured since; evaluated and deliberately excluded from M8 as disproportionate to a hardening pass), and GitHub Actions CI (PHP lint + release ZIP + the full integration suite, blocking since M8). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
 7. **Monorepo mirror:** A development copy may exist under `biopentra-custom-plugins/plugins/wc-inventory-overview/`; this standalone repo is canonical for releases.
 
 ---
@@ -483,10 +499,11 @@ An independent audit of the completed M5 implementation (before this branch was 
 ## Recommended follow-ups (non-blocking)
 
 - Split `Plugin` into tab controllers or modules — real tech debt (item 1 above), explicitly evaluated and deferred past M8/GA; a future dedicated milestone, not a hardening-pass item.
-- Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; M6 added `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at`; M8, M9, M10, and M11 introduced no schema change — next relevant whenever a future milestone next changes schema).
+- Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; M6 added `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at`; M8–M12 introduced no schema change — next relevant whenever a future milestone next changes schema).
 - ~~Observed lead-time statistics (average/minimum/maximum delivery times, computed from actual receiving history)~~ — **done in M9** (see the M9 section above).
 - ~~Wiring observed lead time into PO-creation expected-date suggestions~~ — **done in M10** (see the M10 section above).
 - ~~Supplier reliability scoring~~ — **done in M11** as On-Time Delivery Rate (see the M11 section above). Spend analysis and order-history reporting, the other two thirds of `docs/admin-guide-suppliers.md`'s original compound "Supplier analytics" bullet, and the supplier merge tool, remain unaffected and still open.
+- ~~Surfacing Observed Lead Time / On-Time Rate on the Suppliers list~~ — **done in M12** (see the M12 section above).
 - ~~Physically delete the M6-deprecated Batch Intake code~~ — **done in M8** (see the M8 section above).
 - ~~`PO_Delay`'s "Delayed" detection does not extend to `partially_received` POs~~ — **fixed in M8** (see the M8 section above).
 - PHPCS-clean the codebase, or actually wire up the empty `.phpcs-baseline.xml` ratchet — evaluated for M8 and deliberately excluded (disproportionate scope for a hardening pass); still a reasonable future initiative on its own.

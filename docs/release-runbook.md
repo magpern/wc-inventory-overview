@@ -275,10 +275,23 @@ No additional steps. The release is a pure-tooling change with no functional or 
 2. **On-time delivery rate verified on a real supplier:** on a supplier with at least 2 completed orders with a known expected date, confirm the Supplier detail screen's "On-Time Delivery Rate" row shows a percentage matching a manual calculation against actual receiving history. Confirm a supplier below the threshold shows "Not enough data yet," and that this is independent of whether Observed Lead Time itself has enough data.
 3. **On-time and Delayed agree (INV-M11-2):** with a non-zero grace-days setting (Settings), confirm a completed order that would have been flagged "Delayed" under the same grace period is never counted as on-time, and vice versa.
 4. **Architecture guards pass:** `docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Expected_Deadline_Architecture|Test_WC_IO_Supplier_Lead_Time_Architecture|Test_WC_IO_PO_Delay'` reports 0 failures.
-5. **Full test suite green:** unit suite, M1–M11-focused suite, and the full integration suite all pass with 0 failures (260 / 535 / 286 tests respectively as of this milestone; the unit and blocking suites also carry the same 7 pre-existing risky `Test_DB_Transaction` tests noted since M9/M10 — unrelated to M11).
+5. **Full test suite green:** unit suite, M1–M11-focused suite, and the full integration suite all pass with 0 failures (counts evolve with later train milestones; CI recovery removed the prior risky `Test_DB_Transaction` baseline).
 6. **Query-count performance confirmation:** the 10/40/200-supplier Supplier Lead-Time query-scaling test, extended to assert zero additional queries for the on-time rate, passes (part of the integration suite run above — no separate manual step, listed here for visibility).
 7. **Suppliers, Purchase Orders, Inventory Position, Goods Receipts, PO Receiving, Batch Migration CLI, Storefront Expected Delivery, Supplier Observed Lead Time, and Expected-Date Suggestion unaffected:** confirm all continue to function exactly as in v1.27.0.
 8. **Rollback awareness:** M11 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (the new class is pure, the extended service is read-only by construction, both guard-enforced). A code rollback 1.28.0 → 1.27.0 is unconditionally safe (see `docs/rollback-plan.md`'s M11 note).
+
+### M12: Supplier List Performance Surface
+
+**M9–M12 are all part of the current unreleased "feature train"** — the steps below apply once the train is tagged and released; they are not performed at M12's own implementation completion. After M12 freeze, the next authorized process step is **feature-train closure (WP6)**, not M13.
+
+0. **Release notes file:** no standalone `docs/GITHUB_RELEASE_NOTES_1.29.0.md` for M12 alone. Bundled train release notes cover M9–M12 together.
+1. **No schema change:** confirm `DB_VERSION` is still `'10'`. M12 adds no table, column, or index.
+2. **List columns verified:** Purchasing → Suppliers shows Observed Lead Time and On-Time Rate after the configured Lead Time column; values match the supplier detail panel for the same supplier; insufficient data shows "—"; columns are not sortable.
+3. **Architecture guards pass:** filter includes `Test_WC_IO_Supplier_Lead_Time_Architecture` and M12 list-performance classes (`Test_WC_IO_Suppliers_List_Performance*`) — 0 failures.
+4. **Full test suite green:** unit, M1–M12-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+5. **Query-count confirmation:** one `get_stats_bulk()` / one `observed_days` SQL per non-empty page at 10/40/200; empty page → zero stats SQL.
+6. **Prior surfaces unaffected:** supplier detail (M9/M11), PO expected-date suggestion (M10), and `PO_Delay` behavior unchanged.
+7. **Rollback awareness:** code rollback 1.29.0 → 1.28.0 is unconditionally safe (see `docs/rollback-plan.md`'s M12 note).
 
 ## Post-release communication
 

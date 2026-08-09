@@ -316,11 +316,32 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
   ```
   (0 failures.)
 
-- [ ] **Full test suite green** — unit (260 tests), M1–M11-focused (535 tests), and full integration (286 tests) suites all pass with 0 failures (unit/blocking suites also carry the same 7 pre-existing risky `Test_DB_Transaction` tests noted since M9/M10 — unrelated to M11).
+- [ ] **Full test suite green** — unit, M1–M11-focused, and full integration suites all pass with 0 failures / 0 risky (CI recovery removed the prior risky `Test_DB_Transaction` baseline; later train milestones may raise counts).
 
 - [ ] **Query-count (10/40/200-supplier) performance confirmation passes, with zero additional queries versus the pre-M11 baseline** — covered by the integration suite run above, not a separate manual step.
 
 - [ ] **Suppliers, Purchase Orders, Inventory Position (M3), Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), Storefront Expected Delivery (M7), Supplier Observed Lead Time (M9), and Expected-Date Suggestion (M10) all unaffected** — all continue to function exactly as in v1.27.0.
+
+### For M12 (Supplier List Performance Surface, v1.29.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`.
+
+- [ ] **List columns present**: Purchasing → Suppliers shows Observed Lead Time and On-Time Rate after the configured Lead Time column; configured Lead Time unchanged; new columns not sortable.
+
+- [ ] **Policy parity with detail**: for the same supplier, list values match the detail panel when usable; when unusable, both show insufficient-data presentation (list uses "—").
+
+- [ ] **Bulk fetch only**: list preparation calls `get_stats_bulk()` once for the page; no per-row `get_stats_for_supplier()`.
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Supplier_Lead_Time_Architecture|Test_WC_IO_Suppliers_List_Performance'
+  ```
+
+- [ ] **Full test suite green** — unit, M1–M12-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+
+- [ ] **Query scaling (10/40/200)** — one `observed_days` SQL per non-empty page; empty page → zero stats SQL.
+
+- [ ] **M9/M10/M11 surfaces unaffected** — detail Observed Lead Time, Expected-Date Suggestion, On-Time Rate detail, and `PO_Delay` unchanged.
 
 ## Sign-off
 

@@ -2,6 +2,17 @@
 
 ---
 
+## ✓ M12 (v1.29.0): code-only, read-only list columns — as clean as M7–M11, nothing to reverse
+
+**M12 wrote no data, changed no schema, and mutated nothing.** It only adds two read-only columns on the Suppliers list table that call the existing `Supplier_Lead_Time_Service::get_stats_bulk()` once per page. No new option, table, column, setting, or public API.
+
+- **Code rollback v1.29.0 → v1.28.0 is unconditionally safe.** The list simply stops showing Observed Lead Time and On-Time Rate; the configured Lead Time column and the supplier detail panel remain as in M11.
+- **No `wp_options` row, no new table, no new column, no new setting** — nothing for a rollback to leave behind.
+- **Historical Purchase Order / Goods Receipt data is untouched** — M12 only reads via the existing service.
+- Like M7–M11, **M12 leaves nothing behind** beyond the absence of the two list columns after rollback.
+
+---
+
 ## ✓ M11 (v1.28.0): code-only, read-only feature — as clean as M7/M8/M9/M10's, nothing to reverse
 
 **M11 wrote no data, changed no schema, and mutated nothing anywhere in its surface.** The new `Expected_Deadline` class is pure (guard-enforced — zero `$wpdb`, zero writes, zero WordPress option access); the extended `Supplier_Lead_Time_Service` remains read-only by construction, computing `on_time_count`/`rated_order_count` fresh on every call from the exact same underlying Purchase Order / Goods Receipt data M9 already reads — nothing is ever persisted.

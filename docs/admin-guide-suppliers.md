@@ -147,7 +147,7 @@ If a supplier changes their invoicing currency:
 
 ---
 
-## Lead Time — Configured vs. Observed (M9/M10/M11)
+## Lead Time — Configured vs. Observed (M9/M10/M11/M12)
 
 Two lead-time figures sit side by side on the supplier edit screen, and they answer two different questions:
 
@@ -196,6 +196,10 @@ Shown as a rounded percentage plus the number of rated orders it's based on, e.g
 
 Like Observed Lead Time, this is a read-only report computed from your purchasing history — it cannot be edited or overridden, and archiving a supplier never removes it.
 
+### Comparing suppliers on the list (M12)
+
+The Purchasing → Suppliers **list** also shows **Observed Lead Time** and **On-Time Rate** as read-only columns (after the configured Lead Time column), so you can compare suppliers without opening each one. The figures use the same history and the same “not enough data” thresholds as the edit screen; when there is not enough history yet, the cell shows an em dash (—). These columns are not sortable.
+
 ### Best Practice
 
 Set the **Default lead time** to a conservative middle value:
@@ -208,7 +212,7 @@ Set the **Default lead time** to a conservative middle value:
 
 ## Platform Status
 
-As of v1.28.0 (Milestones M0–M11 complete — see
+As of v1.29.0 (Milestones M0–M12 complete on the feature train — see
 [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md)),
 the purchasing platform built on top of Suppliers is fully shipped:
 
@@ -226,12 +230,13 @@ the purchasing platform built on top of Suppliers is fully shipped:
 ✓ **Observed Lead Time** (M9): read-only average/fastest/slowest/completed-order statistics, computed from actual receiving history, alongside the configured default
 ✓ **Expected-Date Suggestion** (M10): new Purchase Orders pre-fill Expected Date/Confidence from observed (or configured) lead time — always editable, never authoritative
 ✓ **On-Time Delivery Rate** (M11): read-only percentage of rated completed orders received on or before their expected date, alongside Observed Lead Time
+✓ **Supplier list performance columns** (M12): Observed Lead Time and On-Time Rate on the Suppliers list for at-a-glance comparison
 
 ### Not Yet Available
 
 The following remain deferred to a future milestone:
 
-- **Supplier analytics**: Spend analysis and order history reporting. (Reliability scoring itself is now available — see On-Time Delivery Rate, M11, above.)
+- **Supplier analytics**: Spend analysis and order history reporting. (Reliability scoring and list comparison are available — see On-Time Delivery Rate / M12 list columns.)
 - **Supplier merge tool**: Consolidating duplicate suppliers into one record is a manual process for now; a dedicated merge tool is planned.
 
 ---

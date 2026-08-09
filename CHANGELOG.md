@@ -1,5 +1,24 @@
 # Changelog — WC Inventory Overview
 
+## [1.29.0] - 2026-08-09
+
+**Milestone M12 — Supplier List Performance Surface.** Read-only Observed Lead Time and On-Time Rate columns on the Purchasing → Suppliers list table, populated by one `Supplier_Lead_Time_Service::get_stats_bulk()` call per page. Completes the M9–M11 supplier performance narrative at the comparison decision point. **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API.** **Prerequisite:** feature-train head with M9–M11 + CI recovery (`1.28.0`). Not individually released — joins the unreleased feature train pending WP6 bundled release.
+
+### Added
+
+- **Suppliers list columns** — Observed Lead Time (rounded average days) and On-Time Rate (rounded percentage), using the same usability thresholds as the supplier detail panel (`is_observed_value_usable` / `is_on_time_rate_usable`).
+- Architecture guards INV-M12-1 / INV-M12-2 (no duplicated stats computation; one bulk call per `prepare_items()`; Lead Time service allowlist extended to the list-table file).
+- Unit, integration, and query-scaling tests at 10/40/200 suppliers.
+
+### Testing
+
+- New list-performance coverage; full suites green with 0 risky (CI recovery baseline).
+
+### Documentation
+
+- New: `docs/milestones/m12-implementation-plan.md`.
+- Updated: admin guide, architecture baseline/audit, CLAUDE.md, runbook/validation/rollback, feature-train head checklist.
+
 ## [1.26.0] - 2026-08-09
 
 **Milestone M9 — Supplier Observed Lead-Time Statistics.** The first post-GA milestone: one narrowly-scoped, read-only reporting feature, filling the `designed-for-later` slot `CLAUDE.md` Decision D8 reserved since M1 and explicitly named in `docs/admin-guide-suppliers.md`'s own "Not Yet Available" backlog. **Zero new domain concepts, zero schema change (`DB_VERSION` stays 10), zero new public API surface.** **Prerequisite:** v1.25.0 (M8 Hardening & GA).
