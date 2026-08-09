@@ -59,7 +59,12 @@ class WC_Inventory_Overview_Supplier_Lead_Time_Service {
 	public static function get_stats_bulk( array $supplier_ids ): array {
 		$ids = array();
 		foreach ( $supplier_ids as $supplier_id ) {
-			$id = absint( $supplier_id );
+			// Deliberately not absint(): absint() takes the absolute value,
+			// so a negative ID (e.g. -1) would silently become a *different*
+			// positive ID (1) instead of being rejected. A negative or zero
+			// value is not a valid supplier ID and must be filtered out, not
+			// reinterpreted as one.
+			$id = (int) $supplier_id;
 			if ( $id > 0 ) {
 				$ids[ $id ] = $id;
 			}
