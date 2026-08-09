@@ -33,6 +33,8 @@ Update `readme.txt` and/or `CHANGELOG.md` with a concise entry for this release.
 
 Create `docs/GITHUB_RELEASE_NOTES_{VERSION}.md` before tagging — the Release workflow requires this file (see `.github/workflows/release.yml`). For **v1.18.0 (M1)**, use `docs/GITHUB_RELEASE_NOTES_1.18.0.md`.
 
+**Feature trains:** intermediate development versions (e.g. M9/M10/M11 on an unreleased train) do **not** each need their own GitHub release-notes file while work continues. Day-to-day CI runs `scripts/release-audit.sh --development`. At WP6 (batched release), produce the notes artifact for the **version being tagged** and run `scripts/release-audit.sh --release` (also what `.github/workflows/release.yml` invokes).
+
 ### 3. Git commit and push
 
 Stage and commit the version and changelog changes:

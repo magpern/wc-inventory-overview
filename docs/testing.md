@@ -184,8 +184,8 @@ GitHub Actions workflows:
 
 | Workflow | Trigger | Gates |
 |----------|---------|-------|
-| `.github/workflows/ci.yml` | push/PR to `main` | PHP syntax lint on all `.php` files; release ZIP build via `scripts/build-zip.sh` |
-| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | `lint`: PHP Parallel Lint (blocking). `phpunit`: unit suite (blocking) + M1–M8-focused suite (blocking) + cumulative integration suite (blocking as of M8 — see below). |
+| `.github/workflows/ci.yml` | push/PR to `main` | PHP syntax lint on all `.php` files; release ZIP build via `scripts/build-zip.sh`; `scripts/release-audit.sh --development` (feature-train compatible — does **not** require per-version GitHub release notes) |
+| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | `lint`: PHP Parallel Lint (blocking). `phpunit`: unit suite (blocking) + M1–M11-focused suite (blocking) + cumulative integration suite (blocking). |
 
 **PHPCS is not CI-gated today** — run locally before merge:
 `./vendor/bin/phpcs --standard=phpcs.xml.dist` after `composer install` (or
@@ -196,9 +196,11 @@ The `phpunit` CI job runs three PHPUnit invocations against the same
 `tests/docker/docker-compose.phpunit.yml` stack a developer runs locally,
 so CI and local results are identical by construction:
 
-1. **Unit suite** (`--testsuite unit`) — must pass. **216 tests / 1,456 assertions as of M8/v1.25.0** (0 failures; 7 known pre-existing risky `Test_DB_Transaction` tests).
-2. **M1–M8-focused suite** (default filter: PO, schema assertion, suppliers, DB-transaction, Inventory Position, Goods Receipt, Goods Receipts, Receipt Lines, Restock Service Reversal, Batch Migration, Landed Cost Types, `Test_WC_IO_Expected_Delivery_`, `Test_WC_IO_No_Sibling_Plugin_Coupling`, `Test_WC_IO_Close_Short_With_Qty_Received`) — must pass; this is the suite that gates milestone changes specifically, now **450 tests / 2,247 assertions as of M8/v1.25.0, all passing** (0 failures; 7 known pre-existing risky `Test_DB_Transaction` tests, unrelated to any milestone's production code — see [Known test-content issues](#known-test-content-issues)). M4 contributed 230 tests / 1,039 assertions across numbering, lifecycle, repositories, costing/allocation, Restock reversal, transactional post/void (including forced-failure rollback and the intervening-receipt void regression), idempotency, capability, and architecture guards. M5 added 60 tests / 266 assertions across the full INV-4 formula, the status-recompute function, `PO_Receiving_Sync` (both `apply_line_delta()` and `reconcile_line()`), PO-linked post/void (including the forced-failure rollback test and both mandatory intervening-receipt void regressions), pre-transaction validation, `Receipt_Lines` po_line_id persistence, the M3 Incoming regression, and architecture guards for the qty_received sole-mutator chain. M7 added 71 tests / 218 assertions across the Result/Result_Interface contract, the Resolver's table-driven algorithm coverage (including Invariant M7-1's three scenarios), architecture guards (sole-entry-point rule, D12 extended), Service integration (Invariant M7-2, memoization, memo-flush-on-place), Renderer integration (the seven-step bail ladder, both filters, ISO-week year boundary), settings, and Invariant M7-3's query-scaling performance tests (20 vs 40 products issue equal query counts). M8 added the repo-wide sibling-plugin-coupling conformance guard (3 tests), extended `PO_Delay`'s truth table with the `partially_received` fix's cases, closed the `Test_WC_IO_Close_Short_With_Qty_Received` blocking-filter gap, and added GA-scale (200-item) performance confirmation tests to the Inventory Position and Expected Delivery suites.
-3. **Cumulative integration suite** (`--testsuite integration`) — **must pass, as of M8** (previously `continue-on-error: true` while it carried pre-existing test-content bugs, now fixed — see [Known test-content issues](#known-test-content-issues)). **245 tests / 834 assertions as of M8/v1.25.0, all passing** (0 errors, 0 failures, 0 skips) — the first time this suite has been fully clean since the M0-era golden characterization tests were authored.
+1. **Unit suite** (`--testsuite unit`) — must pass. **260 tests / 1,574 assertions as of CI recovery on M11/v1.28.0** (0 failures, 0 risky).
+2. **M1–M11-focused suite** (default `run-phpunit.sh` filter — see that script for the exact class-name regex and the trailing-underscore trap notes) — must pass; this is the suite that gates milestone changes specifically. **535 tests / 2,632 assertions** (0 failures, 0 risky).
+3. **Cumulative integration suite** (`--testsuite integration`) — must pass. **286 tests / 1,101 assertions** (0 errors, 0 failures, 0 skips). Includes the M0-era golden characterization tests plus all milestone integration coverage.
+
+Each PHPUnit invocation resets the MariaDB test database (`DROP DATABASE` / `CREATE DATABASE`) before WordPress's own install, so repeated local runs against a long-lived db container stay deterministic (see `tests/docker/run-phpunit.sh`).
 
 The golden characterization suite remains the regression spine for costing/FX/allocation/movement behavior; M2 adds PO unit tests that must pass in the Docker harness.
 
@@ -294,10 +296,12 @@ suite that predates the M2 fork entirely, this is strong evidence they are
 pre-existing defects in shared test content, not regressions introduced by
 M2 or by this infrastructure hotfix.
 
-Separately, `Test_DB_Transaction`'s `setUp()` logs (but does not fail on) a
-`WordPress database error: Table 'wp_test_txn_scratch' already exists`
-warning on tests after the first, within the same PHPUnit process — harmless
-and pre-existing; see [tests/README.md](../tests/README.md#troubleshooting).
+`Test_DB_Transaction` previously leaked its MySQL `TEMPORARY` scratch table
+across methods in the same PHPUnit process (TEMPORARY tables live for the
+connection lifetime). That printed a WordPress "table already exists" HTML
+error and, with `failOnRisky=true`, failed CI. Fixed: each method drops and
+recreates the scratch table in `setUp()` / `tearDown()`. See
+[docs/checklists/ci-recovery-2026-08.md](checklists/ci-recovery-2026-08.md).
 
 The M1/M2/M3-focused suite (default `run-phpunit.sh` filter: PO lifecycle,
 schema assertion, suppliers, DB-transaction, Inventory Position — 150 tests

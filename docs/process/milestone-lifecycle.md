@@ -72,7 +72,10 @@ After several milestones have accumulated (for example M9–M11), run **one** re
 
 **Rule 2 — `docs/checklists/` contains operational state. Mutable.** Freeze records, readiness records, deployment checklists, validation checklists.
 
-**Rule 3 — `docs/GITHUB_RELEASE_NOTES_*.md` files are release artifacts** (pending or published), not implementation documentation.
+**Rule 3 — `docs/GITHUB_RELEASE_NOTES_*.md` files are release artifacts** (pending or published), not implementation documentation. They are required at **WP6 release time** for the version being tagged — not at every intermediate feature-train development version. `scripts/release-audit.sh` encodes this:
+
+- `scripts/release-audit.sh --development` — CI / feature-train validation (ZIP + version consistency; release notes optional).
+- `scripts/release-audit.sh --release` — tagging / GitHub Release gate (release notes for the tagged version **required**).
 
 **Rule 4 — `CHANGELOG.md` records development history.** It is acceptable for it to contain unreleased work.
 
