@@ -65,7 +65,7 @@ class WC_Inventory_Overview_Supplier_Lead_Time_Service {
 	 * duplicated).
 	 *
 	 * @param array<int,int> $supplier_ids Supplier IDs.
-	 * @param int             $grace_days   Grace days (>= 0) applied to the on-time deadline.
+	 * @param int            $grace_days   Grace days (>= 0) applied to the on-time deadline.
 	 * @return array<int,array{has_data:bool,average_days:?float,fastest_days:?int,slowest_days:?int,sample_count:int,on_time_count:int,rated_order_count:int}> Keyed by supplier ID.
 	 */
 	public static function get_stats_bulk( array $supplier_ids, int $grace_days = 0 ): array {
@@ -191,7 +191,7 @@ class WC_Inventory_Overview_Supplier_Lead_Time_Service {
 	 * counts as on-time (inclusive boundary).
 	 *
 	 * @param array<int,int> $supplier_ids Supplier IDs (already validated, non-empty).
-	 * @param int             $grace_days   Grace days (>= 0), already validated non-negative.
+	 * @param int            $grace_days   Grace days (>= 0), already validated non-negative.
 	 * @return array<int,array{supplier_id:int,average_days:float,fastest_days:int,slowest_days:int,sample_count:int,on_time_count:int,rated_order_count:int}>
 	 */
 	private static function query_observations( array $supplier_ids, int $grace_days = 0 ): array {
