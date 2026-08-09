@@ -1,7 +1,7 @@
-# Architecture audit — WC Inventory Overview 1.25.0
+# Architecture audit — WC Inventory Overview 1.27.0
 
-**Date:** 2026-08-08 (updated through Milestone M8)
-**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M8 complete (schema `DB_VERSION` 10) — Version 1.0 / GA ready. For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place for M8, filename unchanged since M8 changed no frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
+**Date:** 2026-08-08 (updated through Milestone M8); updated through M9 and M10 2026-08-09.
+**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M10 complete (schema `DB_VERSION` 10) — Version 1.0 / GA ready since M8; M9 and M10 are the first two milestones of the post-GA "feature train" (`docs/process/milestone-lifecycle.md`), implemented and audited but intentionally not yet released individually. For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place through M10, filename unchanged since none of M8/M9/M10 changed a frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
 
 ---
 
@@ -422,6 +422,30 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ---
 
+## Milestone M10 — Purchase Order Expected-Date Suggestion
+
+**Status:** Complete, v1.27.0. **Schema unchanged (v10), zero new tables, zero new columns.** First milestone of the "feature train" model (`docs/process/milestone-lifecycle.md`, adopted after M9): implemented, independently audited, and frozen, but **intentionally not released individually** — batched with M9 into one future combined release. Zero new public API surface (Internal, D16).
+
+**Scope:** on the **new** Purchase Order creation screen only, pre-fill Expected Date and Confidence from a priority-ordered suggestion: usable observed lead time (M9) → configured `default_lead_time_days` → no suggestion. Calendar days only. Confidence is always `estimated` when a suggestion exists, never `exact`. Always overridable; never runs on the edit-PO screen.
+
+**A discovered documentation/implementation gap, corrected by this milestone:** `docs/admin-guide-suppliers.md` (and `CLAUDE.md` D8) had claimed since before M9 that creating a new PO "suggests" the configured lead time — this was verified false at M10 planning time (`class-wc-inventory-overview-po-admin.php`'s Expected Date field had zero auto-suggestion logic of any kind). M9's own WP6 documentation pass carried this claim forward unverified. M10 is the first milestone to actually build the behavior the documentation had been describing, closing the gap rather than perpetuating it.
+
+**`WC_Inventory_Overview_Expected_Date_Suggestion_Service`:** new sole-owner boundary for the *recommendation policy* (`get_suggestion_for_supplier()`/`get_suggestions_bulk()`, single defined as bulk-of-one). Deliberately kept a separate class from `Supplier_Lead_Time_Service` — the M9 service owns *statistics* (what happened), this one owns *policy* (what to suggest given the statistics plus the configured fallback) — the same "one sole owner per computed concept" discipline as Inventory Position vs. Expected Delivery. Never queries `$wpdb` directly at all; its only data access is one delegated call to `Supplier_Lead_Time_Service::get_stats_bulk()` plus reading already-loaded supplier rows passed in by its caller.
+
+**`Supplier_Lead_Time_Service::is_observed_value_usable()`:** one small, additive, backward-compatible predicate method added to M9's service, so M10 never independently knows or duplicates the `MINIMUM_SAMPLE_COUNT_FOR_DISPLAY` threshold — that decision stays owned by M9. M9's own architecture guard test's sole-caller allowlist was deliberately extended to include the new service (its docstring had explicitly anticipated exactly this). No existing M9 method's behavior changed; `docs/milestones/m9-implementation-plan.md` itself was not touched.
+
+**Admin UI wiring:** no AJAX, no new endpoint. `class-wc-inventory-overview-po-admin.php`'s `enqueue_assets()` computes suggestions for every active supplier in one bulk pass, gated by an explicit `action=new` check (not merely "does the field exist" — an existing `draft` PO is also editable and renders identical field IDs, so a naive DOM-presence check would have risked clearing an existing PO's stored date when its supplier was changed; this was caught and fixed before any test/manual pass), and adds them to the existing `wp_localize_script('wc-io-po-admin', 'wcIoPoAdmin', …)` payload alongside an explicit `isNewPurchaseOrder` boolean the client-side code gates on.
+
+**Client-side behavior (`assets/po-admin.js`):** on supplier change, pre-fills Expected Date (`order_date` or today, plus N calendar days) and sets Confidence to `estimated`, unless the operator has already manually edited either field this page session — a permanent, one-way switch (INV-M10-1), never reset, never re-enabled by further supplier changes. Switching to a supplier with no suggestion clears a still-untouched prior auto-fill rather than leaving it stale.
+
+**Architecture guards:** `tests/unit/expected-date-suggestion/test-expected-date-suggestion-architecture.php` — sole-owner policy-signature scan (`is_observed_value_usable(`), a check that M9's own computation tokens (`DATEDIFF(`/`observed_days`) never appear in this service (proving it never duplicates the statistic itself), zero-write scan, zero-direct-`$wpdb`-usage scan, no-public-API-surface scan, sole-caller allowlist (only `class-wc-inventory-overview-po-admin.php`), bulk-first delegation check. Plus one small, deliberate update to M9's own guard test's allowlist.
+
+**Testing:** `tests/unit/expected-date-suggestion/` (architecture guard, pure resolution-rule/input-shape tests, plus one M9 regression test for `is_observed_value_usable()`), `tests/integration/expected-date-suggestion/` (real observed suggestion end-to-end and winning over configured, configured fallback, no-suggestion state, bulk path with per-supplier independence, an explicit regression check that `Supplier_Lead_Time_Service`'s own output is byte-for-byte unchanged by this milestone, 10/40/200-supplier performance with an explicit per-scale query count of 1). 26 new tests: unit suite 244 tests / 1535 assertions (0 failures, same 7 pre-existing risky `Test_DB_Transaction` tests); integration suite 269 tests / 983 assertions (0 errors, 0 failures); M1–M10-focused suite 502 tests / 2475 assertions (0 failures).
+
+**Explicitly excluded from M10 (deliberate non-goals, not oversights):** editing an existing PO (suggestion never fires there); per-line expected-date override suggestions (header-level only, first slice); any change to `Expected_Delivery_Resolver`/the storefront renderer; business-day arithmetic (calendar days only, matching M9's own semantics); persisting the suggestion or its source anywhere; any consumer besides PO creation (Quick Restock, a supplier dashboard, and a reorder assistant are named as plausible future consumers of the now-generic service, none built here); supplier reliability scoring, spend analysis, order-history reporting.
+
+---
+
 ## Known risks / tech debt
 
 1. **Large god class:** `class-wc-inventory-overview-plugin.php` centralizes UI, handlers, and exports — harder to test and review. Evaluated for M8 and deliberately deferred (see the M8 section above) — a whole-admin-surface refactor is the opposite of hardening under GA time pressure; remains open for a future, dedicated milestone.
@@ -429,7 +453,7 @@ An independent audit of the completed M5 implementation (before this branch was 
 3. **`posts_clauses` filter:** Global filter at priority 999; scoped by query depth and admin context — avoid front-end product queries while filter is active.
 4. **Danger zone reset:** Can bulk-delete plugin tables/meta snapshots; gated by capability + nonces + preview token — still high impact for operators.
 5. **Inline stock AJAX:** Uses `edit_products` (broader than `manage_woocommerce`) with per-product `edit_product` — intentional for catalog editors.
-6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery + M8 conformance/hardening + M9 supplier-lead-time), PHPCS (local, not CI-gated — ~559 pre-existing errors/634 warnings, evaluated and deliberately excluded from M8 as disproportionate to a hardening pass), and GitHub Actions CI (PHP lint + release ZIP + the full integration suite, blocking since M8). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
+6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery + M8 conformance/hardening + M9 supplier-lead-time + M10 expected-date-suggestion), PHPCS (local, not CI-gated — ~559 pre-existing errors/634 warnings as of M8/M9, not re-measured since; evaluated and deliberately excluded from M8 as disproportionate to a hardening pass), and GitHub Actions CI (PHP lint + release ZIP + the full integration suite, blocking since M8). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
 7. **Monorepo mirror:** A development copy may exist under `biopentra-custom-plugins/plugins/wc-inventory-overview/`; this standalone repo is canonical for releases.
 
 ---
@@ -437,8 +461,9 @@ An independent audit of the completed M5 implementation (before this branch was 
 ## Recommended follow-ups (non-blocking)
 
 - Split `Plugin` into tab controllers or modules — real tech debt (item 1 above), explicitly evaluated and deferred past M8/GA; a future dedicated milestone, not a hardening-pass item.
-- Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; M6 added `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at`; M8 and M9 introduced no schema change — next relevant whenever a future milestone next changes schema).
-- ~~Observed lead-time statistics (average/minimum/maximum delivery times, computed from actual receiving history)~~ — **done in M9** (see the M9 section above). The remaining "Not Yet Available" backlog in `docs/admin-guide-suppliers.md` (supplier analytics/reliability scoring, the supplier merge tool) is unaffected.
+- Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; M6 added `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at`; M8, M9, and M10 introduced no schema change — next relevant whenever a future milestone next changes schema).
+- ~~Observed lead-time statistics (average/minimum/maximum delivery times, computed from actual receiving history)~~ — **done in M9** (see the M9 section above).
+- ~~Wiring observed lead time into PO-creation expected-date suggestions~~ — **done in M10** (see the M10 section above). The remaining "Not Yet Available" backlog in `docs/admin-guide-suppliers.md` (supplier analytics/reliability scoring, the supplier merge tool) is unaffected.
 - ~~Physically delete the M6-deprecated Batch Intake code~~ — **done in M8** (see the M8 section above).
 - ~~`PO_Delay`'s "Delayed" detection does not extend to `partially_received` POs~~ — **fixed in M8** (see the M8 section above).
 - PHPCS-clean the codebase, or actually wire up the empty `.phpcs-baseline.xml` ratchet — evaluated for M8 and deliberately excluded (disproportionate scope for a hardening pass); still a reasonable future initiative on its own.

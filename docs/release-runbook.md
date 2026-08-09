@@ -250,6 +250,20 @@ No additional steps. The release is a pure-tooling change with no functional or 
 7. **Suppliers, Purchase Orders, Inventory Position, Goods Receipts, PO Receiving, Batch Migration CLI, and Storefront Expected Delivery unaffected:** confirm all continue to function exactly as in v1.25.0.
 8. **Rollback awareness:** M9 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (the new service is read-only by construction, guard-enforced). A code rollback 1.26.0 → 1.25.0 is unconditionally safe (see `docs/rollback-plan.md`'s M9 note).
 
+### M10: Purchase Order Expected-Date Suggestion
+
+**M9 and M10 are both part of the current unreleased "feature train"** (`docs/process/milestone-lifecycle.md`) — the steps below apply once the train (M9 + M10, + whatever else has joined by then) is actually tagged and released; they are not performed at M10's own implementation completion.
+
+0. **Release notes file:** per the feature-train process, no standalone `docs/GITHUB_RELEASE_NOTES_1.27.0.md` is produced for M10 alone. When the train is released, its combined release notes file covers every milestone batched into that release (`CHANGELOG.md` entries accumulate per-milestone in the meantime).
+1. **No schema change:** confirm `DB_VERSION` is still `'10'` in `includes/class-wc-inventory-overview-install.php` — M10 adds no table, column, or index. `wp option get wc_io_db_version` returns `10`; `wp option get wc_io_schema_assertion --format=json` shows `ok: true` at `version: "10"`.
+2. **Expected-date suggestion verified on a real supplier:** create a new Purchase Order for a supplier with a usable Observed Lead Time (≥2 completed orders); confirm selecting that supplier pre-fills Expected Date/Confidence matching that supplier's own Observed Lead Time panel average. Confirm a configured-only supplier falls back correctly, and a supplier with neither leaves the fields blank.
+3. **Advisory-only, never authoritative (INV-M10-1):** confirm a manual edit to Expected Date or Confidence is never overwritten by a later supplier change, and that opening an existing (including still-editable `draft`) Purchase Order never triggers a suggestion.
+4. **Architecture guards pass:** `docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Expected_Date_Suggestion_Architecture|Test_WC_IO_Supplier_Lead_Time_Architecture'` reports 0 failures.
+5. **Full test suite green:** unit suite, M1–M10-focused suite, and the full integration suite all pass with 0 failures (244 / 502 / 269 tests respectively as of this milestone).
+6. **Query-count performance confirmation:** the 10/40/200-supplier Expected-Date Suggestion query-scaling test passes (part of the integration suite run above — no separate manual step, listed here for visibility).
+7. **Suppliers, Purchase Orders, Inventory Position, Goods Receipts, PO Receiving, Batch Migration CLI, Storefront Expected Delivery, and Supplier Observed Lead Time unaffected:** confirm all continue to function exactly as in v1.26.0.
+8. **Rollback awareness:** M10 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (the new service is read-only by construction, guard-enforced, and never touches `$wpdb` directly). A code rollback 1.27.0 → 1.26.0 is unconditionally safe (see `docs/rollback-plan.md`'s M10 note).
+
 ## Post-release communication
 
 After a successful release:

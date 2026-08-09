@@ -6,30 +6,38 @@
 
 **Process:** [`docs/process/milestone-lifecycle.md`](docs/process/milestone-lifecycle.md) — the Standard Milestone Lifecycle (v2, effective M10 onward) governing plan → implement → audit → remediate → freeze → next-milestone sequencing and feature-train release batching. Read it before starting any milestone from M10 forward.
 
-## Platform status: M0–M8 GA baseline, M9 shipped as first post-GA milestone
+## Platform status: M0–M8 GA baseline, M9 + M10 shipped as the first post-GA feature train
 
-**Current baseline: plugin 1.26.0, `DB_VERSION` 10.** All nine foundational
+**Current baseline: plugin 1.27.0, `DB_VERSION` 10.** All nine foundational
 milestones (M0 Delivery Foundations through M8 Hardening & GA) are shipped
-and frozen, and M9 (Supplier Observed Lead-Time Statistics) has shipped on
-top as the first post-GA product-evolution milestone. M8 added zero new
-domain concepts, zero schema change, and zero public API change — it
-physically removed the M6-deprecated Batch Intake code, closed the
-`partially_received` delay-detection gap, added a repo-wide
-sibling-plugin-coupling conformance guard, repaired the last pre-existing
-test-content bugs (the full integration suite is now a CI-blocking gate,
-clean for the first time), and hardened the CI pipeline. M9 adds one
-read-only reporting feature (observed supplier lead-time, computed from
-existing Purchase Order / Goods Receipt history) — zero schema change, zero
-new public API (the new service is Internal, not Public — D16), zero change
-to any existing business behavior.
+and frozen. M9 (Supplier Observed Lead-Time Statistics) and M10 (Purchase
+Order Expected-Date Suggestion) have both shipped on top as the first
+post-GA "feature train" (`docs/process/milestone-lifecycle.md`) — each
+implemented, independently audited, and frozen on its own branch, but
+**intentionally not released individually**; they await one batched future
+release. M8 added zero new domain concepts, zero schema change, and zero
+public API change — it physically removed the M6-deprecated Batch Intake
+code, closed the `partially_received` delay-detection gap, added a
+repo-wide sibling-plugin-coupling conformance guard, repaired the last
+pre-existing test-content bugs (the full integration suite is now a
+CI-blocking gate, clean for the first time), and hardened the CI pipeline.
+M9 added one read-only reporting feature (observed supplier lead-time,
+computed from existing Purchase Order / Goods Receipt history). M10 added
+one advisory admin feature (Purchase Order creation pre-fills Expected
+Date/Confidence from M9's observed lead time, falling back to the
+supplier's configured lead time) — zero schema change either milestone,
+zero new public API (both new services are Internal, not Public — D16),
+zero change to any existing business behavior beyond the one new
+pre-fill.
 **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)**
 remains the consolidated architecture snapshot — completed milestones, frozen
 ownership boundaries, public APIs, schema, invariants, and future-governance
-rules (updated in place for M8 and M9, not superseded — see its own §12 rule
-and the M8/M9 entries added to its milestone table). Any new milestone (M10
-onward) should start from that document rather than re-deriving M0–M9 from
-this file's Part I–III text below. The Implementation Status table at the
-end of this file remains the authoritative per-milestone release ledger.
+rules (updated in place for M8, M9, and M10, not superseded — see its own
+§12 rule and the M8/M9/M10 entries added to its milestone table). Any new
+milestone (M11 onward) should start from that document rather than
+re-deriving M0–M10 from this file's Part I–III text below. The
+Implementation Status table at the end of this file remains the
+authoritative per-milestone release ledger.
 
 ---
 
@@ -201,8 +209,9 @@ This table is updated as each milestone is implemented. Each milestone links to 
 | M7 | Storefront | ✅ Complete | 1.24.0 | [docs/milestones/m7-implementation-plan.md](docs/milestones/m7-implementation-plan.md) | Schema unchanged (v10), `Expected_Delivery_Result_Interface`/`Result`/`Resolver`/`Service`/`Renderer` (API v1, sole public API + sole-entry-point rule), built-in `woocommerce_get_availability` renderer, one merchant toggle, two generic extension filters, Invariants M7-1/M7-2/M7-3; this plugin now owns customer-facing expected-delivery presentation |
 | M8 | Hardening & GA | ✅ Complete | 1.25.0 | [docs/milestones/m8-implementation-plan.md](docs/milestones/m8-implementation-plan.md) | Schema unchanged (v10); physically removed M6-deprecated Batch Intake create/apply surface (fixture builder rewritten first); closed `PO_Delay`'s `partially_received` gap; repo-wide sibling-plugin-coupling conformance guard; repaired all remaining pre-existing golden-test bugs (integration suite now CI-blocking, 245 tests / 834 assertions, 0 failures); CI hardening (PHP 8.4 aligned across all workflows); GA-scale (200-item) performance confirmation. Zero new domain concepts, zero public API change. First milestone this program calls Version 1.0 / GA ready. |
 | M9 | Supplier Observed Lead-Time Statistics | ✅ Complete | 1.26.0 | [docs/milestones/m9-implementation-plan.md](docs/milestones/m9-implementation-plan.md) | Schema unchanged (v10); first post-GA milestone. `Supplier_Lead_Time_Service` (new Internal, not Public, sole-owner boundary — D16) computes read-only average/fastest/slowest/completed-order statistics per supplier from posted Goods Receipts linked to fully-`received` Purchase Orders, one bulk query, no persistence, no N+1 (proven at 10/40/200-supplier scale). Read-only panel on the Supplier admin screen alongside the existing configured-lead-time field. Fills the D8 "designed-for-later" slot named in `docs/admin-guide-suppliers.md` since M1. Zero new domain concepts, zero public API, zero schema change. |
+| M10 | Purchase Order Expected-Date Suggestion | ✅ Complete | 1.27.0 | [docs/milestones/m10-implementation-plan.md](docs/milestones/m10-implementation-plan.md) | Schema unchanged (v10); second milestone of the post-GA feature train. `Expected_Date_Suggestion_Service` (new Internal, not Public, sole-owner boundary — D16) combines M9's observed statistics with the supplier's configured `default_lead_time_days` into an advisory expected-date suggestion (observed → configured → none; calendar days only), pre-filling the new-PO creation form via the existing `wp_localize_script`/`po-admin.js` plumbing — no AJAX, no new endpoint. Always overridable, permanently so once edited (INV-M10-1); never runs on the edit-PO screen. `Supplier_Lead_Time_Service` gains one small additive predicate, `is_observed_value_usable()`. Corrects a previously-false documentation claim that this suggestion already existed. Zero new domain concepts, zero public API, zero schema change. |
 
-**Release note:** v1.25.0 (M8) is tagged and published — see `docs/GITHUB_RELEASE_NOTES_1.25.0.md`. v1.26.0 (M9) implementation and independent audit are both complete; tagging and publishing are deferred to a future bundled release — see `docs/GITHUB_RELEASE_NOTES_1.26.0.md` and `docs/checklists/m9-release-readiness.md`. All prior milestone releases (M0–M7, tags `v1.17.3`–`v1.24.0`) are likewise tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
+**Release note:** v1.25.0 (M8) is tagged and published — see `docs/GITHUB_RELEASE_NOTES_1.25.0.md`. v1.26.0 (M9) and v1.27.0 (M10) implementation and independent audit are both complete for each (M9: see `docs/checklists/m9-release-readiness.md`); tagging, publishing, and release notes are deferred to a future bundled release covering the whole feature train — per `docs/process/milestone-lifecycle.md`, no per-milestone `docs/GITHUB_RELEASE_NOTES_1.27.0.md` is produced for M10 individually. All prior milestone releases (M0–M7, tags `v1.17.3`–`v1.24.0`) are likewise tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
 
 ---
 

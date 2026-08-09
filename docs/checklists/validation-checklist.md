@@ -260,6 +260,38 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **Suppliers, Purchase Orders, Inventory Position (M3), Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), and Storefront Expected Delivery (M7) all unaffected** — all continue to function exactly as in v1.25.0.
 
+### For M10 (Purchase Order Expected-Date Suggestion, v1.27.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`; `wc_io_schema_assertion` reports `ok: true` at `version: "10"`.
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  ```
+
+- [ ] **Observed suggestion**: create a new Purchase Order for a supplier with a usable Observed Lead Time (≥2 completed orders); selecting that supplier pre-fills Expected Date (order date, or today if blank, plus the rounded observed average in calendar days) and sets Confidence to "Estimated," matching the same average shown on that supplier's own Observed Lead Time panel.
+
+- [ ] **Configured fallback**: a supplier with no usable observed history but a nonzero "Default Lead Time (days)" gets a suggestion sourced from that configured value instead.
+
+- [ ] **No suggestion**: a supplier with neither observed nor configured lead time leaves Expected Date/Confidence blank, exactly as before this milestone.
+
+- [ ] **Manual edit is permanently respected**: manually change Expected Date (or Confidence) on the create form, then change the supplier — the manual value is never overwritten, and no further automatic suggestion applies for the rest of that page session even after additional supplier changes.
+
+- [ ] **Stale suggestion clears**: select a supplier with a suggestion, then a supplier without one (without manually editing in between) — the previously auto-filled fields return to blank/"Unknown," not left showing the first supplier's stale figures.
+
+- [ ] **Editing an existing PO is unaffected**: opening any existing Purchase Order (including a still-editable `draft`) never triggers a suggestion or alters its already-stored Expected Date/Confidence, even if its supplier is changed.
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Expected_Date_Suggestion_Architecture|Test_WC_IO_Supplier_Lead_Time_Architecture'
+  ```
+  (0 failures.)
+
+- [ ] **Full test suite green** — unit, M1–M10-focused, and full integration suites all pass with 0 failures.
+
+- [ ] **Query-count (10/40/200-supplier) performance confirmation passes** — covered by the integration suite run above, not a separate manual step.
+
+- [ ] **Suppliers, Purchase Orders, Inventory Position (M3), Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), Storefront Expected Delivery (M7), and Supplier Observed Lead Time (M9) all unaffected** — all continue to function exactly as in v1.26.0.
+
 ## Sign-off
 
 Once all checks pass:

@@ -2,21 +2,21 @@
 
 **Status: FROZEN.** This document freezes the *architectural boundaries* of
 WC Inventory Overview established by the completion of Milestones M0–M7 —
-kept as the document's name and identity, since M8 and M9 (below) each
+kept as the document's name and identity, since M8, M9, and M10 (below) each
 closed gaps or added an Internal-only sole-owner boundary within this same
 frozen shape without changing any boundary recorded here (per §12 rule 7's
 update-in-place instruction, no `ARCHITECTURE_BASELINE_v1.25.0.md` or
-`ARCHITECTURE_BASELINE_v1.26.0.md` was created). It is the official
-architectural baseline for every future milestone (M10 onward).
+`ARCHITECTURE_BASELINE_v1.26.0.md`/`v1.27.0.md` was created). It is the
+official architectural baseline for every future milestone (M11 onward).
 
 | | |
 |---|---|
-| **Plugin version** | 1.26.0 (current — architectural boundaries themselves were frozen at 1.24.0/M7; M8/v1.25.0 closed gaps within them and M9/v1.26.0 added one new Internal sole-owner boundary, changing no frozen boundary) |
+| **Plugin version** | 1.27.0 (current — architectural boundaries themselves were frozen at 1.24.0/M7; M8/v1.25.0 closed gaps within them, M9/v1.26.0 added one new Internal sole-owner boundary, and M10/v1.27.0 added a second, changing no frozen boundary) |
 | **Schema version (`DB_VERSION`)** | 10 |
-| **Milestones complete** | M0 – M9 |
-| **Baseline date** | 2026-08-08 (M7 freeze); updated in place 2026-08-08 for M8; updated in place 2026-08-09 for M9 |
-| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M9 status snapshot** of that same architecture, plus the M1–M9 rules layered on top of it. |
-| **Governs** | All milestones from M10 onward |
+| **Milestones complete** | M0 – M10 |
+| **Baseline date** | 2026-08-08 (M7 freeze); updated in place 2026-08-08 for M8; updated in place 2026-08-09 for M9; updated in place 2026-08-09 for M10 |
+| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M10 status snapshot** of that same architecture, plus the M1–M10 rules layered on top of it. |
+| **Governs** | All milestones from M11 onward |
 
 This is a **documentation-only** artifact. It changes no code, no schema, no
 public API, and no `DB_VERSION`.
@@ -133,17 +133,23 @@ contract.
 | M7 | Storefront Expected Delivery | 1.24.0 | v10 (unchanged) | `Expected_Delivery_Result_Interface`/`Result`/`Resolver`/`Service`/`Renderer` (API v1, sole public API + sole-entry-point rule), built-in `woocommerce_get_availability` renderer, one merchant toggle, Invariants M7-1/M7-2/M7-3. |
 | M8 | Hardening & GA | 1.25.0 | v10 (unchanged) | Physically removed the M6-deprecated Batch Intake create/apply surface (test fixture builder rewritten first, four deletion criteria verified); closed `PO_Delay`'s `partially_received` gap; added the repo-wide sibling-plugin-coupling conformance guard M7 deferred; repaired all remaining pre-existing golden-test bugs (integration suite promoted to a CI-blocking gate); CI hardening (PHP 8.4 aligned across all workflows); GA-scale (200-item) performance confirmation. Zero new domain concepts, zero public API change — the smallest milestone that lets M0–M8 be called production-finished. |
 | M9 | Supplier Observed Lead-Time Statistics | 1.26.0 | v10 (unchanged) | `Supplier_Lead_Time_Service` (new sole-owner boundary, Internal not Public — no concrete external consumer exists yet, D16) computes read-only average/fastest/slowest/completed-order statistics per supplier from posted Goods Receipts linked to fully-`received` Purchase Orders; one bulk aggregate query, no persistence, no N+1 (proven at 10/40/200-supplier scale). Displayed read-only on the Supplier admin screen alongside the existing configured-lead-time fallback. Zero schema change, zero new public API, zero new domain concept — fills the `designed-for-later` slot D8 already reserved. |
+| M10 | Purchase Order Expected-Date Suggestion | 1.27.0 | v10 (unchanged) | `Expected_Date_Suggestion_Service` (new sole-owner boundary, Internal not Public, D16) combines M9's observed statistics with the supplier's configured fallback into an advisory expected-date suggestion (observed → configured → none priority; calendar days only). Pre-fills the new-PO creation form's Expected Date/Confidence via the existing `wp_localize_script`/`po-admin.js` plumbing — no AJAX, no new endpoint. Always overridable, never authoritative (INV-M10-1); never runs on the edit-PO screen. `Supplier_Lead_Time_Service` gains one small additive predicate, `is_observed_value_usable()`, so M10 never duplicates M9's own "is this average good enough" threshold. Zero schema change, zero new public API, zero new domain concept. |
 
 Full detail for each milestone: `docs/milestones/m{N}-implementation-plan.md`
 and the corresponding section of `docs/architecture-audit.md`.
 
-**M0–M9 complete.** This baseline is updated in place for M9, per the same
-§12 rule M8 followed — no `ARCHITECTURE_BASELINE_v1.26.0.md` was created,
-since M9 changed no frozen boundary and introduced no new domain concept;
-it added one new *Internal* sole-owner boundary (see §4's new
-`Supplier_Lead_Time_Service` row) inside the domain this plugin already
-owns. The next milestone (M10 onward) is unplanned; see §10 for extension
-philosophy and §12 for the governance rules any new milestone must follow.
+**M0–M10 complete.** This baseline is updated in place for M9 and M10, per
+the same §12 rule M8 established — no `ARCHITECTURE_BASELINE_v1.26.0.md` or
+`v1.27.0.md` was created, since neither M9 nor M10 changed a frozen
+boundary or introduced a new domain concept; each added one new *Internal*
+sole-owner boundary (see §4's `Supplier_Lead_Time_Service` and
+`Expected_Date_Suggestion_Service` rows) inside the domain this plugin
+already owns. Per `docs/process/milestone-lifecycle.md` (the Standard
+Milestone Lifecycle, v2, adopted after M9), M9 and M10 are both part of the
+current unreleased "feature train" — implemented, audited, and frozen
+independently, batched into one future release. The next milestone (M11
+onward) is unplanned; see §10 for extension philosophy and §12 for the
+governance rules any new milestone must follow.
 
 ---
 
@@ -164,7 +170,8 @@ just prose — a violation fails CI, not just code review.
 | **Storefront rendering (M7)** | Only `Expected_Delivery_Renderer` touches `woocommerce_get_availability`. It goes through the Service only — never a repository, never `$wpdb`, never a PO-domain class directly. | Same guard file |
 | **`PO_Delay` delayed-detection status gate (M2/M8)** | A line may be flagged delayed only when its owning PO is `placed` or `partially_received` (M8 closed the gap where a partially-received PO's genuinely overdue remainder was silently never flagged); `received` is excluded by construction (INV-4 guarantees `outstanding = 0`). PHP and SQL predicates verified equivalent by a shared table-driven fixture. | `tests/unit/purchase-orders/test-po-delay.php` |
 | **No sibling-plugin coupling (all milestones)** | No `class_exists()`/`function_exists()` check against a third-party symbol; no `remove_filter()`/`remove_action()` call; no hardcoded sibling-plugin identifier. Enforced per-milestone within each new feature's own files since M4; as of M8, also enforced **repo-wide across the entire `includes/` tree in one guard**, mechanically confirming ADR-0003's audit claim instead of leaving it as prose. | Per-milestone guards; `tests/unit/conformance/test-no-sibling-plugin-coupling.php` (repo-wide, M8) |
-| **Observed lead-time computation (M9)** | Only `Supplier_Lead_Time_Service` computes observed supplier lead-time statistics (sole-owner rule, source-scanned for the `DATEDIFF(`/`observed_days` computation signature — not the returned array-key names, which the approved UI caller legitimately reads without duplicating any calculation). Read-only by construction: never calls `set_stock_quantity`/`update_post_meta`/`->insert(`/`->update(`/`->delete(`, only ever `$wpdb->get_results()`. Internal, not Public (§7/§10.3) — no `API_VERSION`, no interface; a future milestone may promote it to a versioned public API without changing the computation it wraps, per D16. | `tests/unit/supplier-lead-time/test-supplier-lead-time-architecture.php` |
+| **Observed lead-time computation (M9)** | Only `Supplier_Lead_Time_Service` computes observed supplier lead-time statistics (sole-owner rule, source-scanned for the `DATEDIFF(`/`observed_days` computation signature — not the returned array-key names, which the approved UI caller legitimately reads without duplicating any calculation). Read-only by construction: never calls `set_stock_quantity`/`update_post_meta`/`->insert(`/`->update(`/`->delete(`, only ever `$wpdb->get_results()`. Internal, not Public (§7/§10.3) — no `API_VERSION`, no interface; a future milestone may promote it to a versioned public API without changing the computation it wraps, per D16. As of M10, its sole-caller allowlist also includes `Expected_Date_Suggestion_Service` (deliberately extended, per its own guard test's docstring). | `tests/unit/supplier-lead-time/test-supplier-lead-time-architecture.php` |
+| **Expected-date suggestion policy (M10)** | Only `Expected_Date_Suggestion_Service` combines observed and configured lead-time signals into a suggestion (sole-owner rule, source-scanned for the `is_observed_value_usable(` call signature). Distinct responsibility from `Supplier_Lead_Time_Service` (owns *statistics*) — this service owns *recommendation policy* only, and never independently computes an average/min/max itself (guard-verified absence of M9's own `DATEDIFF(`/`observed_days` tokens). Never touches `$wpdb` directly at all — every read goes through `Supplier_Lead_Time_Service::get_stats_bulk()`. Internal, not Public, no `API_VERSION`, no interface. Sole caller: `WC_Inventory_Overview_PO_Admin`, and only on the new-PO creation screen. | `tests/unit/expected-date-suggestion/test-expected-date-suggestion-architecture.php` |
 
 **The pattern, stated once:** every domain fact in this system has exactly
 one class that is allowed to compute it or write it, and every other class
@@ -200,6 +207,7 @@ force. Restated briefly, with their current enforcement points:
 | **M7-1** | M7 | A customer-safe expected-delivery line's date is never in the past, regardless of the upstream `is_delayed` flag (which can be stale for a `partially_received` PO or a non-zero delay grace period). |
 | **M7-2** | M7 | An out-of-stock variable parent presents `STATE_EXPECTED_SOON`, never a specific date — regardless of how confident an individual variation's own date is. |
 | **M7-3** | M7 | At most one product-scoped and one variation-scoped SQL query per rendered page, regardless of item count — measured by an equality assertion (20 vs. 40 mixed products issue the *same* query count), not asserted in prose. |
+| **INV-M10-1** | M10 | Automatic expected-date suggestions may assist the operator but never become authoritative — a suggestion is always a pre-filled default, never a locked, forced, or silently-reasserted value; once the operator edits either the Expected Date or Confidence field, that entry wins permanently for the rest of that PO-creation page session. Enforced client-side (`assets/po-admin.js`) and reinforced server-side by construction (the suggestion service never writes anything; only the existing, unchanged PO form-submission path persists these fields). |
 
 ---
 
@@ -563,19 +571,20 @@ number, bumped only for its own backward-incompatible changes.
 
 ## 12. Future-governance rules
 
-These rules apply to M10 and every milestone after it (M8 and M9 both
+These rules apply to M11 and every milestone after it (M8, M9, and M10 all
 followed them — see the update to rule 6 below):
 
 1. **This document is the starting point.** A new milestone plan opens by
    stating what it builds on top of this baseline — it does not re-explain
-   or re-verify M0–M9's architecture from scratch. If a milestone plan finds
+   or re-verify M0–M10's architecture from scratch. If a milestone plan finds
    this document inaccurate (a rule has drifted from the code), fixing this
    document is a prerequisite for that milestone, not a side effect of it.
 2. **A new sole-owner boundary requires a guard test in the same PR.** No
    "we'll add the architecture guard later" — every milestone from M3 onward
    has shipped its guard test alongside the feature (M9's
-   `Supplier_Lead_Time_Service` guard included), and that discipline is now
-   the baseline, not optional.
+   `Supplier_Lead_Time_Service` guard and M10's
+   `Expected_Date_Suggestion_Service` guard both included), and that
+   discipline is now the baseline, not optional.
 3. **A new cross-cutting architectural decision requires an ADR.** Follow
    the Nygard format already established in `docs/adr/` (`0001`–`0003`).
    Number sequentially; update `docs/adr/README.md`'s index table.
@@ -626,7 +635,8 @@ followed them — see the update to rule 6 below):
 
 ---
 
-**This baseline is frozen as of v1.24.0 / `DB_VERSION` 10 / M0–M7 complete.**
+**This baseline is frozen as of v1.24.0 / `DB_VERSION` 10 / M0–M7 complete;
+updated in place through M10 (v1.27.0) per §12 rule 7.**
 Any change to a fact recorded in this document should either update this
 document directly (documentation-only change) or be accompanied by an update
 to it (as part of a milestone that changes the underlying fact) — never left
