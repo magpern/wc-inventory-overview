@@ -47,14 +47,18 @@ class Test_WC_IO_Supplier_Lead_Time_Architecture extends WP_UnitTestCase {
 	/**
 	 * Expected exact set of includes/ files calling
 	 * WC_Inventory_Overview_Supplier_Lead_Time_Service:: -- the Suppliers
-	 * admin screen (WP3), and nothing else. A future caller must be added
-	 * here deliberately, in the same review, never silently.
+	 * admin screen (WP3), plus M10's Expected_Date_Suggestion_Service
+	 * (docs/milestones/m10-implementation-plan.md §5.1: a deliberate,
+	 * anticipated extension of this allowlist, not a silent one), and
+	 * nothing else. A future caller must be added here deliberately, in
+	 * the same review, never silently.
 	 *
 	 * @return string[]
 	 */
 	private function approved_callers(): array {
 		return array(
 			'class-wc-inventory-overview-purchasing-page.php',
+			'class-wc-inventory-overview-expected-date-suggestion-service.php',
 		);
 	}
 
