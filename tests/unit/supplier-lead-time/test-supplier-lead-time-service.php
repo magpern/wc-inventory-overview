@@ -67,4 +67,56 @@ class Test_WC_IO_Supplier_Lead_Time_Service extends WP_UnitTestCase {
 		$this->assertNull( $stats['slowest_days'] );
 		$this->assertSame( 0, $stats['sample_count'] );
 	}
+
+	/**
+	 * is_observed_value_usable() (M10 addition, docs/milestones/m10-implementation-plan.md
+	 * §5.1): the single source of truth for "is this observed average good
+	 * enough to use," reused by Expected_Date_Suggestion_Service as a black
+	 * box rather than duplicated. has_data=false is never usable regardless
+	 * of sample_count; sample_count below MINIMUM_SAMPLE_COUNT_FOR_DISPLAY
+	 * is not usable; sample_count at or above the threshold is usable.
+	 */
+	public function test_is_observed_value_usable_matches_the_display_threshold() {
+		$below = WC_Inventory_Overview_Supplier_Lead_Time_Service::MINIMUM_SAMPLE_COUNT_FOR_DISPLAY - 1;
+		$at    = WC_Inventory_Overview_Supplier_Lead_Time_Service::MINIMUM_SAMPLE_COUNT_FOR_DISPLAY;
+
+		$this->assertFalse(
+			WC_Inventory_Overview_Supplier_Lead_Time_Service::is_observed_value_usable(
+				array(
+					'has_data'     => false,
+					'average_days' => null,
+					'fastest_days' => null,
+					'slowest_days' => null,
+					'sample_count' => $at + 5, // Even a high count with has_data=false is not usable.
+				)
+			),
+			'has_data=false must never be usable, regardless of sample_count.'
+		);
+
+		$this->assertFalse(
+			WC_Inventory_Overview_Supplier_Lead_Time_Service::is_observed_value_usable(
+				array(
+					'has_data'     => true,
+					'average_days' => 5.0,
+					'fastest_days' => 5,
+					'slowest_days' => 5,
+					'sample_count' => $below,
+				)
+			),
+			'A sample_count below MINIMUM_SAMPLE_COUNT_FOR_DISPLAY must not be usable.'
+		);
+
+		$this->assertTrue(
+			WC_Inventory_Overview_Supplier_Lead_Time_Service::is_observed_value_usable(
+				array(
+					'has_data'     => true,
+					'average_days' => 5.0,
+					'fastest_days' => 5,
+					'slowest_days' => 5,
+					'sample_count' => $at,
+				)
+			),
+			'A sample_count at MINIMUM_SAMPLE_COUNT_FOR_DISPLAY must be usable.'
+		);
+	}
 }
