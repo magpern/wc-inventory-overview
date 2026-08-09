@@ -56,7 +56,9 @@ class Test_WC_IO_Supplier_Lead_Time_Service extends WP_UnitTestCase {
 
 	/**
 	 * A supplier ID with no data at all (no PO/receipt history) returns the
-	 * explicit "not enough data yet" shape -- never 0-as-if-computed.
+	 * explicit "not enough data yet" shape -- never 0-as-if-computed. M11:
+	 * on_time_count/rated_order_count are part of the same "no data" shape,
+	 * not a separately-defaulted pair.
 	 */
 	public function test_get_stats_for_supplier_with_no_history_returns_no_data_state() {
 		$stats = WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_for_supplier( 999999 );
@@ -66,6 +68,8 @@ class Test_WC_IO_Supplier_Lead_Time_Service extends WP_UnitTestCase {
 		$this->assertNull( $stats['fastest_days'] );
 		$this->assertNull( $stats['slowest_days'] );
 		$this->assertSame( 0, $stats['sample_count'] );
+		$this->assertSame( 0, $stats['on_time_count'] );
+		$this->assertSame( 0, $stats['rated_order_count'] );
 	}
 
 	/**
@@ -117,6 +121,67 @@ class Test_WC_IO_Supplier_Lead_Time_Service extends WP_UnitTestCase {
 				)
 			),
 			'A sample_count at MINIMUM_SAMPLE_COUNT_FOR_DISPLAY must be usable.'
+		);
+	}
+
+	/**
+	 * get_stats_bulk()/get_stats_for_supplier() (M11) gain an optional,
+	 * backward-compatible $grace_days parameter -- calling with no argument
+	 * (as M9/M10 callers do) must behave identically to passing 0
+	 * explicitly, never fatal, never silently different.
+	 */
+	public function test_grace_days_parameter_is_optional_and_backward_compatible() {
+		$default_call  = WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_for_supplier( 999999 );
+		$explicit_zero = WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_for_supplier( 999999, 0 );
+
+		$this->assertSame( $default_call, $explicit_zero );
+	}
+
+	/**
+	 * is_on_time_rate_usable() (M11, plan §9/§10 INV-M11-1): the single
+	 * source of truth for "is this on-time rate good enough to display,"
+	 * gated on rated_order_count -- independent of is_observed_value_usable()
+	 * and its sample_count denominator, since a completed order with unknown
+	 * confidence contributes to sample_count but never to rated_order_count.
+	 */
+	public function test_is_on_time_rate_usable_matches_the_display_threshold_against_rated_order_count() {
+		$below = WC_Inventory_Overview_Supplier_Lead_Time_Service::MINIMUM_SAMPLE_COUNT_FOR_DISPLAY - 1;
+		$at    = WC_Inventory_Overview_Supplier_Lead_Time_Service::MINIMUM_SAMPLE_COUNT_FOR_DISPLAY;
+
+		$this->assertFalse(
+			WC_Inventory_Overview_Supplier_Lead_Time_Service::is_on_time_rate_usable(
+				array(
+					'has_data'          => false,
+					'sample_count'      => $at + 5,
+					'on_time_count'     => $at + 5,
+					'rated_order_count' => $at + 5,
+				)
+			),
+			'has_data=false must never be usable, regardless of rated_order_count.'
+		);
+
+		$this->assertFalse(
+			WC_Inventory_Overview_Supplier_Lead_Time_Service::is_on_time_rate_usable(
+				array(
+					'has_data'          => true,
+					'sample_count'      => $at + 5,
+					'on_time_count'     => $below,
+					'rated_order_count' => $below,
+				)
+			),
+			'A rated_order_count below MINIMUM_SAMPLE_COUNT_FOR_DISPLAY must not be usable, even with a high sample_count.'
+		);
+
+		$this->assertTrue(
+			WC_Inventory_Overview_Supplier_Lead_Time_Service::is_on_time_rate_usable(
+				array(
+					'has_data'          => true,
+					'sample_count'      => $at,
+					'on_time_count'     => $at,
+					'rated_order_count' => $at,
+				)
+			),
+			'A rated_order_count at MINIMUM_SAMPLE_COUNT_FOR_DISPLAY must be usable.'
 		);
 	}
 }
