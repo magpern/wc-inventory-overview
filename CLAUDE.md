@@ -4,6 +4,8 @@
 
 **Auto-loaded by Claude Code:** this file is discovered at the plugin repository root and serves as project-level instructions/context for the IDE extension and CLI tool.
 
+**Process:** [`docs/process/milestone-lifecycle.md`](docs/process/milestone-lifecycle.md) — the Standard Milestone Lifecycle (v2, effective M10 onward) governing plan → implement → audit → remediate → freeze → next-milestone sequencing and feature-train release batching. Read it before starting any milestone from M10 forward.
+
 ## Platform status: M0–M8 GA baseline, M9 shipped as first post-GA milestone
 
 **Current baseline: plugin 1.26.0, `DB_VERSION` 10.** All nine foundational
