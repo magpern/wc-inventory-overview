@@ -47,11 +47,10 @@ class Test_WC_IO_Supplier_Lead_Time_Architecture extends WP_UnitTestCase {
 	/**
 	 * Expected exact set of includes/ files calling
 	 * WC_Inventory_Overview_Supplier_Lead_Time_Service:: -- the Suppliers
-	 * admin screen (WP3), plus M10's Expected_Date_Suggestion_Service
-	 * (docs/milestones/m10-implementation-plan.md §5.1: a deliberate,
-	 * anticipated extension of this allowlist, not a silent one), and
-	 * nothing else. A future caller must be added here deliberately, in
-	 * the same review, never silently.
+	 * admin detail screen (M9), M10's Expected_Date_Suggestion_Service,
+	 * and M12's Suppliers list table (presentation consumer of get_stats_bulk).
+	 * A future caller must be added here deliberately, in the same review,
+	 * never silently.
 	 *
 	 * @return string[]
 	 */
@@ -59,6 +58,7 @@ class Test_WC_IO_Supplier_Lead_Time_Architecture extends WP_UnitTestCase {
 		return array(
 			'class-wc-inventory-overview-purchasing-page.php',
 			'class-wc-inventory-overview-expected-date-suggestion-service.php',
+			'class-wc-inventory-overview-suppliers-list-table.php',
 		);
 	}
 
@@ -202,5 +202,73 @@ class Test_WC_IO_Supplier_Lead_Time_Architecture extends WP_UnitTestCase {
 		);
 
 		$this->assertStringContainsString( 'get_stats_bulk', $body, 'get_stats_for_supplier() must delegate to get_stats_bulk() (single/bulk consistency by construction).' );
+	}
+
+	// -----------------------------------------------------------------
+	// M12: Suppliers list performance surface (INV-M12-1 / INV-M12-2).
+	// -----------------------------------------------------------------
+
+	/**
+	 * INV-M12-1: the list table must not compute observed lead time / on-time
+	 * itself (no DATEDIFF / observed_days / deadline SQL; no direct PO/GR
+	 * table references for statistics aggregation).
+	 */
+	public function test_list_table_does_not_duplicate_stats_computation() {
+		$list_file = $this->includes_dir() . 'class-wc-inventory-overview-suppliers-list-table.php';
+		$src       = $this->strip_comments( $this->src( $list_file ) );
+
+		foreach ( $this->computation_signature_tokens() as $token ) {
+			$this->assertStringNotContainsString(
+				$token,
+				$src,
+				'INV-M12-1: Suppliers list table must not contain computation token ' . $token
+			);
+		}
+
+		$this->assertStringNotContainsString( 'sql_deadline_expression', $src, 'INV-M12-1: list table must not build deadline SQL.' );
+		$this->assertStringNotContainsString( 'sql_has_known_date_expression', $src, 'INV-M12-1: list table must not build known-date SQL.' );
+		$this->assertStringNotContainsString( 'Purchase_Orders::table_name', $src, 'INV-M12-1: list table must not query PO tables for stats.' );
+		$this->assertStringNotContainsString( 'Goods_Receipts::table_name', $src, 'INV-M12-1: list table must not query GR tables for stats.' );
+		$this->assertStringNotContainsString( 'Receipt_Lines::table_name', $src, 'INV-M12-1: list table must not query receipt lines for stats.' );
+	}
+
+	/**
+	 * INV-M12-2: prepare_items() must call get_stats_bulk exactly once in
+	 * source and must never call get_stats_for_supplier (N+1 trap).
+	 */
+	public function test_list_table_prepare_items_uses_bulk_stats_once() {
+		$list_file = $this->includes_dir() . 'class-wc-inventory-overview-suppliers-list-table.php';
+		$src       = $this->strip_comments( $this->src( $list_file ) );
+
+		$prepare_pos = strpos( $src, 'function prepare_items' );
+		$this->assertNotFalse( $prepare_pos, 'prepare_items() must exist.' );
+
+		// Slice from prepare_items through the next method.
+		$after = substr( $src, $prepare_pos );
+		$next  = preg_match( '/\n\t(?:public|protected|private) function (?!prepare_items)/', $after, $m, PREG_OFFSET_CAPTURE );
+		$body  = $next ? substr( $after, 0, (int) $m[0][1] ) : $after;
+
+		$this->assertSame(
+			1,
+			substr_count( $body, 'Supplier_Lead_Time_Service::get_stats_bulk(' ),
+			'INV-M12-2: prepare_items() must contain exactly one Supplier_Lead_Time_Service::get_stats_bulk( call.'
+		);
+		$this->assertStringNotContainsString(
+			'get_stats_for_supplier(',
+			$body,
+			'INV-M12-2: prepare_items() must not call get_stats_for_supplier (N+1).'
+		);
+		$this->assertStringContainsString(
+			'grace_days_from_option',
+			$body,
+			'List prepare must read grace days from PO_Delay, matching detail-screen policy.'
+		);
+
+		// Whole class: never call the single-supplier path (N+1 trap).
+		$this->assertStringNotContainsString(
+			'get_stats_for_supplier(',
+			$src,
+			'INV-M12-2: list table must never call get_stats_for_supplier().'
+		);
 	}
 }
