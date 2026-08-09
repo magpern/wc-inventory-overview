@@ -146,8 +146,9 @@ sole-owner boundary (see §4's `Supplier_Lead_Time_Service` and
 `Expected_Date_Suggestion_Service` rows) inside the domain this plugin
 already owns. Per `docs/process/milestone-lifecycle.md` (the Standard
 Milestone Lifecycle, v2, adopted after M9), M9 and M10 are both part of the
-current unreleased "feature train" — implemented, audited, and frozen
-independently, batched into one future release. The next milestone (M11
+current unreleased "feature train" — each implemented and frozen
+independently (M9 via a full independent audit and remediation pass; M10
+via a lightweight WP4 completion review), batched into one future release. The next milestone (M11
 onward) is unplanned; see §10 for extension philosophy and §12 for the
 governance rules any new milestone must follow.
 

@@ -1,7 +1,7 @@
 # Architecture audit — WC Inventory Overview 1.27.0
 
 **Date:** 2026-08-08 (updated through Milestone M8); updated through M9 and M10 2026-08-09.
-**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M10 complete (schema `DB_VERSION` 10) — Version 1.0 / GA ready since M8; M9 and M10 are the first two milestones of the post-GA "feature train" (`docs/process/milestone-lifecycle.md`), implemented and audited but intentionally not yet released individually. For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place through M10, filename unchanged since none of M8/M9/M10 changed a frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
+**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M10 complete (schema `DB_VERSION` 10) — Version 1.0 / GA ready since M8; M9 and M10 are the first two milestones of the post-GA "feature train" (`docs/process/milestone-lifecycle.md`), both implemented and frozen but intentionally not yet released individually (M9 additionally received a full independent audit and remediation pass; M10 was frozen after a lightweight completion review — see `docs/checklists/m9-release-readiness.md` / `docs/checklists/m10-release-readiness.md`). For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place through M10, filename unchanged since none of M8/M9/M10 changed a frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
 
 ---
 
@@ -424,7 +424,7 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ## Milestone M10 — Purchase Order Expected-Date Suggestion
 
-**Status:** Complete, v1.27.0. **Schema unchanged (v10), zero new tables, zero new columns.** First milestone of the "feature train" model (`docs/process/milestone-lifecycle.md`, adopted after M9): implemented, independently audited, and frozen, but **intentionally not released individually** — batched with M9 into one future combined release. Zero new public API surface (Internal, D16).
+**Status:** Complete, v1.27.0. **Schema unchanged (v10), zero new tables, zero new columns.** First milestone of the "feature train" model (`docs/process/milestone-lifecycle.md`, adopted after M9): implemented, and frozen after a lightweight completion review (WP4) rather than a full independent audit, but **intentionally not released individually** — batched with M9 into one future combined release. Zero new public API surface (Internal, D16).
 
 **Scope:** on the **new** Purchase Order creation screen only, pre-fill Expected Date and Confidence from a priority-ordered suggestion: usable observed lead time (M9) → configured `default_lead_time_days` → no suggestion. Calendar days only. Confidence is always `estimated` when a suggestion exists, never `exact`. Always overridable; never runs on the edit-PO screen.
 
