@@ -47,7 +47,15 @@ No genuine production defect found. Filter audit: default regex discovers all in
 
 ### GitHub Actions
 
-See PR / Actions run linked from the recovery branch — required checks must all be green.
+PR: https://github.com/magpern/wc-inventory-overview/pull/10
+
+| Check | Result | Run |
+|-------|--------|-----|
+| PHP Parallel Lint | success | [Tests #31336625732](https://github.com/magpern/wc-inventory-overview/actions/runs/31336625732) |
+| PHPUnit (unit 260/1574 + focused 535/2632 + integration 286/1101) | success | same |
+| PHP lint and build ZIP + `release-audit --development` | success | [CI #31336625640](https://github.com/magpern/wc-inventory-overview/actions/runs/31336625640) |
+
+**Verdict: all required GitHub Actions checks green.**
 
 ## Topology
 
