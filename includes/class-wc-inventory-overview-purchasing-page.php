@@ -376,9 +376,11 @@ class WC_Inventory_Overview_Purchasing_Page {
 	 *                           comparison value).
 	 */
 	private function render_observed_lead_time( int $supplier_id, array $supplier ) {
-		$stats           = WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_for_supplier( $supplier_id );
+		$grace_days      = WC_Inventory_Overview_PO_Delay::grace_days_from_option();
+		$stats           = WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_for_supplier( $supplier_id, $grace_days );
 		$configured_days = $supplier['default_lead_time_days'] ?? null;
 		$enough_data     = $stats['has_data'] && $stats['sample_count'] >= WC_Inventory_Overview_Supplier_Lead_Time_Service::MINIMUM_SAMPLE_COUNT_FOR_DISPLAY;
+		$on_time_usable  = WC_Inventory_Overview_Supplier_Lead_Time_Service::is_on_time_rate_usable( $stats );
 		?>
 		<h3><?php esc_html_e( 'Observed Lead Time', 'wc-inventory-overview' ); ?></h3>
 		<table class="form-table">
@@ -452,6 +454,41 @@ class WC_Inventory_Overview_Purchasing_Page {
 						<p class="description"><?php esc_html_e( 'Not enough data yet — no completed orders on record for this supplier.', 'wc-inventory-overview' ); ?></p>
 					<?php endif; ?>
 					<p class="description"><?php esc_html_e( 'Computed from posted receiving history. Read-only — it cannot be edited or overridden.', 'wc-inventory-overview' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'On-Time Delivery Rate', 'wc-inventory-overview' ); ?></th>
+				<td>
+					<?php if ( $on_time_usable ) : ?>
+						<p>
+							<?php
+							$on_time_percent = (int) round( ( $stats['on_time_count'] / $stats['rated_order_count'] ) * 100 );
+							echo esc_html(
+								sprintf(
+									/* translators: 1: rounded on-time percentage, 2: number of rated completed orders (known expected date) the rate is based on. */
+									_n( '%1$d%% — Based on %2$d rated order', '%1$d%% — Based on %2$d rated orders', $stats['rated_order_count'], 'wc-inventory-overview' ),
+									$on_time_percent,
+									$stats['rated_order_count']
+								)
+							);
+							?>
+						</p>
+					<?php elseif ( $stats['rated_order_count'] > 0 ) : ?>
+						<p class="description">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %d: number of rated completed orders on record (below the display threshold). */
+									_n( 'Not enough data yet (%d rated order on record).', 'Not enough data yet (%d rated orders on record).', $stats['rated_order_count'], 'wc-inventory-overview' ),
+									$stats['rated_order_count']
+								)
+							);
+							?>
+						</p>
+					<?php else : ?>
+						<p class="description"><?php esc_html_e( 'Not enough data yet — no completed orders with a known expected date on record for this supplier.', 'wc-inventory-overview' ); ?></p>
+					<?php endif; ?>
+					<p class="description"><?php esc_html_e( 'Computed from posted receiving history compared against each order\'s expected date. Read-only — it cannot be edited or overridden.', 'wc-inventory-overview' ); ?></p>
 				</td>
 			</tr>
 		</table>
