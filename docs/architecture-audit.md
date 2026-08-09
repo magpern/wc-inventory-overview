@@ -1,7 +1,7 @@
-# Architecture audit — WC Inventory Overview 1.24.0
+# Architecture audit — WC Inventory Overview 1.25.0
 
-**Date:** 2026-08-08 (updated through Milestone M7)
-**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M7 complete (schema `DB_VERSION` 10). For the consolidated post-M7 status snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md); this document remains the per-milestone code/schema audit trail, section-by-section below.
+**Date:** 2026-08-08 (updated through Milestone M8)
+**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M8 complete (schema `DB_VERSION` 10) — Version 1.0 / GA ready. For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place for M8, filename unchanged since M8 changed no frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
 
 ---
 
@@ -33,7 +33,7 @@ If WooCommerce is missing, shows admin notice only.
 
 ## Custom database tables
 
-Created/upgraded via `WC_Inventory_Overview_Install` (current `DB_VERSION = 10` as of M6/v1.23.0, unchanged through M7/v1.24.0; option `wc_io_db_version`):
+Created/upgraded via `WC_Inventory_Overview_Install` (current `DB_VERSION = 10` as of M6/v1.23.0, unchanged through M7/v1.24.0 and M8/v1.25.0; option `wc_io_db_version`):
 
 | Table | Purpose | Version |
 |-------|---------|---------|
@@ -368,21 +368,53 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ---
 
+## Milestone M8 — Hardening & GA
+
+**Status:** Complete, v1.25.0. **Schema unchanged (v10), zero new tables, zero new columns.** Not a feature milestone — a hardening/cleanup/conformance pass over the M0–M7 platform. Zero new domain concepts, zero new public API surface.
+
+**Scope:** four independently-justified fixes, all cited from concrete, pre-existing commitments the project made to itself (M6's deprecated-code retirement governance rule, M5's documented `PO_Delay` gap, M7's explicitly-deferred conformance-audit item, and `docs/testing.md`'s own named test-content backlog) plus CI hardening and a GA-readiness confirmation pass. No item was speculative; every item was evaluated against the repository first and only included once independently verified.
+
+**Batch Intake physical removal:** `WC_Inventory_Overview_Batch_Intake_Service`'s five `@deprecated` methods (`build_preview_from_post()`, `apply_batch_from_post()`, `rollback_batch_apply()`, `build_movement_note_for_line()`, `render_preview_markup()`) and the private helpers that existed only to serve them (`parse_batch_fx()`, `allowed_batch_currencies()`, `parse_header()`, `parse_product_lines()`, `parse_landed_costs()`, `format_product_line_label()`, `format_amount_currency()`) are deleted — the class now holds only `landed_cost_type_labels()`/`allowed_cost_types()`, the live delegation shims to `WC_Inventory_Overview_Landed_Cost_Types` still exercised by the M6 extraction characterization test. `WC_Inventory_Overview_Batch_Intake_UI` (whose only method, `render_panel()`, had zero remaining callers once the above were removed) is deleted entirely. `WC_Inventory_Overview_Plugin::ajax_batch_preview()`/`handle_batch_apply_post()`, the now-unreachable `RESTOCK_VIEW_BATCH` constant, and the `wc_io_batch_msg`/`_err`/`_id` admin-notice block (which read query args only that redirect ever set) are removed. **Prerequisite, done first:** `tests/includes/test-case.php`'s `create_legacy_batch()` fixture builder — the one remaining caller of the apply path, used 47 times across the M6 batch-migration suite — was rewritten to build the same batch header/lines/costs rows and stock/cost mutation directly (via `Restock_Service::apply_purchase_line_change()`, the same live mutator the deprecated method called internally), verified green before any production code was touched. Legacy `wc_io_purchase_batches*` tables and data are untouched (D14, frozen forever) — this removes code, not history. `tests/integration/batch-intake/test-batch-intake-characterization.php` (2 tests, both permanently skipped by a pre-existing wrong-class-name guard, both calling the now-deleted methods) is retired. One M4 architecture guard (`test_only_service_calls_restock_mutation_methods`) explicitly whitelisted `Batch_Intake_Service` as `apply_purchase_line_change()`'s second, pre-existing caller — narrowed to a literal single-caller assertion now that the exception no longer exists.
+
+**`PO_Delay` `partially_received` gap closed:** both `is_line_delayed()` (PHP) and `sql_line_delayed_predicate()` (SQL) gated delayed-detection on `status = 'placed'` only; a partially-received PO's remaining outstanding could be genuinely overdue and never flagged — the admin-visible root cause M7's storefront Resolver defended against independently (Invariant M7-1) without fixing. Extended to accept `'placed'` or `'partially_received'`, mirroring the M5 precedent already applied to `query_open_lines()`. Deliberately not extended to `'received'` — a fully received line always has `outstanding = 0` (INV-4), so the existing `outstanding > 0` check already excludes it regardless of status. New cases added to the shared table-driven `delay_cases()` fixture exercised by both the pure-PHP truth-table test and the PHP/SQL equivalence integration test.
+
+**Repo-wide sibling-plugin-coupling conformance guard:** `tests/unit/conformance/test-no-sibling-plugin-coupling.php` — the guard M7 explicitly deferred ("codebase hygiene belonging to M8's conformance audit"). Three assertions across the entire `includes/` tree: every `class_exists()`/`function_exists()` symbol is on a closed WordPress/WooCommerce/PHP-core allowlist; zero `remove_filter()`/`remove_action()` calls anywhere; zero hardcoded identifiers for either named sibling plugin (Biopentra Storefront per ADR-0003, MP Commerce Fulfillment per `docs/OWNERSHIP.md`). Passes cleanly with zero violations found, mechanically confirming ADR-0003's audit claim instead of leaving it as prose.
+
+**Golden/characterization test-content repair:** all 11 remaining pre-existing bugs in `docs/testing.md`'s "Known test-content issues" table (FX: wrong seed column name, stale bare-float return-shape assumption; Movements: stale positional-argument signature and `qty_change`/`quantity_change` column-name mismatch; Costing: wrong unprefixed class name in every `class_exists()` guard plus a stale 4-argument signature; Cost Adjustment: same stale-signature bug) fixed as test-code corrections verified against current, unmodified production behavior — zero production code changed, per the M0.14 golden-fixture governance rule. The integration suite is now clean for the first time (245 tests / 834 assertions, 0 errors, 0 failures) and `tests.yml`'s `continue-on-error: true` exception is removed — the integration step is a normal blocking CI gate like unit and the M1–M8-focused suite, closing `docs/testing.md`'s own named unblock condition.
+
+**CI pipeline hardening:** `Test_WC_IO_Close_Short_With_Qty_Received` (an M5 audit-remediation test that matched no blocking-filter alternative) added to `run-phpunit.sh`'s filter; the one live PHP 8.4 deprecation notice in the codebase (`Suppliers::validate()`'s implicitly-nullable parameter) fixed; `ci.yml`/`release.yml` aligned to PHP 8.4, the version `tests.yml` already exercised (previously 8.2, validating against a version nothing else in the pipeline tested).
+
+**GA-scale performance confirmation:** the existing query-scaling guards for Inventory Position (D12) and Expected Delivery (Invariant M7-3) — proven at ~20–40 items — re-run once more at 200 mixed simple/variable items using the identical technique (bounded-count / equality assertions), confirming both hold at a size closer to a real catalog. Confirmatory only — no caching or optimization work, explicitly out of M8's scope.
+
+**Public API conformance review:** `Inventory_Position_Service` and `Expected_Delivery_Service` re-read against their documented contracts. Found and corrected two real PHPDoc inaccuracies in `docs/ARCHITECTURE_BASELINE_v1.24.0.md` (introduced when that document was first authored): `get_position()`/`get_positions_bulk()`'s actual signatures take caller-supplied On Hand and two separate product/variation ID-keyed maps, not the single combined list previously documented; `get_for_product()` accepts `WC_Product|int`, not `WC_Product` only. Zero production code changed. Confirmed by direct grep: zero call sites anywhere branch on `Result::api_version()`.
+
+**Explicitly excluded from M8 (evaluated, not justified for a hardening milestone):** splitting the `class-wc-inventory-overview-plugin.php` "god class" into tab controllers — real, documented tech debt with a named remediation direction, but a large, invasive, whole-admin-surface refactor is the opposite of hardening under GA time pressure; recorded here as a deliberate post-1.0 deferral, not a silent drop. PHPCS-clean/baseline wiring (~559 pre-existing errors/634 warnings — disproportionate to a hardening pass). Retiring the legacy `docker-compose.test.yml` harness (already correctly documented as manual-only). Pinning `WC_VERSION` in `run-phpunit.sh` (no concrete failure on record).
+
+**Architecture guards:** all seven guard files (the six pre-existing per-milestone guards plus this milestone's own repo-wide conformance guard) pass — 64 tests / 818 assertions, 0 failures.
+
+**Testing:** `tests/includes/test-case.php` (fixture rewrite), `tests/unit/conformance/` (new), `tests/unit/purchase-orders/test-po-delay.php` (extended), `tests/unit/goods-receipt/test-goods-receipt-architecture.php` (guard narrowed), `tests/integration/exchange-rates/`, `tests/integration/movements/`, `tests/integration/costing/`, `tests/integration/cost-adjustment/` (all repaired), `tests/integration/expected-delivery/test-expected-delivery-performance.php` and `tests/integration/inventory-position/test-inventory-position-service.php` (GA-scale additions). Final counts: unit suite 216 tests / 1456 assertions (0 failures, 7 pre-existing risky `Test_DB_Transaction` tests); integration suite 245 tests / 834 assertions (0 errors, 0 failures — clean, now CI-blocking); M1–M8-focused suite 450 tests / 2247 assertions (0 failures).
+
+**GA readiness statement:** with M8 complete, `DB_VERSION` unchanged at 10, all seven architecture guards passing, the full test suite (unit + M1–M8-focused + integration) green with the integration suite now a normal blocking CI gate for the first time, and every prior milestone's validation-checklist item confirmed unaffected, this platform (M0–M8) is considered **production-finished and Version 1.0 / GA ready**.
+
+---
+
 ## Known risks / tech debt
 
-1. **Large god class:** `class-wc-inventory-overview-plugin.php` centralizes UI, handlers, and exports — harder to test and review.
+1. **Large god class:** `class-wc-inventory-overview-plugin.php` centralizes UI, handlers, and exports — harder to test and review. Evaluated for M8 and deliberately deferred (see the M8 section above) — a whole-admin-surface refactor is the opposite of hardening under GA time pressure; remains open for a future, dedicated milestone.
 2. **Custom SQL surface:** Profitability and movements list tables build dynamic SQL; most paths use `$wpdb->prepare`, but complexity increases regression risk.
 3. **`posts_clauses` filter:** Global filter at priority 999; scoped by query depth and admin context — avoid front-end product queries while filter is active.
 4. **Danger zone reset:** Can bulk-delete plugin tables/meta snapshots; gated by capability + nonces + preview token — still high impact for operators.
 5. **Inline stock AJAX:** Uses `edit_products` (broader than `manage_woocommerce`) with per-product `edit_product` — intentional for catalog editors.
-6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery), PHPCS (local), and GitHub Actions CI (PHP lint + release ZIP). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
+6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery + M8 conformance/hardening), PHPCS (local, not CI-gated — ~559 pre-existing errors/634 warnings, evaluated and deliberately excluded from M8 as disproportionate to a hardening pass), and GitHub Actions CI (PHP lint + release ZIP + the full integration suite, now blocking as of M8). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
 7. **Monorepo mirror:** A development copy may exist under `biopentra-custom-plugins/plugins/wc-inventory-overview/`; this standalone repo is canonical for releases.
 
 ---
 
 ## Recommended follow-ups (non-blocking)
 
-- Split `Plugin` into tab controllers or modules.
-- Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; M6 added `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at`; next relevant at M8 hardening).
-- Physically delete the M6-deprecated Batch Intake code (`Batch_Intake_Service`'s apply/rollback/preview methods, `Batch_Intake_UI::render_panel()`, `Plugin::handle_batch_apply_post()`/`ajax_batch_preview()`) once M8 confirms a full release cycle with zero migration-related incidents.
-- `PO_Delay`'s "Delayed" detection deliberately does not yet extend to `partially_received` POs (M5 left this gap open, documented rather than silent) — worth a small follow-up milestone or ADR if operators need delay flagging on partially-received POs.
+- Split `Plugin` into tab controllers or modules — real tech debt (item 1 above), explicitly evaluated and deferred past M8/GA; a future dedicated milestone, not a hardening-pass item.
+- Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; M6 added `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at`; M8 introduced no schema change — next relevant whenever a future milestone next changes schema).
+- ~~Physically delete the M6-deprecated Batch Intake code~~ — **done in M8** (see the M8 section above).
+- ~~`PO_Delay`'s "Delayed" detection does not extend to `partially_received` POs~~ — **fixed in M8** (see the M8 section above).
+- PHPCS-clean the codebase, or actually wire up the empty `.phpcs-baseline.xml` ratchet — evaluated for M8 and deliberately excluded (disproportionate scope for a hardening pass); still a reasonable future initiative on its own.
+- Pin `WC_VERSION` in `tests/docker/run-phpunit.sh` (WooCommerce is currently downloaded as `latest-stable`, unpinned, unlike `WP_VERSION`) — a genuine reproducibility question, evaluated for M8 and left open for lack of any concrete failure on record.

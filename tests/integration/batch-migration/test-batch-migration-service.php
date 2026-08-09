@@ -1,8 +1,9 @@
 <?php
 /**
- * End-to-end migrate_batch() correctness: a real legacy batch (built via the
- * actual Batch_Intake_Service::apply_batch_from_post() path) migrated into a
- * Goods Receipt, verifying every field the M6 plan's mapping table specifies.
+ * End-to-end migrate_batch() correctness: a real legacy batch (built via
+ * create_legacy_batch(), reproducing the historical apply-path row shape and
+ * mutation) migrated into a Goods Receipt, verifying every field the M6
+ * plan's mapping table specifies.
  *
  * @package WC_Inventory_Overview_Tests
  */

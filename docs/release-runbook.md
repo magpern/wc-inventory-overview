@@ -222,6 +222,20 @@ No additional steps. The release is a pure-tooling change with no functional or 
 7. **Quick Restock, Cost Adjustment, Goods Receipts, PO Receiving, batch migration CLI, Supplier admin, and Inventory Position unaffected:** confirm all continue to function exactly as in v1.23.0.
 8. **Rollback awareness:** M7 has the cleanest rollback story of any milestone in this program. The setting toggle is instant with no deploy; a code rollback 1.24.0 → 1.23.0 is unconditionally safe (M7 writes no data, changes no schema, and mutates nothing — see `docs/rollback-plan.md`'s M7 note).
 
+### M8: Hardening & GA
+
+**Before tagging v1.25.0:**
+
+0. **Release notes file:** Confirm `docs/GITHUB_RELEASE_NOTES_1.25.0.md` exists and matches `CHANGELOG.md` for 1.25.0.
+1. **No schema change:** confirm `DB_VERSION` is still `'10'` in `includes/class-wc-inventory-overview-install.php` — M8 adds no table, column, or index. `wp option get wc_io_db_version` returns `10`; `wp option get wc_io_schema_assertion --format=json` shows `ok: true` at `version: "10"`.
+2. **Batch Intake removal is invisible operationally:** confirm the Restock/Cost Adjustment tab still shows only Quick Restock and Cost Adjustment (unchanged since M6 — this milestone removed already-unreachable code, not a UI change); confirm no PHP fatal/warning about a missing class anywhere in the admin.
+3. **`PO_Delay` fix verified on a real PO:** find or create a Purchase Order that is `partially_received` with a past-due expected date on its remaining outstanding line; confirm it now shows "Delayed" in the PO detail page and the Inventory Overview drill-down (it would not have, pre-M8). Confirm a `partially_received` PO that is on-time does **not** show Delayed, and that `placed`/`received` PO delayed-badge behavior is unchanged.
+4. **Sibling-plugin conformance guard passes:** `docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_No_Sibling_Plugin_Coupling'` reports 0 failures.
+5. **Full test suite green, integration now blocking:** unit suite, M1–M8-focused suite, and the full integration suite (no longer `continue-on-error` in `tests.yml`) all pass with 0 failures.
+6. **GA-scale performance confirmation:** the 200-item Inventory Position and Expected Delivery query-scaling tests pass (part of the integration suite run above — no separate manual step, listed here for visibility).
+7. **Quick Restock, Cost Adjustment, Goods Receipts, PO Receiving, batch migration CLI, Supplier admin, Inventory Position, and Storefront Expected Delivery unaffected:** confirm all continue to function exactly as in v1.24.0.
+8. **Rollback awareness:** M8 is code/test/CI-only — no data written, no schema changed, no mutation anywhere in its surface. A code rollback 1.25.0 → 1.24.0 is unconditionally safe (see `docs/rollback-plan.md`'s M8 note).
+
 ## Post-release communication
 
 After a successful release:

@@ -20,8 +20,6 @@ class WC_Inventory_Overview_Plugin {
 
 	public const TAB_RESTOCK = 'restock';
 
-	public const RESTOCK_VIEW_BATCH = 'batch';
-
 	public const RESTOCK_VIEW_QUICK = 'quick';
 
 	public const RESTOCK_VIEW_ADJUST = 'adjust';
@@ -1660,39 +1658,6 @@ class WC_Inventory_Overview_Plugin {
 	}
 
 	/**
-	 * AJAX: authoritative batch preview (Stage 1 — no DB writes).
-	 *
-	 * @deprecated M6 (v1.23.0) — unreachable. The wp_ajax_wc_io_batch_preview
-	 * hook registration was removed in init(); this method is retained only
-	 * for reference during a migration audit (see the M6 implementation
-	 * plan's Retirement strategy — "Disabled, not deleted").
-	 */
-	public function ajax_batch_preview() {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error(
-				array(
-					'message' => __( 'You do not have permission to preview batches.', 'wc-inventory-overview' ),
-				),
-				403
-			);
-		}
-		check_ajax_referer( 'wc_io_batch_preview', 'nonce' );
-
-		$post   = isset( $_POST ) && is_array( $_POST ) ? wp_unslash( $_POST ) : array();
-		$result = WC_Inventory_Overview_Batch_Intake_Service::build_preview_from_post( $post );
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error(
-				array(
-					'message' => $result->get_error_message(),
-				)
-			);
-		}
-
-		$html = WC_Inventory_Overview_Batch_Intake_Service::render_preview_markup( $result );
-		wp_send_json_success( array( 'html' => $html ) );
-	}
-
-	/**
 	 * AJAX: lookup FX to EUR for Batch Intake prefill (history only; no Settings fallback).
 	 */
 	public function ajax_get_exchange_rate() {
@@ -1739,49 +1704,6 @@ class WC_Inventory_Overview_Plugin {
 		);
 	}
 
-	/**
-	 * Process batch intake apply (admin-post).
-	 *
-	 * @deprecated M6 (v1.23.0) — unreachable. The admin_post_wc_io_batch_apply
-	 * hook registration was removed in init(); this method is retained only
-	 * for reference during a migration audit (see the M6 implementation
-	 * plan's Retirement strategy — "Disabled, not deleted").
-	 */
-	public function handle_batch_apply_post() {
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_die( esc_html__( 'You do not have permission to perform this action.', 'wc-inventory-overview' ) );
-		}
-		check_admin_referer( 'wc_io_batch_apply' );
-
-		$redirect = $this->admin_url_tab( self::TAB_RESTOCK, array( 'restock_view' => self::RESTOCK_VIEW_BATCH ) ) . '#wc-io-batch-intake-section';
-
-		$post   = isset( $_POST ) && is_array( $_POST ) ? wp_unslash( $_POST ) : array();
-		$result = WC_Inventory_Overview_Batch_Intake_Service::apply_batch_from_post( $post );
-
-		if ( is_wp_error( $result ) ) {
-			wp_safe_redirect(
-				add_query_arg(
-					array(
-						'wc_io_batch_msg' => 'error',
-						'wc_io_batch_err' => rawurlencode( $result->get_error_message() ),
-					),
-					$redirect
-				)
-			);
-			exit;
-		}
-
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'wc_io_batch_msg' => 'success',
-					'wc_io_batch_id'  => (int) $result,
-				),
-				$redirect
-			)
-		);
-		exit;
-	}
 
 	/**
 	 * Process restock form (admin-post).
@@ -1914,32 +1836,6 @@ class WC_Inventory_Overview_Plugin {
 				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $err ) . '</p></div>';
 			} elseif ( 'missing_product' === $code ) {
 				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'Select a product or variation for the cost adjustment.', 'wc-inventory-overview' ) . '</p></div>';
-			}
-		}
-
-		if ( isset( $_GET['wc_io_batch_msg'] ) ) {
-			$code = sanitize_key( wp_unslash( $_GET['wc_io_batch_msg'] ) );
-			if ( 'success' === $code ) {
-				$bid = isset( $_GET['wc_io_batch_id'] ) ? absint( wp_unslash( $_GET['wc_io_batch_id'] ) ) : 0;
-				if ( $bid > 0 ) {
-					$batch_notice = sprintf(
-						/* translators: %d: batch ID */
-						__( 'Batch applied successfully. Batch ID %d. Stock, weighted average unit cost, and inventory value were updated for each line.', 'wc-inventory-overview' ),
-						$bid
-					);
-				} else {
-					$batch_notice = __( 'Batch applied successfully. Stock, weighted average unit cost, and inventory value were updated for each line.', 'wc-inventory-overview' );
-				}
-				$mov_url = $this->admin_url_tab( self::TAB_MOVEMENTS );
-				echo '<div class="notice notice-success is-dismissible wc-io-batch-notice"><p>';
-				echo esc_html( $batch_notice ) . ' ';
-				echo '<a href="' . esc_url( $mov_url ) . '">' . esc_html__( 'Review in Inventory Movements', 'wc-inventory-overview' ) . '</a>';
-				echo '</p></div>';
-			} elseif ( 'error' === $code && ! empty( $_GET['wc_io_batch_err'] ) ) {
-				$err = sanitize_text_field( rawurldecode( wp_unslash( $_GET['wc_io_batch_err'] ) ) );
-				echo '<div class="notice notice-error is-dismissible wc-io-batch-notice"><p><strong>' . esc_html__( 'Batch was not applied', 'wc-inventory-overview' ) . '</strong></p>';
-				echo '<p>' . esc_html__( 'Nothing was saved. Fix the issue below and try again.', 'wc-inventory-overview' ) . '</p>';
-				echo '<p class="wc-io-batch-notice__detail">' . esc_html( $err ) . '</p></div>';
 			}
 		}
 

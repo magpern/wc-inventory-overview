@@ -49,8 +49,18 @@ class Test_WC_IO_Goods_Receipt_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Goods_Receipt_Service is the only M4 caller of Restock_Service's two
-	 * mutation methods (§Transaction model — single inventory mutation entry point).
+	 * Goods_Receipt_Service is the only caller of Restock_Service's two
+	 * mutation methods (§Transaction model — single inventory mutation entry
+	 * point). Through M7, apply_purchase_line_change() had a second,
+	 * pre-existing caller — Batch_Intake_Service::apply_batch_from_post(),
+	 * kept by M4 as "M4 must not remove it." M8 physically removed that
+	 * method (docs/architecture-audit.md's Batch Intake retirement,
+	 * scheduled for M8 by M6's own governance rule) — its test fixture
+	 * builder was rewritten first (tests/includes/test-case.php's
+	 * create_legacy_batch()) to reproduce the same historical row shape and
+	 * mutation without calling through Batch_Intake_Service — so this guard
+	 * is deliberately narrowed to a single-caller assertion for both
+	 * mutators, matching the sole-mutator rule literally for the first time.
 	 */
 	public function test_only_service_calls_restock_mutation_methods() {
 		$mutators = array( 'apply_purchase_line_change', 'apply_purchase_line_reversal' );
@@ -68,25 +78,11 @@ class Test_WC_IO_Goods_Receipt_Architecture extends WP_UnitTestCase {
 				}
 			}
 
-			if ( 'apply_purchase_line_change' === $method ) {
-				// Also called by Batch_Intake_Service (pre-existing, M4 must not remove it).
-				$this->assertContains( 'class-wc-inventory-overview-goods-receipt-service.php', $callers );
-				$this->assertContains( 'class-wc-inventory-overview-batch-intake-service.php', $callers );
-				$allowed = array(
-					'class-wc-inventory-overview-goods-receipt-service.php',
-					'class-wc-inventory-overview-batch-intake-service.php',
-					'class-wc-inventory-overview-restock-service.php',
-				);
-				foreach ( $callers as $c ) {
-					$this->assertContains( $c, $allowed, "Unexpected caller of {$method}(): {$c}" );
-				}
-			} else {
-				$this->assertSame(
-					array( 'class-wc-inventory-overview-goods-receipt-service.php' ),
-					$callers,
-					"Only Goods_Receipt_Service may call {$method}() (sole M4 inventory mutation entry point)."
-				);
-			}
+			$this->assertSame(
+				array( 'class-wc-inventory-overview-goods-receipt-service.php' ),
+				$callers,
+				"Only Goods_Receipt_Service may call {$method}() (sole inventory mutation entry point)."
+			);
 		}
 	}
 

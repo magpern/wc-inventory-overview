@@ -41,14 +41,16 @@ class Test_Cost_Adjustment_Characterization extends WC_Inventory_Overview_Test_C
 		$new_average = 10.5;
 		$new_value = 1050.0;
 
+		// process( $line_id, $new_avg, $note = '' ) takes a single line_id
+		// (simple product ID or variation ID), not a separate
+		// product_id/variation_id pair.
 		$result = WC_Inventory_Overview_Cost_Adjustment_Service::process(
 			$product->get_id(),
-			0, // variation_id
 			$new_average,
 			'Freight adjustment'
 		);
 
-		$this->assertNotFalse( $result, 'process should return result' );
+		$this->assertNotFalse( $result, is_wp_error( $result ) ? $result->get_error_message() : 'process should return result' );
 
 		// Verify product state: stock unchanged, average/value updated.
 		$product = wc_get_product( $product->get_id() );
@@ -101,12 +103,11 @@ class Test_Cost_Adjustment_Characterization extends WC_Inventory_Overview_Test_C
 		// Apply a late freight invoice.
 		$result = WC_Inventory_Overview_Cost_Adjustment_Service::process(
 			$product->get_id(),
-			0,
 			10.05, // Slightly higher average (unabsorbed cost).
 			'Late freight (zero on-hand)'
 		);
 
-		$this->assertNotFalse( $result );
+		$this->assertNotFalse( $result, is_wp_error( $result ) ? $result->get_error_message() : '' );
 
 		$product = wc_get_product( $product->get_id() );
 

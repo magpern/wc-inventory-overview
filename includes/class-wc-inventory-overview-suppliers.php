@@ -259,7 +259,7 @@ class WC_Inventory_Overview_Suppliers {
 	/**
 	 * Validate supplier data. Requires 'name' and 'default_currency'; others optional.
 	 */
-	private static function validate( array $data, array $existing = null ) {
+	private static function validate( array $data, ?array $existing = null ) {
 		$name = isset( $data['name'] ) ? trim( sanitize_text_field( $data['name'] ) ) : '';
 		if ( ! $name || strlen( $name ) > 190 ) {
 			return new WP_Error( 'wc_io_supplier_name', 'Supplier name is required and must be <= 190 characters.' );

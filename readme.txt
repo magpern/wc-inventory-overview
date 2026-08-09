@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.24.0
+Stable tag: 1.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,15 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.25.0 =
+* Milestone M8 — Hardening & GA: the platform (M0-M8) is Version 1.0 / GA ready. Not a feature release -- zero new domain concepts, zero schema change (v10 unchanged), zero public API change.
+* Physically removed the M6-deprecated Batch Intake create/apply code (already unreachable from any admin/CLI path since M6); legacy batch history and tables are untouched.
+* Fixed a real admin-visible bug: a partially-received Purchase Order's genuinely overdue remaining quantity is now correctly flagged "Delayed" (previously only fully-placed POs were checked).
+* Added a repo-wide automated guard confirming this plugin has zero named coupling to any sibling plugin.
+* Fixed the last remaining pre-existing test-content bugs in the automated test suite; the full test suite (including integration tests) is now fully green and CI-blocking.
+* CI pipeline hardening: consistent PHP 8.4 across all workflows; fixed the one PHP 8.4 deprecation notice in the codebase.
+* Confirmed inventory-position and storefront-expected-delivery performance stays bounded at a 200-item catalog scale.
 
 = 1.24.0 =
 * Milestone M7 — Storefront Expected Delivery: exposes exactly one governed fact for an out-of-stock item -- the earliest credible expected receipt, worded by confidence ("Expected back around 1 September" / "Expected during week 36" / "Expected soon"). Schema unchanged (v10).

@@ -4,16 +4,24 @@
 
 **Auto-loaded by Claude Code:** this file is discovered at the plugin repository root and serves as project-level instructions/context for the IDE extension and CLI tool.
 
-## Platform status: M0–M7 COMPLETE
+## Platform status: M0–M8 COMPLETE — Version 1.0 / GA ready
 
-**Current baseline: plugin 1.24.0, `DB_VERSION` 10.** All eight foundational
-milestones (M0 Delivery Foundations through M7 Storefront Expected Delivery)
-are shipped and frozen. **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)**
-is the consolidated post-M7 snapshot — completed milestones, frozen
+**Current baseline: plugin 1.25.0, `DB_VERSION` 10.** All nine foundational
+milestones (M0 Delivery Foundations through M8 Hardening & GA) are shipped
+and frozen. M8 added zero new domain concepts, zero schema change, and zero
+public API change — it physically removed the M6-deprecated Batch Intake
+code, closed the `partially_received` delay-detection gap, added a
+repo-wide sibling-plugin-coupling conformance guard, repaired the last
+pre-existing test-content bugs (the full integration suite is now a
+CI-blocking gate, clean for the first time), and hardened the CI pipeline.
+**[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)**
+remains the consolidated architecture snapshot — completed milestones, frozen
 ownership boundaries, public APIs, schema, invariants, and future-governance
-rules. Any new milestone (M8 onward) should start from that document rather
-than re-deriving M0–M7 from this file's Part I–III text below. The
-Implementation Status table at the end of this file remains the authoritative
+rules (updated in place for M8, not superseded — see its own §12 rule and
+the M8 entry added to its milestone table). Any new milestone (M9 onward)
+should start from that document rather than re-deriving M0–M8 from this
+file's Part I–III text below. The Implementation Status table at the end
+of this file remains the authoritative
 per-milestone release ledger.
 
 ---
@@ -184,10 +192,10 @@ This table is updated as each milestone is implemented. Each milestone links to 
 | M5 | PO Receiving | ✅ Complete | 1.22.0 | [docs/milestones/m5-implementation-plan.md](docs/milestones/m5-implementation-plan.md) | Schema v9, qty_received (full INV-4 formula), PO_Receiving_Sync (sole qty_received owner, auto-transitions partially_received/received), Receive-against-PO admin UI, reconciliation CLI; no ASN/barcode/scanning until a future milestone |
 | M6 | Migration & Retirement | ✅ Complete | 1.23.0 | [docs/milestones/m6-implementation-plan.md](docs/milestones/m6-implementation-plan.md) | Schema v10 (migration-tracking columns only), `Batch_Migration_Service` (record materialization, never receiving-replay; per-batch transactions; order-independent), `wp wc-io migrate-batches` CLI (apply/verify/rollback), migrated-receipt void guard, Batch Intake create/apply retired (legacy tables frozen, never deleted) |
 | M7 | Storefront | ✅ Complete | 1.24.0 | [docs/milestones/m7-implementation-plan.md](docs/milestones/m7-implementation-plan.md) | Schema unchanged (v10), `Expected_Delivery_Result_Interface`/`Result`/`Resolver`/`Service`/`Renderer` (API v1, sole public API + sole-entry-point rule), built-in `woocommerce_get_availability` renderer, one merchant toggle, two generic extension filters, Invariants M7-1/M7-2/M7-3; this plugin now owns customer-facing expected-delivery presentation |
-| M8 | Hardening & GA | ⏳ Planned | 2.0.0 | docs/milestones/m8-implementation-plan.md *(not yet written)* | Integrity checks, conformance audit, GA readiness |
+| M8 | Hardening & GA | ✅ Complete | 1.25.0 | [docs/milestones/m8-implementation-plan.md](docs/milestones/m8-implementation-plan.md) | Schema unchanged (v10); physically removed M6-deprecated Batch Intake create/apply surface (fixture builder rewritten first); closed `PO_Delay`'s `partially_received` gap; repo-wide sibling-plugin-coupling conformance guard; repaired all remaining pre-existing golden-test bugs (integration suite now CI-blocking, 245 tests / 834 assertions, 0 failures); CI hardening (PHP 8.4 aligned across all workflows); GA-scale (200-item) performance confirmation. Zero new domain concepts, zero public API change. First milestone this program calls Version 1.0 / GA ready. |
 
-**Release note:** v1.24.0 (M7) is on `main`, tagged, and published as a GitHub Release — see `docs/GITHUB_RELEASE_NOTES_1.24.0.md`. All prior milestone releases (M0–M6, tags `v1.17.3`–`v1.23.0`) are tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
+**Release note:** v1.25.0 (M8) is prepared on branch `feature/m8-hardening-ga`, pending independent audit before tagging — see `docs/GITHUB_RELEASE_NOTES_1.25.0.md`. All prior milestone releases (M0–M7, tags `v1.17.3`–`v1.24.0`) are tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
 
 ---
 
-**Planning baseline:** Detailed bodies for Part I §6–§20, Delivery Roadmap R1–R9, and M0.1–M0.24 were **never committed to this repository** (the bracket placeholders above are stubs only). For milestone planning today, treat **Part I §1–§5** (executive summary, current state, decisions D1–D19, invariants INV-1–INV-8, entity model §5.1–§5.2), **this status table**, and — for any milestone from M8 onward — **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)** as the authoritative baseline. M1 detail: `docs/milestones/m1-implementation-plan.md`.
+**Planning baseline:** Detailed bodies for Part I §6–§20, Delivery Roadmap R1–R9, and M0.1–M0.24 were **never committed to this repository** (the bracket placeholders above are stubs only). For milestone planning today, treat **Part I §1–§5** (executive summary, current state, decisions D1–D19, invariants INV-1–INV-8, entity model §5.1–§5.2), **this status table**, and — for any milestone from M9 onward — **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)** as the authoritative baseline. M1 detail: `docs/milestones/m1-implementation-plan.md`.

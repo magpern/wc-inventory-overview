@@ -2,6 +2,18 @@
 
 ---
 
+## ✓ M8 (v1.25.0): code/test/CI-only — as clean as M7's, nothing to reverse
+
+**M8 wrote no data, changed no schema, and mutated nothing anywhere in its surface.** Unlike M1–M7, M8 is not a feature milestone: it removed already-unreachable dead code, fixed a computed-value predicate, added test-only guards, and hardened CI configuration — no new `wp_options` row, no new table, no new column.
+
+- **Code rollback v1.25.0 → v1.24.0 is unconditionally safe.** The physically-removed Batch Intake code (`Batch_Intake_Service`'s five deleted methods, `Batch_Intake_UI`, `Plugin::ajax_batch_preview()`/`handle_batch_apply_post()`) was already unreachable before M8 (no admin-post/AJAX hook has pointed at it since M6) — rolling back simply restores that same, still-unreachable code. There is no operational difference for a merchant either way.
+- **The `PO_Delay` fix is purely a computed-value change** (INV-5: delayed is always computed, never stored) — rolling back reverts to the pre-M8 predicate; no data needs to be un-flagged, since "Delayed" was never written anywhere, only rendered fresh on each admin page load.
+- **Legacy `wc_io_purchase_batches*` data and tables are untouched** either direction — M8 removed code that read them for a now-retired UI path, never their data (D14, frozen forever, unchanged since M6).
+- The new conformance guard, GA-scale performance tests, and CI configuration changes are testing/tooling artifacts with no runtime footprint on a production site at all.
+- Like M7, **M8 leaves nothing behind** — the plugin is byte-for-byte back to pre-M8 behavior the moment the code is rolled back, with the one difference that a rolled-back site simply stops benefiting from the `partially_received` delay fix and the (already-unreachable) code stops being unreachable-but-present — neither is a functional regression a merchant would notice.
+
+---
+
 ## ✓ M7 (v1.24.0): the cleanest rollback of any milestone — leaves nothing behind
 
 **M7 has the cleanest rollback story of any milestone in this program — cleaner even than M6's.**

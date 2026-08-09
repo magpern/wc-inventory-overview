@@ -153,11 +153,11 @@ tests/
 │   ├── goods-receipt/        # M4 numbering, lifecycle, architecture guards (sole-mutator, throw_if_error bridge, no row locking, no po_line_id/qty_received, no PO writes)
 │   ├── po-receiving/         # M5 full INV-4 formula, PO_Statuses::recompute_for_receiving(), architecture guards (qty_received sole-mutator chain)
 │   ├── batch-migration/      # M6 pure field-mapping (map_header/map_line/map_cost), architecture guards (no live-mutation calls, sole backfill_reference() caller, one transaction per public entry method)
-│   └── expected-delivery/    # M7 Result/Result_Interface, Resolver (pure algorithm, Invariant M7-1), architecture guards (sole-entry-point rule, D12 extended, no forbidden accessor names, no sibling-plugin coupling, zero mutation)
+│   ├── expected-delivery/    # M7 Result/Result_Interface, Resolver (pure algorithm, Invariant M7-1), architecture guards (sole-entry-point rule, D12 extended, no forbidden accessor names, no sibling-plugin coupling, zero mutation)
+│   └── conformance/          # M8 repo-wide sibling-plugin-coupling guard (WordPress/WooCommerce-core existence-check allowlist, no remove_filter/remove_action, no hardcoded sibling-plugin identifiers)
 ├── integration/
 │   ├── costing/              # Weighted-average costing characterization
 │   ├── exchange-rates/       # FX rate resolution characterization
-│   ├── batch-intake/         # Batch preview/apply parity and rollback (Batch_Intake_Service is M6-deprecated but still directly callable; see M6 note below)
 │   ├── movements/            # Ledger record creation characterization
 │   ├── cost-adjustment/      # Cost-adjustment (average/value without stock change)
 │   ├── suppliers/            # M1 supplier CRUD, migration, admin PRG
@@ -185,7 +185,7 @@ GitHub Actions workflows:
 | Workflow | Trigger | Gates |
 |----------|---------|-------|
 | `.github/workflows/ci.yml` | push/PR to `main` | PHP syntax lint on all `.php` files; release ZIP build via `scripts/build-zip.sh` |
-| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | `lint`: PHP Parallel Lint (blocking). `phpunit`: unit suite (blocking) + M2-focused suite (blocking) + cumulative integration suite (visible, non-blocking — see below). |
+| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | `lint`: PHP Parallel Lint (blocking). `phpunit`: unit suite (blocking) + M1–M8-focused suite (blocking) + cumulative integration suite (blocking as of M8 — see below). |
 
 **PHPCS is not CI-gated today** — run locally before merge:
 `./vendor/bin/phpcs --standard=phpcs.xml.dist` after `composer install` (or
@@ -196,9 +196,9 @@ The `phpunit` CI job runs three PHPUnit invocations against the same
 `tests/docker/docker-compose.phpunit.yml` stack a developer runs locally,
 so CI and local results are identical by construction:
 
-1. **Unit suite** (`--testsuite unit`) — must pass.
-2. **M1–M7-focused suite** (default filter: PO, schema assertion, suppliers, DB-transaction, Inventory Position, Goods Receipt, Goods Receipts, Receipt Lines, Restock Service Reversal, Batch Migration, Landed Cost Types, `Test_WC_IO_Expected_Delivery_`) — must pass; this is the suite that gates milestone changes specifically, now **442 tests / 1,768 assertions as of M7/v1.24.0, all passing** (0 failures; 7 known pre-existing risky `Test_DB_Transaction` tests, unrelated to M7 — see [Known test-content issues](#known-test-content-issues)). M4 contributed 230 tests / 1,039 assertions across numbering, lifecycle, repositories, costing/allocation, Restock reversal, transactional post/void (including forced-failure rollback and the intervening-receipt void regression), idempotency, capability, and architecture guards. M5 added 60 tests / 266 assertions across the full INV-4 formula, the status-recompute function, `PO_Receiving_Sync` (both `apply_line_delta()` and `reconcile_line()`), PO-linked post/void (including the forced-failure rollback test and both mandatory intervening-receipt void regressions), pre-transaction validation, `Receipt_Lines` po_line_id persistence, the M3 Incoming regression, and architecture guards for the qty_received sole-mutator chain. M7 added 71 tests / 218 assertions across the Result/Result_Interface contract, the Resolver's table-driven algorithm coverage (including Invariant M7-1's three scenarios), architecture guards (sole-entry-point rule, D12 extended), Service integration (Invariant M7-2, memoization, memo-flush-on-place), Renderer integration (the seven-step bail ladder, both filters, ISO-week year boundary), settings, and Invariant M7-3's query-scaling performance tests (20 vs 40 products issue equal query counts).
-3. **Cumulative integration suite** (`--testsuite integration`) — executed and its full output kept visible in the Actions log, but marked `continue-on-error: true` so it doesn't block the job. This is a **temporary, documented exception**: the suite currently carries pre-existing failures in M0-era golden characterization tests (see [Known test-content issues](#known-test-content-issues) below), unrelated to M2 or to this infrastructure hotfix. The suite is never silently reported as green — its real pass/fail result and output remain visible, flagged with a warning in the Actions UI. Removing this exception (making the full suite blocking) is a follow-up once the itemized issues below are fixed.
+1. **Unit suite** (`--testsuite unit`) — must pass. **216 tests / 1,456 assertions as of M8/v1.25.0** (0 failures; 7 known pre-existing risky `Test_DB_Transaction` tests).
+2. **M1–M8-focused suite** (default filter: PO, schema assertion, suppliers, DB-transaction, Inventory Position, Goods Receipt, Goods Receipts, Receipt Lines, Restock Service Reversal, Batch Migration, Landed Cost Types, `Test_WC_IO_Expected_Delivery_`, `Test_WC_IO_No_Sibling_Plugin_Coupling`, `Test_WC_IO_Close_Short_With_Qty_Received`) — must pass; this is the suite that gates milestone changes specifically, now **450 tests / 2,247 assertions as of M8/v1.25.0, all passing** (0 failures; 7 known pre-existing risky `Test_DB_Transaction` tests, unrelated to any milestone's production code — see [Known test-content issues](#known-test-content-issues)). M4 contributed 230 tests / 1,039 assertions across numbering, lifecycle, repositories, costing/allocation, Restock reversal, transactional post/void (including forced-failure rollback and the intervening-receipt void regression), idempotency, capability, and architecture guards. M5 added 60 tests / 266 assertions across the full INV-4 formula, the status-recompute function, `PO_Receiving_Sync` (both `apply_line_delta()` and `reconcile_line()`), PO-linked post/void (including the forced-failure rollback test and both mandatory intervening-receipt void regressions), pre-transaction validation, `Receipt_Lines` po_line_id persistence, the M3 Incoming regression, and architecture guards for the qty_received sole-mutator chain. M7 added 71 tests / 218 assertions across the Result/Result_Interface contract, the Resolver's table-driven algorithm coverage (including Invariant M7-1's three scenarios), architecture guards (sole-entry-point rule, D12 extended), Service integration (Invariant M7-2, memoization, memo-flush-on-place), Renderer integration (the seven-step bail ladder, both filters, ISO-week year boundary), settings, and Invariant M7-3's query-scaling performance tests (20 vs 40 products issue equal query counts). M8 added the repo-wide sibling-plugin-coupling conformance guard (3 tests), extended `PO_Delay`'s truth table with the `partially_received` fix's cases, closed the `Test_WC_IO_Close_Short_With_Qty_Received` blocking-filter gap, and added GA-scale (200-item) performance confirmation tests to the Inventory Position and Expected Delivery suites.
+3. **Cumulative integration suite** (`--testsuite integration`) — **must pass, as of M8** (previously `continue-on-error: true` while it carried pre-existing test-content bugs, now fixed — see [Known test-content issues](#known-test-content-issues)). **245 tests / 834 assertions as of M8/v1.25.0, all passing** (0 errors, 0 failures, 0 skips) — the first time this suite has been fully clean since the M0-era golden characterization tests were authored.
 
 The golden characterization suite remains the regression spine for costing/FX/allocation/movement behavior; M2 adds PO unit tests that must pass in the Docker harness.
 
@@ -253,6 +253,19 @@ is out of scope for infrastructure repair and is left as a follow-up.
   same way `WP_VERSION` is pinned is a reasonable follow-up.
 
 ## Known test-content issues
+
+**Resolved as of M8 (v1.25.0).** Every issue itemized in this section was
+fixed as a test-code-only correction (verified against current, unmodified
+production behavior — never a production-code change) — see the M8 section
+of `docs/architecture-audit.md` for the fix summary. The integration suite
+is now 245 tests / 834 assertions, 0 errors, 0 failures, 0 skips, and is a
+normal CI-blocking gate (`tests.yml`'s `continue-on-error: true` on this
+step was removed). The two Batch Intake characterization tests referenced
+below no longer exist — their subject method (`apply_batch_from_post()`)
+was physically removed in the same M8 pass, per the M6 governance rule
+reserving that deletion for M8. This section is retained **as a historical
+record** of the test-infrastructure defects found and fixed, not as a
+currently-open issue list.
 
 Because the documented PHPUnit workflow could not run to completion until
 the Test Infrastructure Hotfix (v1.19.1) fixed a missing `composer install`

@@ -1,17 +1,21 @@
 # Architecture Baseline v1.24.0
 
-**Status: FROZEN.** This document freezes the state of WC Inventory Overview
-at the completion of Milestones M0–M7 as the official architectural baseline
-for every future milestone (M8 onward).
+**Status: FROZEN.** This document freezes the *architectural boundaries* of
+WC Inventory Overview established by the completion of Milestones M0–M7 —
+kept as the document's name and identity, since M8 (below) closed
+operational gaps within this same frozen shape without changing any
+boundary recorded here (per §12 rule 7's update-in-place instruction, no
+`ARCHITECTURE_BASELINE_v1.25.0.md` was created). It is the official
+architectural baseline for every future milestone (M9 onward).
 
 | | |
 |---|---|
-| **Plugin version** | 1.24.0 |
+| **Plugin version** | 1.25.0 (current — architectural boundaries themselves were frozen at 1.24.0/M7; M8/v1.25.0 closed gaps within them, changing none) |
 | **Schema version (`DB_VERSION`)** | 10 |
-| **Milestones complete** | M0 – M7 |
-| **Baseline date** | 2026-08-08 |
-| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M7 status snapshot** of that same architecture, plus the M1–M7 rules layered on top of it. |
-| **Governs** | All milestones from M8 onward |
+| **Milestones complete** | M0 – M8 |
+| **Baseline date** | 2026-08-08 (M7 freeze); updated in place 2026-08-08 for M8 |
+| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M8 status snapshot** of that same architecture, plus the M1–M8 rules layered on top of it. |
+| **Governs** | All milestones from M9 onward |
 
 This is a **documentation-only** artifact. It changes no code, no schema, no
 public API, and no `DB_VERSION`.
@@ -126,37 +130,43 @@ contract.
 | M5 | PO Receiving | 1.22.0 | v9 | `qty_received` column, `PO_Receiving_Sync` (sole `qty_received` owner), auto-transitioning PO status, reconciliation CLI. |
 | M6 | Migration & Retirement | 1.23.0 | v10 | `migrated_receipt_id`/`migrated_at` tracking columns, `Batch_Migration_Service` (record materialization, never receiving-replay), migration CLI, Batch Intake retired (create/apply disabled, legacy tables frozen). |
 | M7 | Storefront Expected Delivery | 1.24.0 | v10 (unchanged) | `Expected_Delivery_Result_Interface`/`Result`/`Resolver`/`Service`/`Renderer` (API v1, sole public API + sole-entry-point rule), built-in `woocommerce_get_availability` renderer, one merchant toggle, Invariants M7-1/M7-2/M7-3. |
+| M8 | Hardening & GA | 1.25.0 | v10 (unchanged) | Physically removed the M6-deprecated Batch Intake create/apply surface (test fixture builder rewritten first, four deletion criteria verified); closed `PO_Delay`'s `partially_received` gap; added the repo-wide sibling-plugin-coupling conformance guard M7 deferred; repaired all remaining pre-existing golden-test bugs (integration suite promoted to a CI-blocking gate); CI hardening (PHP 8.4 aligned across all workflows); GA-scale (200-item) performance confirmation. Zero new domain concepts, zero public API change — the smallest milestone that lets M0–M8 be called production-finished. |
 
 Full detail for each milestone: `docs/milestones/m{N}-implementation-plan.md`
 and the corresponding section of `docs/architecture-audit.md`.
 
-**Next planned milestone:** M8 — Hardening & GA (2.0.0), not yet planned in
-detail. See §10 for what M8 inherits from this baseline.
+**M0–M8 complete.** This baseline is updated in place for M8 per its own
+§12 rule — no `ARCHITECTURE_BASELINE_v1.25.0.md` was created, since M8
+changed no frozen boundary, only closed prior gaps (see §4's updated
+sibling-plugin-coupling row and §12's M8 addition below). The next
+milestone (M9 onward) is unplanned; see §10 for extension philosophy and
+§12 for the governance rules any new milestone must follow.
 
 ---
 
 ## 4. Frozen architectural boundaries
 
 These are the "sole owner" / "sole entry point" rules established across
-M0–M7. Each is enforced by a source-scanning architecture guard test, not
+M0–M8. Each is enforced by a source-scanning architecture guard test, not
 just prose — a violation fails CI, not just code review.
 
 | Boundary | Rule | Enforced by |
 |---|---|---|
-| **Stock/cost mutation (D3/INV-2)** | Only `Goods_Receipt_Service::post()`/`void()` mutates WooCommerce stock or weighted-average cost through this plugin's purchasing domain. | `tests/unit/goods-receipt/test-goods-receipt-architecture.php` |
+| **Stock/cost mutation (D3/INV-2)** | Only `Goods_Receipt_Service::post()`/`void()` mutates WooCommerce stock or weighted-average cost through this plugin's purchasing domain. As of M8, this is a literal single-caller guard for both `Restock_Service` mutation methods — `Batch_Intake_Service`'s pre-existing second caller (`apply_batch_from_post()`) was physically removed, closing the one deliberate exception this rule ever carried. | `tests/unit/goods-receipt/test-goods-receipt-architecture.php` |
 | **Position calculation (D12)** | Only `Inventory_Position_Service` computes position/aggregation values (single or bulk). It is the only caller of `Purchase_Order_Lines::list_open_lines_for_*_ids()`. | `tests/unit/inventory-position/test-inventory-position-architecture.php` |
 | **`qty_received` ownership chain (M5)** | `Goods_Receipt_Service` (orchestrator) → `PO_Receiving_Sync` (sole owner of the mutation decision) → `Purchase_Order_Lines::increment_qty_received()` (sole physical writer). One named CLI exception (`reconcile_line()`) on the same owner class. | `tests/unit/po-receiving/test-po-receiving-architecture.php` |
 | **Migration is not receiving (M6)** | `Batch_Migration_Service` never calls `set_stock_quantity()`, never writes cost meta, never goes through `Goods_Receipt_Service`/`Restock_Service`/`PO_Receiving_Sync`. A migrated receipt is a historical fact written down, not a live mutation. | `tests/unit/batch-migration/test-batch-migration-architecture.php` |
 | **One transaction per batch (M6-1)** | `Batch_Migration_Service::migrate_batch()` never spans a shared transaction across multiple batches. | Same guard file, instantiation-count assertion |
 | **Expected-delivery public API (M7)** | Only `Expected_Delivery_Service` may call `Expected_Delivery_Resolver` (sole-entry-point rule). Only the Service and the Inventory Overview list table call `Inventory_Position_Service::` (D12 extended). | `tests/unit/expected-delivery/test-expected-delivery-architecture.php` |
 | **Storefront rendering (M7)** | Only `Expected_Delivery_Renderer` touches `woocommerce_get_availability`. It goes through the Service only — never a repository, never `$wpdb`, never a PO-domain class directly. | Same guard file |
-| **No sibling-plugin coupling (all milestones)** | No `class_exists()`/`function_exists()` check against a third-party symbol; no `remove_filter()` against another plugin's hooks. | Guard-enforced per milestone; explicit in `docs/adr/0003` for M7 |
+| **`PO_Delay` delayed-detection status gate (M2/M8)** | A line may be flagged delayed only when its owning PO is `placed` or `partially_received` (M8 closed the gap where a partially-received PO's genuinely overdue remainder was silently never flagged); `received` is excluded by construction (INV-4 guarantees `outstanding = 0`). PHP and SQL predicates verified equivalent by a shared table-driven fixture. | `tests/unit/purchase-orders/test-po-delay.php` |
+| **No sibling-plugin coupling (all milestones)** | No `class_exists()`/`function_exists()` check against a third-party symbol; no `remove_filter()`/`remove_action()` call; no hardcoded sibling-plugin identifier. Enforced per-milestone within each new feature's own files since M4; as of M8, also enforced **repo-wide across the entire `includes/` tree in one guard**, mechanically confirming ADR-0003's audit claim instead of leaving it as prose. | Per-milestone guards; `tests/unit/conformance/test-no-sibling-plugin-coupling.php` (repo-wide, M8) |
 
 **The pattern, stated once:** every domain fact in this system has exactly
 one class that is allowed to compute it or write it, and every other class
 in the codebase is structurally forbidden — by an automated test, not a
 comment — from duplicating that logic. This is the single most important
-architectural property of the whole platform, and it is why M1–M7 could each
+architectural property of the whole platform, and it is why M1–M8 could each
 ship as a pure addition without ever needing to refactor a prior milestone.
 
 ---
@@ -268,13 +278,19 @@ have an external consumer to version against yet (D16).
 **Public entry point:** `WC_Inventory_Overview_Inventory_Position_Service`
 
 ```php
-Inventory_Position_Service::get_position( $product_id, $variation_id = 0 ): array
-Inventory_Position_Service::get_positions_bulk( array $items ): array
+Inventory_Position_Service::get_position( string $item_type, int $item_id, float $on_hand ): array
+Inventory_Position_Service::get_positions_bulk( array $product_on_hand, array $variation_on_hand ): array
 ```
 
-Returns `{on_hand, incoming, position, incoming_delayed, incoming_lines}`.
-`get_position()` is defined as `get_positions_bulk()` with a single-item map
-— single and bulk always share one code path and can never disagree.
+`$item_type` is `Inventory_Position_Service::TYPE_PRODUCT` or `TYPE_VARIATION`.
+`$on_hand`/`$product_on_hand`/`$variation_on_hand` are always **caller-supplied**
+— the Service never fetches On Hand itself; `get_positions_bulk()` takes two
+separate ID-keyed maps (product IDs and variation IDs), not one combined list,
+matching the Resolver's separate product-scoped and variation-scoped queries.
+Returns `{on_hand, incoming, position, incoming_delayed, incoming_lines}`,
+keyed by item ID for the bulk call. `get_position()` is defined as
+`get_positions_bulk()` with a single-item map — single and bulk always share
+one code path and can never disagree.
 
 This API predates M7's formal `API_VERSION` convention and has no version
 number of its own; its contract has been stable since v1.20.0 and is treated
@@ -291,9 +307,12 @@ second entry point.
 `API_VERSION = 1` (versioned independently of the plugin version).
 
 ```php
-Expected_Delivery_Service::get_for_product( WC_Product $product ): Result_Interface
-Expected_Delivery_Service::get_for_products_bulk( array $products ): array  // keyed by product ID
+Expected_Delivery_Service::get_for_product( WC_Product|int $product ): Result_Interface
+Expected_Delivery_Service::get_for_products_bulk( array $products ): array  // keyed by item ID
 ```
+
+Both methods accept a `WC_Product`/`WC_Product_Variation` instance **or** a
+bare product/variation ID — not the instance only.
 
 **The public contract is the interface**,
 `WC_Inventory_Overview_Expected_Delivery_Result_Interface` — four
@@ -540,11 +559,12 @@ number, bumped only for its own backward-incompatible changes.
 
 ## 12. Future-governance rules
 
-These rules apply to M8 and every milestone after it:
+These rules apply to M9 and every milestone after it (M8 itself both
+followed and fulfilled them — see the update to rule 6 below):
 
 1. **This document is the starting point.** A new milestone plan opens by
    stating what it builds on top of this baseline — it does not re-explain
-   or re-verify M0–M7's architecture from scratch. If a milestone plan finds
+   or re-verify M0–M8's architecture from scratch. If a milestone plan finds
    this document inaccurate (a rule has drifted from the code), fixing this
    document is a prerequisite for that milestone, not a side effect of it.
 2. **A new sole-owner boundary requires a guard test in the same PR.** No
@@ -568,9 +588,15 @@ These rules apply to M8 and every milestone after it:
    callable — often by tests — but unreachable from production UI, marked
    `@deprecated`), *Extracted* (shared logic pulled into its own class before
    the original home is retired), *Frozen forever* (historical data tables,
-   never dropped). Physical deletion of anything marked `@deprecated` in M6
-   is explicitly reserved for M8 — do not delete it earlier without
-   revisiting that decision first.
+   never dropped). **Fulfilled by M8:** the `@deprecated` Batch Intake
+   create/apply surface M6 marked "disabled, not deleted, reserved for M8"
+   was physically removed in M8, after rewriting its one remaining test
+   dependency (`create_legacy_batch()`) to no longer need it and verifying
+   four explicit deletion criteria. The legacy `wc_io_purchase_batches*`
+   tables themselves remain frozen forever, per D14, untouched by that
+   removal. The same discipline (reserve a physical-deletion date, verify
+   deletion criteria, never delete speculatively) applies to any future
+   `@deprecated` surface.
 7. **No milestone plan ships without updating this document** if it changes
    any fact recorded here (a new table, a new invariant, a new sole-owner
    class, a version bump). Treat staleness here the same as a failing test.
