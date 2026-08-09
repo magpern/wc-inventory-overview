@@ -100,6 +100,8 @@ class WC_Inventory_Overview_Supplier_Lead_Time_Service {
 	}
 
 	/**
+	 * The "no data" result shape.
+	 *
 	 * @return array{has_data:bool,average_days:?float,fastest_days:?int,slowest_days:?int,sample_count:int}
 	 */
 	private static function empty_stats(): array {
