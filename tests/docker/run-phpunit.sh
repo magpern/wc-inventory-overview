@@ -119,7 +119,7 @@ export WP_TESTS_PHPUNIT_POLYFILLS_PATH=/tmp/phpunit-polyfills/vendor/yoast/phpun
 cd "${PLUGIN_DIR}"
 FILTER_ARGS=("$@")
 if [[ ${#FILTER_ARGS[@]} -eq 0 ]]; then
-	# Default: M1–M11 focused blocking suite.
+	# Default: M1–M12 focused blocking suite.
 	# Filter notes (substring / regex match on class names):
 	# - Prefer prefix_ forms (trailing underscore) when every intended class
 	#   shares that prefix (e.g. Test_WC_IO_PO_).

@@ -55,8 +55,8 @@ jobs:
       - name: Run unit suite
         run: docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite unit
 
-      # Default filter in tests/docker/run-phpunit.sh = M1–M11 focused blocking suite.
-      - name: Run M1–M11-focused suite
+      # Default filter in tests/docker/run-phpunit.sh = M1–M12 focused blocking suite.
+      - name: Run M1–M12-focused suite
         run: docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit
 
       # Cumulative integration suite (includes the M0-era golden

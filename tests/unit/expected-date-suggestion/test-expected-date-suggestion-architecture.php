@@ -21,17 +21,31 @@ class Test_WC_IO_Expected_Date_Suggestion_Architecture extends WP_UnitTestCase {
 	private const SERVICE_FILE = 'class-wc-inventory-overview-expected-date-suggestion-service.php';
 
 	/**
-	 * Token unique to this service's resolution policy (plan §5.2) -- the
-	 * "is the observed average usable" decision call. A second,
-	 * independently-written caller of this same M9 predicate anywhere else
-	 * in includes/ would mean a second component is re-implementing this
-	 * milestone's fallback policy, a sole-owner violation.
+	 * Token used by this service's resolution policy (plan §5.2) -- the
+	 * "is the observed average usable" decision call. A second component
+	 * that both calls this predicate AND implements observed→configured→none
+	 * suggestion resolution would be a sole-owner violation. Presentation
+	 * may reuse the M9 predicate for display gating only (see
+	 * presentation_callers_of_usability_predicate()).
 	 *
 	 * @return string[]
 	 */
 	private function computation_signature_tokens(): array {
 		return array(
 			'is_observed_value_usable(',
+		);
+	}
+
+	/**
+	 * Includes files that may call Supplier_Lead_Time_Service::is_observed_value_usable()
+	 * for read-only display without owning Expected_Date_Suggestion_Service's
+	 * observed→configured→none recommendation policy. Extended deliberately for M12.
+	 *
+	 * @return string[]
+	 */
+	private function presentation_callers_of_usability_predicate(): array {
+		return array(
+			'class-wc-inventory-overview-suppliers-list-table.php',
 		);
 	}
 
@@ -115,21 +129,25 @@ class Test_WC_IO_Expected_Date_Suggestion_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Sole ownership: no file in includes/ other than the service itself
-	 * calls the "is this observed average usable" predicate -- the
-	 * resolution policy signature.
+	 * Sole ownership of suggestion resolution: no includes/ file other than
+	 * the suggestion service (and allowlisted presentation display callers)
+	 * may call the "is this observed average usable" predicate as part of a
+	 * second recommendation policy. Presentation callers are allowlisted
+	 * separately and must not grow into suggestion engines.
 	 */
 	public function test_only_service_owns_the_suggestion_policy() {
 		$offenders = array();
+		$allowed   = array_merge(
+			array(
+				self::SERVICE_FILE,
+				'class-wc-inventory-overview-supplier-lead-time-service.php',
+			),
+			$this->presentation_callers_of_usability_predicate()
+		);
 
 		foreach ( $this->all_include_files() as $file ) {
 			$basename = basename( $file );
-			if ( self::SERVICE_FILE === $basename ) {
-				continue; // Definition site (the caller), not a duplicate.
-			}
-			// Supplier_Lead_Time_Service itself legitimately defines the
-			// method it doesn't call it.
-			if ( 'class-wc-inventory-overview-supplier-lead-time-service.php' === $basename ) {
+			if ( in_array( $basename, $allowed, true ) ) {
 				continue;
 			}
 
@@ -145,7 +163,7 @@ class Test_WC_IO_Expected_Date_Suggestion_Architecture extends WP_UnitTestCase {
 		$this->assertSame(
 			array(),
 			$offenders,
-			'Only WC_Inventory_Overview_Expected_Date_Suggestion_Service may own the observed/configured/none suggestion policy (sole-owner rule).'
+			'Only WC_Inventory_Overview_Expected_Date_Suggestion_Service may own the observed/configured/none suggestion policy (sole-owner rule). Presentation may reuse is_observed_value_usable() only via the deliberate allowlist.'
 		);
 	}
 
