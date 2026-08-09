@@ -6,19 +6,21 @@
 
 **Process:** [`docs/process/milestone-lifecycle.md`](docs/process/milestone-lifecycle.md) — the Standard Milestone Lifecycle (v2, effective M10 onward) governing plan → implement → audit → remediate → freeze → next-milestone sequencing and feature-train release batching. Read it before starting any milestone from M10 forward.
 
-## Platform status: M0–M8 GA baseline, M9 + M10 + M11 shipped as the first post-GA feature train
+**Canonical unreleased development head:** [`feature/feature-train-m9-m11`](docs/checklists/feature-train-development-head.md) — contains M9 + M10 + M11 + CI recovery; GitHub CI baseline is green; **M12 must branch from this head** (not from `main` / `v1.25.0`). Last released tag remains `v1.25.0`.
+
+## Platform status: M0–M8 GA baseline, M9 + M10 + M11 on the first post-GA feature train
 
 **Current baseline: plugin 1.28.0, `DB_VERSION` 10.** All nine foundational
 milestones (M0 Delivery Foundations through M8 Hardening & GA) are shipped
 and frozen. M9 (Supplier Observed Lead-Time Statistics), M10 (Purchase
 Order Expected-Date Suggestion), and M11 (Supplier On-Time Delivery Rate)
-have all shipped on top as the first post-GA "feature train"
+have all been implemented on top as the first post-GA "feature train"
 (`docs/process/milestone-lifecycle.md`) — each implemented and frozen on
 its own branch (M9 additionally received a full independent audit and
 remediation pass; M10 and M11 were each frozen after a lightweight
 completion review per `docs/process/milestone-lifecycle.md` WP4), but
 **intentionally not released individually**; they await one batched future
-release. M8 added zero new domain concepts, zero schema change, and zero
+release. CI recovery (green GitHub Actions) is incorporated on the train head. M8 added zero new domain concepts, zero schema change, and zero
 public API change — it physically removed the M6-deprecated Batch Intake
 code, closed the `partially_received` delay-detection gap, added a
 repo-wide sibling-plugin-coupling conformance guard, repaired the last

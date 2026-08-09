@@ -57,6 +57,8 @@ PR: https://github.com/magpern/wc-inventory-overview/pull/10
 
 **Verdict: all required GitHub Actions checks green.**
 
-## Topology
+## Topology / integration
 
-CI fixes land on `chore/ci-green-recovery` branched from the feature-train tip so M9/M10/M11 freeze branch tips stay historically accurate; merge back into the train (or into `main` with the train) before M12.
+CI fixes landed on `chore/ci-green-recovery` branched from the frozen M11 tip so M9/M10/M11 freeze branch tips stay historically accurate.
+
+**Integrated 2026-08-09:** canonical development head is now `feature/feature-train-m9-m11` (same commits as the CI-recovery tip; ancestry preserved). PR #10 was **closed without merging** into `main` — merging would have prematurely landed the unreleased M9–M11 train. See [`feature-train-development-head.md`](feature-train-development-head.md). M12 must branch from `feature/feature-train-m9-m11`.

@@ -60,6 +60,8 @@ Create `docs/checklists/mXX-release-readiness.md` recording:
 
 Unless this milestone changed architecture (see Release Triggers below), **stop here** and begin the next milestone's WP0. No release, no deployment, no tag, no GitHub Release yet.
 
+**Current unreleased feature-train head (M9 + M10 + M11 + CI recovery):** branch `feature/feature-train-m9-m11`. The next milestone (e.g. M12) **must branch from that head**, not from `main` and not from a frozen per-milestone tip. See `docs/checklists/feature-train-development-head.md`.
+
 ## WP6 — Feature Train Release
 
 After several milestones have accumulated (for example M9–M11), run **one** release workflow covering all of them together: push, PR, CI, merge, tag, GitHub Release, deployment, operational validation.
