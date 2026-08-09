@@ -55,15 +55,15 @@ jobs:
       - name: Run unit suite
         run: docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite unit
 
-      - name: Run M2-focused suite (PO, schema, suppliers, DB-transaction)
+      # Default filter in tests/docker/run-phpunit.sh = M1–M11 focused blocking suite.
+      - name: Run M1–M11-focused suite
         run: docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit
 
       # Cumulative integration suite (includes the M0-era golden
       # characterization tests: costing/FX/movements/cost-adjustment). Was
       # continue-on-error while it carried known pre-existing test-content
       # failures -- see docs/testing.md#known-test-content-issues. M8/WP4
-      # fixed all of them (243 tests / 828 assertions, 0 errors, 0 failures);
-      # this step is now a normal blocking gate like unit/M1-M8-focused.
+      # fixed all of them; this step is a normal blocking gate.
       - name: Run cumulative integration suite
         run: docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite integration
 
