@@ -2,6 +2,10 @@
 /**
  * Suppliers list table (WP_List_Table).
  *
+ * M12 adds read-only Observed Lead Time and On-Time Rate columns, populated
+ * from WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_bulk()
+ * once per prepare_items() for the current page (INV-M12-1 / INV-M12-2).
+ *
  * @package WC_Inventory_Overview
  */
 
@@ -15,6 +19,14 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
  * Suppliers list table.
  */
 class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
+
+	/**
+	 * Per-page performance stats from Supplier_Lead_Time_Service::get_stats_bulk(),
+	 * keyed by supplier ID. Populated exactly once in prepare_items().
+	 *
+	 * @var array<int,array{has_data:bool,average_days:?float,fastest_days:?int,slowest_days:?int,sample_count:int,on_time_count:int,rated_order_count:int}>
+	 */
+	private $performance_stats = array();
 
 	/**
 	 * Constructor.
@@ -32,14 +44,19 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 	 */
 	public function get_columns() {
 		return array(
-			'name'              => __( 'Name', 'wc-inventory-overview' ),
-			'default_currency'  => __( 'Default Currency', 'wc-inventory-overview' ),
-			'default_lead_time' => __( 'Lead Time (configured)', 'wc-inventory-overview' ),
+			'name'                 => __( 'Name', 'wc-inventory-overview' ),
+			'default_currency'     => __( 'Default Currency', 'wc-inventory-overview' ),
+			'default_lead_time'    => __( 'Lead Time (configured)', 'wc-inventory-overview' ),
+			'observed_lead_time'   => __( 'Observed Lead Time', 'wc-inventory-overview' ),
+			'on_time_rate'         => __( 'On-Time Rate', 'wc-inventory-overview' ),
 		);
 	}
 
 	/**
 	 * Get sortable columns.
+	 *
+	 * Observed Lead Time and On-Time Rate are intentionally not sortable
+	 * (docs/milestones/m12-implementation-plan.md §6 non-goal #2).
 	 */
 	public function get_sortable_columns() {
 		return array(
@@ -49,6 +66,9 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 
 	/**
 	 * Prepare items for display.
+	 *
+	 * Loads one page of suppliers, then fetches M9/M11 performance statistics
+	 * for those IDs with a single get_stats_bulk() call (INV-M12-2).
 	 */
 	public function prepare_items() {
 		$per_page   = $this->get_items_per_page( 'wc_io_suppliers_per_page', 20 );
@@ -70,6 +90,19 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 		) );
 
 		$this->items = $suppliers;
+
+		$page_ids = array();
+		foreach ( $suppliers as $supplier ) {
+			$id = isset( $supplier['id'] ) ? (int) $supplier['id'] : 0;
+			if ( $id > 0 ) {
+				$page_ids[] = $id;
+			}
+		}
+
+		// Exactly one bulk call per prepare_items(), including the empty-page
+		// case (get_stats_bulk([]) returns without issuing SQL).
+		$grace_days              = WC_Inventory_Overview_PO_Delay::grace_days_from_option();
+		$this->performance_stats = WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_bulk( $page_ids, $grace_days );
 
 		$total_items = WC_Inventory_Overview_Suppliers::count( array(
 			'status' => $status,
@@ -113,6 +146,90 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 	 */
 	public function column_default_lead_time( $item ) {
 		return $item['default_lead_time_days'] ? esc_html( $item['default_lead_time_days'] ) . ' days' : '—';
+	}
+
+	/**
+	 * Render Observed Lead Time column (M12).
+	 *
+	 * Presentation-only: thresholds and values come from
+	 * Supplier_Lead_Time_Service (same policy as the detail panel).
+	 *
+	 * @param array $item Supplier row.
+	 * @return string
+	 */
+	public function column_observed_lead_time( $item ) {
+		$stats = $this->stats_for_item( $item );
+		if ( ! WC_Inventory_Overview_Supplier_Lead_Time_Service::is_observed_value_usable( $stats ) ) {
+			return $this->insufficient_data_cell(
+				__( 'Not enough observed lead-time data yet.', 'wc-inventory-overview' )
+			);
+		}
+
+		$days = (int) round( (float) $stats['average_days'] );
+		return esc_html(
+			sprintf(
+				/* translators: %d: average observed lead time in days, rounded. */
+				_n( '%d day', '%d days', $days, 'wc-inventory-overview' ),
+				$days
+			)
+		);
+	}
+
+	/**
+	 * Render On-Time Rate column (M12).
+	 *
+	 * @param array $item Supplier row.
+	 * @return string
+	 */
+	public function column_on_time_rate( $item ) {
+		$stats = $this->stats_for_item( $item );
+		if ( ! WC_Inventory_Overview_Supplier_Lead_Time_Service::is_on_time_rate_usable( $stats ) ) {
+			return $this->insufficient_data_cell(
+				__( 'Not enough rated on-time data yet.', 'wc-inventory-overview' )
+			);
+		}
+
+		$percent = (int) round( ( $stats['on_time_count'] / $stats['rated_order_count'] ) * 100 );
+		return esc_html(
+			sprintf(
+				/* translators: %d: on-time delivery percentage. */
+				__( '%d%%', 'wc-inventory-overview' ),
+				$percent
+			)
+		);
+	}
+
+	/**
+	 * Stats row for a list item (empty shape if missing).
+	 *
+	 * @param array $item Supplier row.
+	 * @return array{has_data:bool,average_days:?float,fastest_days:?int,slowest_days:?int,sample_count:int,on_time_count:int,rated_order_count:int}
+	 */
+	private function stats_for_item( array $item ): array {
+		$id = isset( $item['id'] ) ? (int) $item['id'] : 0;
+		if ( $id > 0 && isset( $this->performance_stats[ $id ] ) ) {
+			return $this->performance_stats[ $id ];
+		}
+
+		return array(
+			'has_data'          => false,
+			'average_days'      => null,
+			'fastest_days'      => null,
+			'slowest_days'      => null,
+			'sample_count'      => 0,
+			'on_time_count'     => 0,
+			'rated_order_count' => 0,
+		);
+	}
+
+	/**
+	 * List-dense "—" cell with an optional tooltip.
+	 *
+	 * @param string $title Tooltip text.
+	 * @return string
+	 */
+	private function insufficient_data_cell( string $title ): string {
+		return '<span title="' . esc_attr( $title ) . '">—</span>';
 	}
 
 	/**
