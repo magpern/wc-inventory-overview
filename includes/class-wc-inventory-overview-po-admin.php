@@ -75,14 +75,14 @@ class WC_Inventory_Overview_PO_Admin {
 		// on, per docs/milestones/m10-implementation-plan.md non-goal #1:
 		// editing an existing PO must never run suggestion logic, even if
 		// the operator changes its supplier.
-		$action     = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$is_new_po  = ( 'new' === $action );
+		$action    = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$is_new_po = ( 'new' === $action );
 
 		wp_localize_script(
 			'wc-io-po-admin',
 			'wcIoPoAdmin',
 			array(
-				'i18n'                 => array(
+				'i18n'                => array(
 					'removeLine' => __( 'Remove line', 'wc-inventory-overview' ),
 					'product'    => __( 'Search for a product…', 'wc-inventory-overview' ),
 				),

@@ -92,8 +92,8 @@ class WC_Inventory_Overview_Expected_Date_Suggestion_Service {
 	 * fallback, else no suggestion. Calendar days only -- no business-day,
 	 * elapsed-hour, or holiday-aware arithmetic (plan §5.2).
 	 *
-	 * @param array<string,mixed>                                                                    $supplier Supplier row.
-	 * @param array{has_data:bool,average_days:?float,fastest_days:?int,slowest_days:?int,sample_count:int}|null $stats    This supplier's Supplier_Lead_Time_Service result, if any.
+	 * @param array<string,mixed>                                                                                $supplier Supplier row.
+	 * @param array{has_data:bool,average_days:?float,fastest_days:?int,slowest_days:?int,sample_count:int}|null $stats This supplier's Supplier_Lead_Time_Service result, if any.
 	 * @return array{days:?int,confidence:?string,source:string}
 	 */
 	private static function resolve_one( array $supplier, ?array $stats ): array {
