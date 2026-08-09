@@ -100,6 +100,21 @@ class WC_Inventory_Overview_Supplier_Lead_Time_Service {
 	}
 
 	/**
+	 * Whether a get_stats_bulk()/get_stats_for_supplier() result carries
+	 * enough history to be used, by any caller -- the single source of
+	 * truth for "is this observed average good enough," so no caller
+	 * (M10's Expected_Date_Suggestion_Service and any future consumer)
+	 * ever needs to know or duplicate the MINIMUM_SAMPLE_COUNT_FOR_DISPLAY
+	 * threshold itself.
+	 *
+	 * @param array{has_data:bool,average_days:?float,fastest_days:?int,slowest_days:?int,sample_count:int} $stats One supplier's result from get_stats_bulk()/get_stats_for_supplier().
+	 * @return bool
+	 */
+	public static function is_observed_value_usable( array $stats ): bool {
+		return $stats['has_data'] && $stats['sample_count'] >= self::MINIMUM_SAMPLE_COUNT_FOR_DISPLAY;
+	}
+
+	/**
 	 * The "no data" result shape.
 	 *
 	 * @return array{has_data:bool,average_days:?float,fastest_days:?int,slowest_days:?int,sample_count:int}
