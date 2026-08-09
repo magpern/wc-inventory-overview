@@ -6,15 +6,16 @@
 
 **Process:** [`docs/process/milestone-lifecycle.md`](docs/process/milestone-lifecycle.md) — the Standard Milestone Lifecycle (v2, effective M10 onward) governing plan → implement → audit → remediate → freeze → next-milestone sequencing and feature-train release batching. Read it before starting any milestone from M10 forward.
 
-## Platform status: M0–M8 GA baseline, M9 + M10 shipped as the first post-GA feature train
+## Platform status: M0–M8 GA baseline, M9 + M10 + M11 shipped as the first post-GA feature train
 
-**Current baseline: plugin 1.27.0, `DB_VERSION` 10.** All nine foundational
+**Current baseline: plugin 1.28.0, `DB_VERSION` 10.** All nine foundational
 milestones (M0 Delivery Foundations through M8 Hardening & GA) are shipped
-and frozen. M9 (Supplier Observed Lead-Time Statistics) and M10 (Purchase
-Order Expected-Date Suggestion) have both shipped on top as the first
-post-GA "feature train" (`docs/process/milestone-lifecycle.md`) — each
-implemented and frozen on its own branch (M9 additionally received a full
-independent audit and remediation pass; M10 was frozen after a lightweight
+and frozen. M9 (Supplier Observed Lead-Time Statistics), M10 (Purchase
+Order Expected-Date Suggestion), and M11 (Supplier On-Time Delivery Rate)
+have all shipped on top as the first post-GA "feature train"
+(`docs/process/milestone-lifecycle.md`) — each implemented and frozen on
+its own branch (M9 additionally received a full independent audit and
+remediation pass; M10 and M11 were each frozen after a lightweight
 completion review per `docs/process/milestone-lifecycle.md` WP4), but
 **intentionally not released individually**; they await one batched future
 release. M8 added zero new domain concepts, zero schema change, and zero
@@ -27,10 +28,13 @@ M9 added one read-only reporting feature (observed supplier lead-time,
 computed from existing Purchase Order / Goods Receipt history). M10 added
 one advisory admin feature (Purchase Order creation pre-fills Expected
 Date/Confidence from M9's observed lead time, falling back to the
-supplier's configured lead time) — zero schema change either milestone,
-zero new public API (both new services are Internal, not Public — D16),
-zero change to any existing business behavior beyond the one new
-pre-fill.
+supplier's configured lead time). M11 added one read-only reporting feature
+(supplier on-time delivery rate, judged against each order's own frozen
+expected date using the same grace-day tolerance already governing live
+delay-flagging) — zero schema change across any of the three milestones,
+zero new public API (all new/extended services are Internal, not Public —
+D16), zero change to any existing business behavior beyond each milestone's
+own one addition.
 **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)**
 remains the consolidated architecture snapshot — completed milestones, frozen
 ownership boundaries, public APIs, schema, invariants, and future-governance
@@ -212,8 +216,9 @@ This table is updated as each milestone is implemented. Each milestone links to 
 | M8 | Hardening & GA | ✅ Complete | 1.25.0 | [docs/milestones/m8-implementation-plan.md](docs/milestones/m8-implementation-plan.md) | Schema unchanged (v10); physically removed M6-deprecated Batch Intake create/apply surface (fixture builder rewritten first); closed `PO_Delay`'s `partially_received` gap; repo-wide sibling-plugin-coupling conformance guard; repaired all remaining pre-existing golden-test bugs (integration suite now CI-blocking, 245 tests / 834 assertions, 0 failures); CI hardening (PHP 8.4 aligned across all workflows); GA-scale (200-item) performance confirmation. Zero new domain concepts, zero public API change. First milestone this program calls Version 1.0 / GA ready. |
 | M9 | Supplier Observed Lead-Time Statistics | ✅ Complete | 1.26.0 | [docs/milestones/m9-implementation-plan.md](docs/milestones/m9-implementation-plan.md) | Schema unchanged (v10); first post-GA milestone. `Supplier_Lead_Time_Service` (new Internal, not Public, sole-owner boundary — D16) computes read-only average/fastest/slowest/completed-order statistics per supplier from posted Goods Receipts linked to fully-`received` Purchase Orders, one bulk query, no persistence, no N+1 (proven at 10/40/200-supplier scale). Read-only panel on the Supplier admin screen alongside the existing configured-lead-time field. Fills the D8 "designed-for-later" slot named in `docs/admin-guide-suppliers.md` since M1. Zero new domain concepts, zero public API, zero schema change. |
 | M10 | Purchase Order Expected-Date Suggestion | ✅ Complete | 1.27.0 | [docs/milestones/m10-implementation-plan.md](docs/milestones/m10-implementation-plan.md) | Schema unchanged (v10); second milestone of the post-GA feature train. `Expected_Date_Suggestion_Service` (new Internal, not Public, sole-owner boundary — D16) combines M9's observed statistics with the supplier's configured `default_lead_time_days` into an advisory expected-date suggestion (observed → configured → none; calendar days only), pre-filling the new-PO creation form via the existing `wp_localize_script`/`po-admin.js` plumbing — no AJAX, no new endpoint. Always overridable, permanently so once edited (INV-M10-1); never runs on the edit-PO screen. `Supplier_Lead_Time_Service` gains one small additive predicate, `is_observed_value_usable()`. Corrects a previously-false documentation claim that this suggestion already existed. Zero new domain concepts, zero public API, zero schema change. |
+| M11 | Supplier On-Time Delivery Rate | ✅ Complete | 1.28.0 | [docs/milestones/m11-implementation-plan.md](docs/milestones/m11-implementation-plan.md) | Schema unchanged (v10); third milestone of the post-GA feature train. New `Expected_Deadline` (Internal, narrow pure value/policy class — four methods, guard-closed) owns the "expected_date + grace_days → deadline" formula and known-date eligibility rule (INV-M11-2), consumed by both `PO_Delay` (internally refactored, public contract unchanged) and the further-extended `Supplier_Lead_Time_Service`, which now also returns `on_time_count`/`rated_order_count` per supplier from the same single query M9 already runs — zero additional queries. Unknown-confidence completed orders excluded from both numerator and denominator (INV-M11-1). Displayed read-only alongside Observed Lead Time on the Supplier admin screen. Zero new domain concepts, zero public API, zero schema change. |
 
-**Release note:** v1.25.0 (M8) is tagged and published — see `docs/GITHUB_RELEASE_NOTES_1.25.0.md`. v1.26.0 (M9) and v1.27.0 (M10) are both implementation-complete and frozen (M9: implemented, independently audited, and remediated, see `docs/checklists/m9-release-readiness.md`; M10: implemented and frozen after a lightweight completion review, see `docs/checklists/m10-release-readiness.md`); tagging, publishing, and release notes are deferred to a future bundled release covering the whole feature train — per `docs/process/milestone-lifecycle.md`, no per-milestone `docs/GITHUB_RELEASE_NOTES_1.27.0.md` is produced for M10 individually. All prior milestone releases (M0–M7, tags `v1.17.3`–`v1.24.0`) are likewise tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
+**Release note:** v1.25.0 (M8) is tagged and published — see `docs/GITHUB_RELEASE_NOTES_1.25.0.md`. v1.26.0 (M9), v1.27.0 (M10), and v1.28.0 (M11) are all implementation-complete and frozen (M9: implemented, independently audited, and remediated, see `docs/checklists/m9-release-readiness.md`; M10 and M11: each implemented and frozen after a lightweight completion review, see `docs/checklists/m10-release-readiness.md` / `docs/checklists/m11-release-readiness.md`); tagging, publishing, and release notes are deferred to a future bundled release covering the whole feature train — per `docs/process/milestone-lifecycle.md`, no per-milestone `docs/GITHUB_RELEASE_NOTES_1.27.0.md`/`1.28.0.md` is produced for M10/M11 individually. All prior milestone releases (M0–M7, tags `v1.17.3`–`v1.24.0`) are likewise tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
 
 ---
 

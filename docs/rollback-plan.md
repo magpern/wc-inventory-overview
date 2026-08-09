@@ -2,6 +2,18 @@
 
 ---
 
+## ✓ M11 (v1.28.0): code-only, read-only feature — as clean as M7/M8/M9/M10's, nothing to reverse
+
+**M11 wrote no data, changed no schema, and mutated nothing anywhere in its surface.** The new `Expected_Deadline` class is pure (guard-enforced — zero `$wpdb`, zero writes, zero WordPress option access); the extended `Supplier_Lead_Time_Service` remains read-only by construction, computing `on_time_count`/`rated_order_count` fresh on every call from the exact same underlying Purchase Order / Goods Receipt data M9 already reads — nothing is ever persisted.
+
+- **Code rollback v1.28.0 → v1.27.0 is unconditionally safe.** The Supplier detail screen simply stops showing the "On-Time Delivery Rate" row; the Observed Lead Time panel above it, and everything else on the page, is unaffected. No other screen is touched.
+- **No `wp_options` row, no new table, no new column, no new setting** — there is nothing for a rollback to leave behind or need to clean up. `PO_Delay`'s existing `wc_io_po_delay_grace_days` option is read, never written, by the new feature.
+- **`PO_Delay`'s live delay-flagging behavior is provably unaffected either way** — its internal refactor to consume `Expected_Deadline` changed no public method's signature or output (proven by its complete pre-existing test suite passing unmodified); rolling back simply removes the `Expected_Deadline` class and reverts `PO_Delay` to its pre-M11 internals, with identical behavior throughout.
+- **Historical and in-flight Purchase Order / Goods Receipt data is untouched** in either direction — M11 never writes to any of it; rolling back changes nothing about already-recorded history.
+- Like M7, M8, M9, and M10, **M11 leaves nothing behind** — the plugin is byte-for-byte back to pre-M11 behavior the moment the code is rolled back; a rolled-back site simply stops showing the on-time delivery figure, which is not a functional regression a merchant would notice beyond the report's absence (Observed Lead Time and every other feature are unaffected).
+
+---
+
 ## ✓ M10 (v1.27.0): code-only, advisory-only feature — as clean as M7/M8/M9's, nothing to reverse
 
 **M10 wrote no data, changed no schema, and mutated nothing anywhere in its surface.** `Expected_Date_Suggestion_Service` is read-only by construction (guard-enforced — zero writes, and it never touches `$wpdb` directly at all). The only stored values it ever influences (`expected_date`/`expected_confidence` on a new Purchase Order) are written through the exact same, unchanged form-submission path a manually-typed value already used — nothing about the suggestion mechanism itself is persisted (plan §5.2 return shape).

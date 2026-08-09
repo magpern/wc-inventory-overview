@@ -292,6 +292,36 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **Suppliers, Purchase Orders, Inventory Position (M3), Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), Storefront Expected Delivery (M7), and Supplier Observed Lead Time (M9) all unaffected** — all continue to function exactly as in v1.26.0.
 
+### For M11 (Supplier On-Time Delivery Rate, v1.28.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`; `wc_io_schema_assertion` reports `ok: true` at `version: "10"`.
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  ```
+
+- [ ] **On-time rate computed correctly**: on a supplier with at least 2 completed orders that each have a known expected date (Exact or Estimated confidence), the Supplier detail screen's "On-Time Delivery Rate" row shows a rounded percentage matching a manual calculation against actual receiving history, plus the count of rated orders it's based on.
+
+- [ ] **Insufficient rated history**: a supplier with fewer than 2 rated (known-expected-date) completed orders shows "Not enough data yet" — independently of whether Observed Lead Time itself has enough data (a supplier can have enough completed orders for lead time but too few with a known expected date).
+
+- [ ] **Unknown confidence excluded, not penalized**: a supplier whose only completed orders have Unknown confidence shows "Not enough data yet," never a fabricated 0%.
+
+- [ ] **On-time and Delayed agree (INV-M11-2)**: with a non-zero grace-days setting, a completed order that would have been flagged "Delayed" under that same grace period (had it still been open) is never counted as on-time by this feature, and vice versa.
+
+- [ ] **`PO_Delay` unaffected**: existing live "Delayed" flagging behavior on open Purchase Orders is unchanged after this milestone (verified by `PO_Delay`'s own pre-existing test suite passing unmodified).
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Expected_Deadline_Architecture|Test_WC_IO_Supplier_Lead_Time_Architecture|Test_WC_IO_PO_Delay'
+  ```
+  (0 failures.)
+
+- [ ] **Full test suite green** — unit (260 tests), M1–M11-focused (535 tests), and full integration (286 tests) suites all pass with 0 failures (unit/blocking suites also carry the same 7 pre-existing risky `Test_DB_Transaction` tests noted since M9/M10 — unrelated to M11).
+
+- [ ] **Query-count (10/40/200-supplier) performance confirmation passes, with zero additional queries versus the pre-M11 baseline** — covered by the integration suite run above, not a separate manual step.
+
+- [ ] **Suppliers, Purchase Orders, Inventory Position (M3), Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), Storefront Expected Delivery (M7), Supplier Observed Lead Time (M9), and Expected-Date Suggestion (M10) all unaffected** — all continue to function exactly as in v1.27.0.
+
 ## Sign-off
 
 Once all checks pass:

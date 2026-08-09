@@ -264,6 +264,20 @@ No additional steps. The release is a pure-tooling change with no functional or 
 7. **Suppliers, Purchase Orders, Inventory Position, Goods Receipts, PO Receiving, Batch Migration CLI, Storefront Expected Delivery, and Supplier Observed Lead Time unaffected:** confirm all continue to function exactly as in v1.26.0.
 8. **Rollback awareness:** M10 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (the new service is read-only by construction, guard-enforced, and never touches `$wpdb` directly). A code rollback 1.27.0 → 1.26.0 is unconditionally safe (see `docs/rollback-plan.md`'s M10 note).
 
+### M11: Supplier On-Time Delivery Rate
+
+**M9, M10, and M11 are all part of the current unreleased "feature train"** (`docs/process/milestone-lifecycle.md`) — the steps below apply once the train (M9 + M10 + M11, + whatever else has joined by then) is actually tagged and released; they are not performed at M11's own implementation completion.
+
+0. **Release notes file:** per the feature-train process, no standalone `docs/GITHUB_RELEASE_NOTES_1.28.0.md` is produced for M11 alone. When the train is released, its combined release notes file covers every milestone batched into that release.
+1. **No schema change:** confirm `DB_VERSION` is still `'10'` in `includes/class-wc-inventory-overview-install.php` — M11 adds no table, column, or index. `wp option get wc_io_db_version` returns `10`; `wp option get wc_io_schema_assertion --format=json` shows `ok: true` at `version: "10"`.
+2. **On-time delivery rate verified on a real supplier:** on a supplier with at least 2 completed orders with a known expected date, confirm the Supplier detail screen's "On-Time Delivery Rate" row shows a percentage matching a manual calculation against actual receiving history. Confirm a supplier below the threshold shows "Not enough data yet," and that this is independent of whether Observed Lead Time itself has enough data.
+3. **On-time and Delayed agree (INV-M11-2):** with a non-zero grace-days setting (Settings), confirm a completed order that would have been flagged "Delayed" under the same grace period is never counted as on-time, and vice versa.
+4. **Architecture guards pass:** `docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Expected_Deadline_Architecture|Test_WC_IO_Supplier_Lead_Time_Architecture|Test_WC_IO_PO_Delay'` reports 0 failures.
+5. **Full test suite green:** unit suite, M1–M11-focused suite, and the full integration suite all pass with 0 failures (260 / 535 / 286 tests respectively as of this milestone; the unit and blocking suites also carry the same 7 pre-existing risky `Test_DB_Transaction` tests noted since M9/M10 — unrelated to M11).
+6. **Query-count performance confirmation:** the 10/40/200-supplier Supplier Lead-Time query-scaling test, extended to assert zero additional queries for the on-time rate, passes (part of the integration suite run above — no separate manual step, listed here for visibility).
+7. **Suppliers, Purchase Orders, Inventory Position, Goods Receipts, PO Receiving, Batch Migration CLI, Storefront Expected Delivery, Supplier Observed Lead Time, and Expected-Date Suggestion unaffected:** confirm all continue to function exactly as in v1.27.0.
+8. **Rollback awareness:** M11 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (the new class is pure, the extended service is read-only by construction, both guard-enforced). A code rollback 1.28.0 → 1.27.0 is unconditionally safe (see `docs/rollback-plan.md`'s M11 note).
+
 ## Post-release communication
 
 After a successful release:

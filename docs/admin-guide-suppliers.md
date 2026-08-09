@@ -147,7 +147,7 @@ If a supplier changes their invoicing currency:
 
 ---
 
-## Lead Time — Configured vs. Observed (M9/M10)
+## Lead Time — Configured vs. Observed (M9/M10/M11)
 
 Two lead-time figures sit side by side on the supplier edit screen, and they answer two different questions:
 
@@ -186,6 +186,16 @@ The suggested date is always `order date (or today) + N calendar days` — never
 
 This does not change anything else about the platform — Observed Lead Time itself is still purely a read-only report elsewhere (e.g. the Supplier screen's own panel), and this suggestion never feeds into Storefront Expected Delivery or any other feature.
 
+### On-Time Delivery Rate (M11)
+
+The **On-Time Delivery Rate** row, alongside Observed Lead Time on the supplier edit screen, answers a different question than lead time does: not "how fast does this supplier typically deliver," but "how often did they meet the date they were judged against."
+
+**How it's computed:** of this supplier's completed orders that also had a **known** expected date (Exact or Estimated confidence — orders with Unknown confidence are left out entirely, never assumed late), what fraction were fully received on or before that date? A grace period, if you've configured one (Settings), is applied the same way it already is for the "Delayed" flag elsewhere in the platform — so "on time" here and "not delayed" there always agree.
+
+Shown as a rounded percentage plus the number of rated orders it's based on, e.g. "83% — Based on 6 rated orders." Below 2 rated orders, the panel shows "Not enough data yet" instead — independently of whether Observed Lead Time itself has enough data, since a supplier can have several completed orders but few (or none) with a known expected date on them.
+
+Like Observed Lead Time, this is a read-only report computed from your purchasing history — it cannot be edited or overridden, and archiving a supplier never removes it.
+
 ### Best Practice
 
 Set the **Default lead time** to a conservative middle value:
@@ -198,7 +208,7 @@ Set the **Default lead time** to a conservative middle value:
 
 ## Platform Status
 
-As of v1.27.0 (Milestones M0–M10 complete — see
+As of v1.28.0 (Milestones M0–M11 complete — see
 [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md)),
 the purchasing platform built on top of Suppliers is fully shipped:
 
@@ -215,12 +225,13 @@ the purchasing platform built on top of Suppliers is fully shipped:
 ✓ **Storefront Expected Delivery** (M7): customer-facing "Expected back around …" text, derived from each supplier's confirmed expected dates
 ✓ **Observed Lead Time** (M9): read-only average/fastest/slowest/completed-order statistics, computed from actual receiving history, alongside the configured default
 ✓ **Expected-Date Suggestion** (M10): new Purchase Orders pre-fill Expected Date/Confidence from observed (or configured) lead time — always editable, never authoritative
+✓ **On-Time Delivery Rate** (M11): read-only percentage of rated completed orders received on or before their expected date, alongside Observed Lead Time
 
 ### Not Yet Available
 
 The following remain deferred to a future milestone:
 
-- **Supplier analytics**: Spend analysis, reliability scoring, and order history reporting.
+- **Supplier analytics**: Spend analysis and order history reporting. (Reliability scoring itself is now available — see On-Time Delivery Rate, M11, above.)
 - **Supplier merge tool**: Consolidating duplicate suppliers into one record is a manual process for now; a dedicated merge tool is planned.
 
 ---
