@@ -1,7 +1,9 @@
 <?php
 /**
  * Query-scaling tests for Milestone M9 — Supplier Observed Lead-Time
- * Statistics.
+ * Statistics, extended by Milestone M11 (docs/milestones/m11-implementation-plan.md
+ * §17) to prove the on-time delivery rate adds ZERO additional queries --
+ * the existing single grouped query is widened, never duplicated.
  *
  * Same equality-based technique already proven for Inventory Position and
  * Expected Delivery (plan §15): a bulk call over N suppliers must issue the
@@ -13,7 +15,7 @@
  * PO/receiving service lifecycle -- this file tests query *count* at scale,
  * not business-rule correctness (already covered end-to-end, through the
  * real service flow, by tests/integration/supplier-lead-time/test-supplier-
- * lead-time-observations.php).
+ * lead-time-observations.php and test-supplier-on-time-rate-observations.php).
  *
  * @package WC_Inventory_Overview_Tests
  */
@@ -198,5 +200,50 @@ class Test_WC_IO_Supplier_Lead_Time_Performance extends WC_Inventory_Overview_Te
 		);
 
 		$this->assertSame( 1, $count );
+	}
+
+	// -----------------------------------------------------------------
+	// M11: on-time delivery rate adds zero additional queries.
+	// -----------------------------------------------------------------
+
+	/**
+	 * The M11-widened query (which additionally computes on_time_count/
+	 * rated_order_count) must issue exactly the same query count as the
+	 * pre-M11 baseline at 10/40/200-supplier scale -- a regression check,
+	 * not merely "still low." Passing a non-zero $grace_days exercises the
+	 * widened CASE/SUM expressions built from Expected_Deadline's SQL
+	 * fragments.
+	 */
+	public function test_on_time_rate_adds_zero_additional_queries_at_scale() {
+		$ids_10 = $this->seed_suppliers_with_one_completed_po_each( 10 );
+
+		$count_10 = $this->count_po_table_queries(
+			static function () use ( $ids_10 ) {
+				WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_bulk( $ids_10, 3 );
+			}
+		);
+		$this->assertSame( 1, $count_10, 'Exactly one query for 10 suppliers with the M11-widened query.' );
+
+		$this->purge_tables();
+		$ids_40 = $this->seed_suppliers_with_one_completed_po_each( 40 );
+
+		$count_40 = $this->count_po_table_queries(
+			static function () use ( $ids_40 ) {
+				WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_bulk( $ids_40, 3 );
+			}
+		);
+
+		$this->purge_tables();
+		$ids_200 = $this->seed_suppliers_with_one_completed_po_each( 200 );
+
+		$count_200 = $this->count_po_table_queries(
+			static function () use ( $ids_200 ) {
+				WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_bulk( $ids_200, 3 );
+			}
+		);
+
+		$this->assertSame( $count_10, $count_40, 'M11: 10 and 40 suppliers must issue the same query count.' );
+		$this->assertSame( $count_10, $count_200, 'M11: 10 and 200 suppliers must issue the same query count (GA-scale confirmation).' );
+		$this->assertSame( 1, $count_10, 'M11 must add zero additional queries versus the pre-M11 baseline of exactly one.' );
 	}
 }
