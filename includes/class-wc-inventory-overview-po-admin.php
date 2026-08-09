@@ -71,12 +71,55 @@ class WC_Inventory_Overview_PO_Admin {
 			'wc-io-po-admin',
 			'wcIoPoAdmin',
 			array(
-				'i18n' => array(
+				'i18n'                 => array(
 					'removeLine' => __( 'Remove line', 'wc-inventory-overview' ),
 					'product'    => __( 'Search for a product…', 'wc-inventory-overview' ),
 				),
+				'leadTimeSuggestions' => self::lead_time_suggestions_for_localize(),
 			)
 		);
+	}
+
+	/**
+	 * Suggestion data for the new-PO create screen only (M10, docs/milestones/m10-implementation-plan.md
+	 * WP-C) -- keyed by supplier ID, one bulk pass reusing the same supplier
+	 * rows render_header_fields() already loads for the dropdown. Never
+	 * computed on the edit/view screens: only the "new" action pre-fills a
+	 * blank, not-yet-submitted PO (plan §4 non-goal #1). Empty array when
+	 * not on the create screen, so the localized payload stays minimal
+	 * everywhere else.
+	 *
+	 * @return array<int,array{days:?int,confidence:?string,source:string}>
+	 */
+	private static function lead_time_suggestions_for_localize(): array {
+		$action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( 'new' !== $action ) {
+			return array();
+		}
+
+		$suppliers = WC_Inventory_Overview_Suppliers::list(
+			array(
+				'status'   => 'active',
+				'per_page' => 200,
+				'orderby'  => 'name',
+				'order'    => 'ASC',
+			)
+		);
+
+		$suggestions = WC_Inventory_Overview_Expected_Date_Suggestion_Service::get_suggestions_bulk( $suppliers );
+
+		$localized = array();
+		foreach ( $suggestions as $supplier_id => $suggestion ) {
+			if ( null === $suggestion['days'] ) {
+				continue; // Only entries with an actual suggestion are sent to the client.
+			}
+			$localized[ $supplier_id ] = array(
+				'days'       => $suggestion['days'],
+				'confidence' => $suggestion['confidence'],
+			);
+		}
+
+		return $localized;
 	}
 
 	/**
