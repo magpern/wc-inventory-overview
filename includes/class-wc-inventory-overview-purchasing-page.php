@@ -357,7 +357,105 @@ class WC_Inventory_Overview_Purchasing_Page {
 				?>
 			</p>
 			<?php
+			$this->render_observed_lead_time( $supplier_id, $supplier );
 		}
+	}
+
+	/**
+	 * Read-only "Observed lead time" panel (M9). Computed exclusively from
+	 * operational purchasing history (Purchase Orders, Goods Receipts,
+	 * Receipt Lines) via WC_Inventory_Overview_Supplier_Lead_Time_Service --
+	 * never editable here, never a second source of truth alongside the
+	 * merchant-editable "Default Lead Time" field above. Renders unchanged
+	 * whether the supplier is active or archived (archiving never removes
+	 * historical purchasing evidence -- see the M9 plan's §6 "Archived
+	 * suppliers" note).
+	 *
+	 * @param int   $supplier_id Supplier id.
+	 * @param array $supplier    Supplier row (for the configured-lead-time
+	 *                           comparison value).
+	 */
+	private function render_observed_lead_time( int $supplier_id, array $supplier ) {
+		$stats           = WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_for_supplier( $supplier_id );
+		$configured_days = $supplier['default_lead_time_days'] ?? null;
+		$enough_data     = $stats['has_data'] && $stats['sample_count'] >= WC_Inventory_Overview_Supplier_Lead_Time_Service::MINIMUM_SAMPLE_COUNT_FOR_DISPLAY;
+		?>
+		<h3><?php esc_html_e( 'Observed Lead Time', 'wc-inventory-overview' ); ?></h3>
+		<table class="form-table">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Configured Lead Time', 'wc-inventory-overview' ); ?></th>
+				<td>
+					<?php
+					if ( null !== $configured_days && '' !== $configured_days ) {
+						echo esc_html(
+							sprintf(
+								/* translators: %d: configured lead time in days. */
+								_n( '%d day (configured fallback)', '%d days (configured fallback)', (int) $configured_days, 'wc-inventory-overview' ),
+								(int) $configured_days
+							)
+						);
+					} else {
+						esc_html_e( 'Not set.', 'wc-inventory-overview' );
+					}
+					?>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Observed Lead Time', 'wc-inventory-overview' ); ?></th>
+				<td>
+					<?php if ( $enough_data ) : ?>
+						<p>
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %d: average observed lead time in days, rounded to the nearest whole calendar day for display only. */
+									_n( 'Average: %d day', 'Average: %d days', (int) round( $stats['average_days'] ), 'wc-inventory-overview' ),
+									(int) round( $stats['average_days'] )
+								)
+							);
+							?>
+						</p>
+						<p>
+							<?php
+							printf(
+								/* translators: 1: fastest observed lead time in days, 2: slowest observed lead time in days. */
+								esc_html__( 'Fastest: %1$d days — Slowest: %2$d days', 'wc-inventory-overview' ),
+								(int) $stats['fastest_days'],
+								(int) $stats['slowest_days']
+							);
+							?>
+						</p>
+						<p class="description">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %d: number of completed (fully received) purchase orders the statistics are based on. */
+									_n( 'Based on %d completed order.', 'Based on %d completed orders.', $stats['sample_count'], 'wc-inventory-overview' ),
+									$stats['sample_count']
+								)
+							);
+							?>
+						</p>
+					<?php elseif ( $stats['sample_count'] > 0 ) : ?>
+						<p class="description">
+							<?php
+							echo esc_html(
+								sprintf(
+									/* translators: %d: number of completed purchase orders on record (below the display threshold). */
+									_n( 'Not enough data yet (%d completed order on record).', 'Not enough data yet (%d completed orders on record).', $stats['sample_count'], 'wc-inventory-overview' ),
+									$stats['sample_count']
+								)
+							);
+							?>
+						</p>
+					<?php else : ?>
+						<p class="description"><?php esc_html_e( 'Not enough data yet — no completed orders on record for this supplier.', 'wc-inventory-overview' ); ?></p>
+					<?php endif; ?>
+					<p class="description"><?php esc_html_e( 'Computed from posted receiving history. Read-only — it cannot be edited or overridden.', 'wc-inventory-overview' ); ?></p>
+				</td>
+			</tr>
+		</table>
+		<?php
 	}
 
 	/**
