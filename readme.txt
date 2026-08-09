@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.25.0
+Stable tag: 1.26.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,12 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.26.0 =
+* Milestone M9 — Supplier Observed Lead-Time Statistics: the first post-GA milestone. Zero new domain concepts, zero schema change (v10 unchanged), zero new public API.
+* New read-only "Observed Lead Time" panel on the Supplier admin screen (Purchasing -> Suppliers): average, fastest, slowest, and completed-order count, computed from actual receiving history and shown alongside the existing configured lead-time field.
+* When a supplier delivers one order in several shipments, the lead time is correctly measured to the shipment that completed the order -- never the first partial delivery.
+* Internal only, not a public API -- no external consumer exists yet; may be promoted to a versioned public API in a future milestone without changing the underlying computation.
 
 = 1.25.0 =
 * Milestone M8 — Hardening & GA: the platform (M0-M8) is Version 1.0 / GA ready. Not a feature release -- zero new domain concepts, zero schema change (v10 unchanged), zero public API change.

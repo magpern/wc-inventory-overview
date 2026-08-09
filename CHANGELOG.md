@@ -1,5 +1,29 @@
 # Changelog — WC Inventory Overview
 
+## [1.26.0] - 2026-08-09
+
+**Milestone M9 — Supplier Observed Lead-Time Statistics.** The first post-GA milestone: one narrowly-scoped, read-only reporting feature, filling the `designed-for-later` slot `CLAUDE.md` Decision D8 reserved since M1 and explicitly named in `docs/admin-guide-suppliers.md`'s own "Not Yet Available" backlog. **Zero new domain concepts, zero schema change (`DB_VERSION` stays 10), zero new public API surface.** **Prerequisite:** v1.25.0 (M8 Hardening & GA).
+
+### Added
+
+- **`WC_Inventory_Overview_Supplier_Lead_Time_Service`** — new Internal (not Public — no concrete external consumer exists yet, D16) sole-owner service computing, per supplier, average/fastest/slowest delivery days and completed-order sample count from posted, non-migrated Goods Receipts linked to fully-`received` Purchase Orders. `get_stats_for_supplier()` delegates to `get_stats_bulk()` (single defined as bulk-of-one, same discipline as Inventory Position/Expected Delivery); one grouped aggregate SQL query regardless of scale (proven at 10/40/200 suppliers, no N+1). Nothing is ever persisted — every call recomputes from current operational history.
+- **Read-only "Observed Lead Time" panel** on the Supplier admin screen (Purchasing → Suppliers → edit), directly beneath the existing "Default Lead Time (days)" field. Average is rounded to the nearest whole calendar day for display only; a "not enough data yet" state renders below 2 completed orders. Unaffected by archiving a supplier.
+- New architecture guard test (`tests/unit/supplier-lead-time/test-supplier-lead-time-architecture.php`): sole-owner computation-signature scan, zero-write token scan, `$wpdb->get_results()`-only check, sole-caller allowlist, bulk-first delegation check.
+- `Test_WC_IO_Supplier_Lead_Time_` added to `tests/docker/run-phpunit.sh`'s CI-blocking filter — ships CI-blocking from day one.
+
+### Fixed
+
+- A real bug the new unit tests caught before shipping: `get_stats_bulk()` validated supplier IDs with `absint()`, which takes the *absolute value* of a negative number instead of rejecting it — `-1` would have silently become a lookup for supplier `1`. Switched to an explicit `(int)` cast plus `> 0` check.
+
+### Testing
+
+- 26 new tests. Unit suite 226 tests / 1,486 assertions; M1–M9-focused (CI-blocking) suite 476 tests / 2,373 assertions; full integration suite 261 tests / 930 assertions, 0 errors, 0 failures, 0 skips. Includes a dedicated insertion-order-independence test proving the computed lead time depends only on each receipt's `posted_at`, never on its row ID or insertion order.
+
+### Documentation
+
+- New: `docs/milestones/m9-implementation-plan.md`, `docs/GITHUB_RELEASE_NOTES_1.26.0.md`.
+- Updated in place (per `docs/ARCHITECTURE_BASELINE_v1.24.0.md` §12 rule 7, no new versioned baseline file — M9 changes no frozen boundary): `docs/ARCHITECTURE_BASELINE_v1.24.0.md`, `docs/architecture-audit.md`, `CLAUDE.md`'s Implementation Status table, `docs/release-runbook.md`, `docs/checklists/validation-checklist.md`, `docs/rollback-plan.md`. `docs/admin-guide-suppliers.md`'s "Lead-time statistics" backlog entry moved from "Not Yet Available" to "What Is Available Now," with a new Configured-vs-Observed comparison for merchants.
+
 ## [1.25.0] - 2026-08-08
 
 **Milestone M8 — Hardening & GA.** Not a feature milestone: a hardening, cleanup, and conformance pass that closes out every genuinely-justified, previously-deferred item from M0–M7, so the platform can be called production-finished. **Zero new domain concepts, zero schema change (`DB_VERSION` stays 10), zero public API change.** With M8 complete, M0–M8 is considered **Version 1.0 / GA ready** — see `docs/ARCHITECTURE_BASELINE_v1.24.0.md`'s updated milestone table and `docs/architecture-audit.md`'s M8 GA-readiness statement. **Prerequisite:** v1.24.0 (M7 Storefront Expected Delivery).
