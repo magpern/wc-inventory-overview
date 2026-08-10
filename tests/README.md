@@ -45,9 +45,12 @@ docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --fil
 ```
 
 The **default** run (no arguments) uses `run-phpunit.sh`'s built-in filter —
-`Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_Suppliers_|Test_DB_Transaction`
-— the M2-focused suite plus schema/supplier smoke tests. This is the suite
-expected to pass cleanly at all times.
+the M1–M11 focused blocking suite (PO, schema, suppliers, DB-transaction,
+Inventory Position, Goods Receipt, batch migration, expected delivery, supplier
+lead time, expected-date suggestion, expected deadline, on-time rate, plus
+architecture/conformance guards). This is the suite expected to pass cleanly
+at all times. Each invocation also `DROP`/`CREATE`s the test database so
+repeated runs against a long-lived MariaDB container stay isolated.
 
 ### PHPCS
 
@@ -126,11 +129,9 @@ current, itemized list; none of them are infrastructure problems, and none
 involve M2 (Purchase Orders) code.
 
 **`WordPress database error Table 'wp_test_txn_scratch' already exists`**
-Harmless, pre-existing: `Test_DB_Transaction`'s `setUp()` doesn't drop its
-scratch temp table between test methods within the same PHP process. Logged
-by WordPress's error handler but does not fail any assertion (all
-`Test_DB_Transaction` tests pass). Not fixed here — it doesn't block
-reproducibility.
+Should no longer occur: `Test_DB_Transaction` drops its TEMPORARY scratch
+table in both `setUp()` and `tearDown()`. If this reappears, a method is
+leaking the table again — fix teardown, do not weaken `failOnRisky`.
 
 **`WordPress database error Table '...wptests_woocommerce_attribute_taxonomies' doesn't exist`**
 Can appear once on the very first run against a genuinely fresh database:

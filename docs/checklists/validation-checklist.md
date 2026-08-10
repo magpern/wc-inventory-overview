@@ -230,6 +230,119 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **Quick Restock, Cost Adjustment, Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), Supplier admin, Inventory Position (M3), and Storefront Expected Delivery (M7) all unaffected** — all continue to function exactly as in v1.24.0.
 
+### For M9 (Supplier Observed Lead-Time Statistics, v1.26.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`; `wc_io_schema_assertion` reports `ok: true` at `version: "10"`.
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  ```
+
+- [ ] **Observed Lead Time panel shows correct figures**: on a supplier with ≥2 fully-`received` Purchase Orders, Purchasing → Suppliers → edit that supplier shows average/fastest/slowest/completed-order figures matching a manual `DATEDIFF()` spot-check between each PO's `placed_at` and its completing receipt's `posted_at`.
+
+- [ ] **"Not enough data yet" below threshold**: a supplier with 0–1 completed orders shows this message, never `0 days` or a misleadingly precise figure from a single data point.
+
+- [ ] **Read-only, not editable**: no field or admin-post action anywhere lets an operator type in or override an observed figure; only the existing "Default Lead Time (days)" field remains editable.
+
+- [ ] **Excludes correctly**: a `closed_short` or still-open (`placed`/`partially_received`) PO never contributes; a voided receipt never contributes.
+
+- [ ] **Archived suppliers keep their statistics**: archiving a supplier does not change or hide its observed lead-time figures.
+
+- [ ] **Architecture guard passes**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Supplier_Lead_Time_Architecture'
+  ```
+  (0 failures.)
+
+- [ ] **Full test suite green** — unit, M1–M9-focused, and full integration suites all pass with 0 failures.
+
+- [ ] **Query-count-equality (10/40/200-supplier) performance confirmation passes** — covered by the integration suite run above, not a separate manual step.
+
+- [ ] **Suppliers, Purchase Orders, Inventory Position (M3), Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), and Storefront Expected Delivery (M7) all unaffected** — all continue to function exactly as in v1.25.0.
+
+### For M10 (Purchase Order Expected-Date Suggestion, v1.27.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`; `wc_io_schema_assertion` reports `ok: true` at `version: "10"`.
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  ```
+
+- [ ] **Observed suggestion**: create a new Purchase Order for a supplier with a usable Observed Lead Time (≥2 completed orders); selecting that supplier pre-fills Expected Date (order date, or today if blank, plus the rounded observed average in calendar days) and sets Confidence to "Estimated," matching the same average shown on that supplier's own Observed Lead Time panel.
+
+- [ ] **Configured fallback**: a supplier with no usable observed history but a nonzero "Default Lead Time (days)" gets a suggestion sourced from that configured value instead.
+
+- [ ] **No suggestion**: a supplier with neither observed nor configured lead time leaves Expected Date/Confidence blank, exactly as before this milestone.
+
+- [ ] **Manual edit is permanently respected**: manually change Expected Date (or Confidence) on the create form, then change the supplier — the manual value is never overwritten, and no further automatic suggestion applies for the rest of that page session even after additional supplier changes.
+
+- [ ] **Stale suggestion clears**: select a supplier with a suggestion, then a supplier without one (without manually editing in between) — the previously auto-filled fields return to blank/"Unknown," not left showing the first supplier's stale figures.
+
+- [ ] **Editing an existing PO is unaffected**: opening any existing Purchase Order (including a still-editable `draft`) never triggers a suggestion or alters its already-stored Expected Date/Confidence, even if its supplier is changed.
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Expected_Date_Suggestion_Architecture|Test_WC_IO_Supplier_Lead_Time_Architecture'
+  ```
+  (0 failures.)
+
+- [ ] **Full test suite green** — unit, M1–M10-focused, and full integration suites all pass with 0 failures.
+
+- [ ] **Query-count (10/40/200-supplier) performance confirmation passes** — covered by the integration suite run above, not a separate manual step.
+
+- [ ] **Suppliers, Purchase Orders, Inventory Position (M3), Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), Storefront Expected Delivery (M7), and Supplier Observed Lead Time (M9) all unaffected** — all continue to function exactly as in v1.26.0.
+
+### For M11 (Supplier On-Time Delivery Rate, v1.28.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`; `wc_io_schema_assertion` reports `ok: true` at `version: "10"`.
+  ```bash
+  wp option get wc_io_db_version
+  wp option get wc_io_schema_assertion --format=json
+  ```
+
+- [ ] **On-time rate computed correctly**: on a supplier with at least 2 completed orders that each have a known expected date (Exact or Estimated confidence), the Supplier detail screen's "On-Time Delivery Rate" row shows a rounded percentage matching a manual calculation against actual receiving history, plus the count of rated orders it's based on.
+
+- [ ] **Insufficient rated history**: a supplier with fewer than 2 rated (known-expected-date) completed orders shows "Not enough data yet" — independently of whether Observed Lead Time itself has enough data (a supplier can have enough completed orders for lead time but too few with a known expected date).
+
+- [ ] **Unknown confidence excluded, not penalized**: a supplier whose only completed orders have Unknown confidence shows "Not enough data yet," never a fabricated 0%.
+
+- [ ] **On-time and Delayed agree (INV-M11-2)**: with a non-zero grace-days setting, a completed order that would have been flagged "Delayed" under that same grace period (had it still been open) is never counted as on-time by this feature, and vice versa.
+
+- [ ] **`PO_Delay` unaffected**: existing live "Delayed" flagging behavior on open Purchase Orders is unchanged after this milestone (verified by `PO_Delay`'s own pre-existing test suite passing unmodified).
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Expected_Deadline_Architecture|Test_WC_IO_Supplier_Lead_Time_Architecture|Test_WC_IO_PO_Delay'
+  ```
+  (0 failures.)
+
+- [ ] **Full test suite green** — unit, M1–M11-focused, and full integration suites all pass with 0 failures / 0 risky (CI recovery removed the prior risky `Test_DB_Transaction` baseline; later train milestones may raise counts).
+
+- [ ] **Query-count (10/40/200-supplier) performance confirmation passes, with zero additional queries versus the pre-M11 baseline** — covered by the integration suite run above, not a separate manual step.
+
+- [ ] **Suppliers, Purchase Orders, Inventory Position (M3), Goods Receipts (M4), PO Receiving (M5), batch migration CLI (M6), Storefront Expected Delivery (M7), Supplier Observed Lead Time (M9), and Expected-Date Suggestion (M10) all unaffected** — all continue to function exactly as in v1.27.0.
+
+### For M12 (Supplier List Performance Surface, v1.29.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`.
+
+- [ ] **List columns present**: Purchasing → Suppliers shows Observed Lead Time and On-Time Rate after the configured Lead Time column; configured Lead Time unchanged; new columns not sortable.
+
+- [ ] **Policy parity with detail**: for the same supplier, list values match the detail panel when usable; when unusable, both show insufficient-data presentation (list uses "—").
+
+- [ ] **Bulk fetch only**: list preparation calls `get_stats_bulk()` once for the page; no per-row `get_stats_for_supplier()`.
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Supplier_Lead_Time_Architecture|Test_WC_IO_Suppliers_List_Performance'
+  ```
+
+- [ ] **Full test suite green** — unit, M1–M12-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+
+- [ ] **Query scaling (10/40/200)** — one `observed_days` SQL per non-empty page; empty page → zero stats SQL.
+
+- [ ] **M9/M10/M11 surfaces unaffected** — detail Observed Lead Time, Expected-Date Suggestion, On-Time Rate detail, and `PO_Delay` unchanged.
+
 ## Sign-off
 
 Once all checks pass:

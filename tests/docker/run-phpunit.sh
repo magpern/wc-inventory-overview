@@ -78,6 +78,22 @@ fi
 mkdir -p "${WP_CORE_DIR}/wp-content/plugins"
 ln -sfn "${PLUGIN_DIR}" "${WP_CORE_DIR}/wp-content/plugins/wc-inventory-overview"
 
+# Deterministic database isolation: every suite invocation starts from an empty
+# schema. The MariaDB data dir is already tmpfs-backed (wiped when the db
+# container stops), but a long-lived db container reused across local runs can
+# accumulate dbDelta / InnoDB row-format drift ("Row size too large"). Dropping
+# and recreating the database before WP's own install keeps CI and local
+# repeated runs equivalent without requiring a manual `down -v` between them.
+DB_ROOT_PASS=${WORDPRESS_DB_ROOT_PASSWORD:-root}
+echo "Resetting test database ${DB_NAME} on ${DB_HOST}..."
+mysql \
+	--host="${DB_HOST}" \
+	--user=root \
+	--password="${DB_ROOT_PASS}" \
+	--protocol=TCP \
+	--connect-timeout=30 \
+	-e "DROP DATABASE IF EXISTS \`${DB_NAME}\`; CREATE DATABASE \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%'; FLUSH PRIVILEGES;"
+
 cat > "${WP_TESTS_DIR}/wp-tests-config.php" <<EOF
 <?php
 define( 'ABSPATH', '${WP_CORE_DIR}/' );
@@ -103,8 +119,18 @@ export WP_TESTS_PHPUNIT_POLYFILLS_PATH=/tmp/phpunit-polyfills/vendor/yoast/phpun
 cd "${PLUGIN_DIR}"
 FILTER_ARGS=("$@")
 if [[ ${#FILTER_ARGS[@]} -eq 0 ]]; then
-	# Default: M1/M2 focused suites, M3 Inventory Position, plus existing unit/integration smoke.
-	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received' )
+	# Default: M1–M12 focused blocking suite.
+	# Filter notes (substring / regex match on class names):
+	# - Prefer prefix_ forms (trailing underscore) when every intended class
+	#   shares that prefix (e.g. Test_WC_IO_PO_).
+	# - Do NOT use Test_WC_IO_Expected_Deadline_ (trailing underscore): that
+	#   silently excludes Test_WC_IO_Expected_Deadline (no trailing segment).
+	#   Use Test_WC_IO_Expected_Deadline (no trailing underscore) so both
+	#   Expected_Deadline and Expected_Deadline_Architecture match.
+	# - Intentionally omitted: M0 golden characterization classes
+	#   (Test_Costing_/Test_FX_/Test_Movements_/Test_Cost_Adjustment_) — those
+	#   run only in the full --testsuite=integration gate.
+	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received|Test_WC_IO_Supplier_Lead_Time_|Test_WC_IO_Expected_Date_Suggestion_|Test_WC_IO_Expected_Deadline|Test_WC_IO_Supplier_On_Time_Rate_' )
 fi
 
 echo "Running PHPUnit ${FILTER_ARGS[*]}..."

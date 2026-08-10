@@ -2,10 +2,10 @@
 
 Purchasing, receiving, inventory-position, and storefront expected-delivery platform for WooCommerce (HPOS-compatible).
 
-**Version:** 1.25.0 (see plugin header)  
+**Version:** 1.29.0 (development tip — unreleased feature train M9–M12; last published tag `v1.25.0`)  
 **Releases:** https://github.com/magpern/wc-inventory-overview/releases (tag `v*`)  
-**Requires:** WordPress 6.0+, PHP 7.4+, WooCommerce with HPOS supported
-**Platform status:** Milestones M0–M8 complete — Version 1.0 / GA ready (schema `DB_VERSION` 10) — see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md).
+**Requires:** WordPress 6.0+, PHP 7.4+, WooCommerce with HPOS supported  
+**Platform status:** Milestones M0–M8 complete and published (GA / `v1.25.0`, schema `DB_VERSION` 10). Milestones M9–M12 are implemented and frozen on the feature train and are **not yet tagged or published** — see [`docs/checklists/feature-train-m9-m12-release-readiness.md`](docs/checklists/feature-train-m9-m12-release-readiness.md) and [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md).
 
 ## Features
 
@@ -22,6 +22,10 @@ Purchasing, receiving, inventory-position, and storefront expected-delivery plat
 - **PO Receiving (M5):** receive directly against a Purchase Order; `qty_received` tracking with reconciliation CLI (schema v9)
 - **Migration & Retirement (M6):** legacy Batch Intake history migrated into Goods Receipts; Batch Intake retired (schema v10)
 - **Storefront Expected Delivery (M7):** customer-facing "Expected back around …" / "Expected during week …" / "Expected soon" text via a versioned public API (no schema change)
+- **Supplier Observed Lead Time (M9, unreleased):** read-only average/fastest/slowest delivery statistics from completed PO/receipt history
+- **PO Expected-Date Suggestion (M10, unreleased):** advisory Expected Date/Confidence pre-fill on new Purchase Orders
+- **Supplier On-Time Delivery Rate (M11, unreleased):** read-only on-time percentage against known expected dates + grace days
+- **Supplier List Performance (M12, unreleased):** Observed Lead Time and On-Time Rate columns on the Suppliers list
 
 ## Installation
 

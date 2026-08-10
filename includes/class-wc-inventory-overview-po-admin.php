@@ -67,16 +67,64 @@ class WC_Inventory_Overview_PO_Admin {
 			WC_INVENTORY_OVERVIEW_VERSION,
 			true
 		);
+
+		// 'new' is the only action rendering a blank, not-yet-submitted PO.
+		// An existing DRAFT PO is also editable (same field IDs, same
+		// supplier <select>), so this explicit flag -- not merely "does the
+		// field exist" -- is what the client-side suggestion behavior gates
+		// on, per docs/milestones/m10-implementation-plan.md non-goal #1:
+		// editing an existing PO must never run suggestion logic, even if
+		// the operator changes its supplier.
+		$action    = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$is_new_po = ( 'new' === $action );
+
 		wp_localize_script(
 			'wc-io-po-admin',
 			'wcIoPoAdmin',
 			array(
-				'i18n' => array(
+				'i18n'                => array(
 					'removeLine' => __( 'Remove line', 'wc-inventory-overview' ),
 					'product'    => __( 'Search for a product…', 'wc-inventory-overview' ),
 				),
+				'isNewPurchaseOrder'  => $is_new_po,
+				'leadTimeSuggestions' => $is_new_po ? self::lead_time_suggestions_for_localize() : array(),
 			)
 		);
+	}
+
+	/**
+	 * Suggestion data for the new-PO create screen (M10, docs/milestones/m10-implementation-plan.md
+	 * WP-C) -- keyed by supplier ID, one bulk pass over the same active
+	 * supplier list render_header_fields() also loads for the dropdown.
+	 * Caller (enqueue_assets()) already confirmed we're on the create
+	 * screen before calling this.
+	 *
+	 * @return array<int,array{days:?int,confidence:?string,source:string}>
+	 */
+	private static function lead_time_suggestions_for_localize(): array {
+		$suppliers = WC_Inventory_Overview_Suppliers::list(
+			array(
+				'status'   => 'active',
+				'per_page' => 200,
+				'orderby'  => 'name',
+				'order'    => 'ASC',
+			)
+		);
+
+		$suggestions = WC_Inventory_Overview_Expected_Date_Suggestion_Service::get_suggestions_bulk( $suppliers );
+
+		$localized = array();
+		foreach ( $suggestions as $supplier_id => $suggestion ) {
+			if ( null === $suggestion['days'] ) {
+				continue; // Only entries with an actual suggestion are sent to the client.
+			}
+			$localized[ $supplier_id ] = array(
+				'days'       => $suggestion['days'],
+				'confidence' => $suggestion['confidence'],
+			);
+		}
+
+		return $localized;
 	}
 
 	/**

@@ -1,5 +1,90 @@
 # Changelog — WC Inventory Overview
 
+## [1.29.0] - 2026-08-09
+
+**Milestone M12 — Supplier List Performance Surface.** Read-only Observed Lead Time and On-Time Rate columns on the Purchasing → Suppliers list table, populated by one `Supplier_Lead_Time_Service::get_stats_bulk()` call per page. Completes the M9–M11 supplier performance narrative at the comparison decision point. **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API.** **Prerequisite:** feature-train head with M9–M11 + CI recovery (`1.28.0`). Not individually released — joins the unreleased feature train pending WP6 bundled release.
+
+### Added
+
+- **Suppliers list columns** — Observed Lead Time (rounded average days) and On-Time Rate (rounded percentage), using the same usability thresholds as the supplier detail panel (`is_observed_value_usable` / `is_on_time_rate_usable`).
+- Architecture guards INV-M12-1 / INV-M12-2 (no duplicated stats computation; one bulk call per `prepare_items()`; Lead Time service allowlist extended to the list-table file).
+- Unit, integration, and query-scaling tests at 10/40/200 suppliers.
+
+### Testing
+
+- New list-performance coverage; full suites green with 0 risky (CI recovery baseline).
+
+### Documentation
+
+- New: `docs/milestones/m12-implementation-plan.md`.
+- Updated: admin guide, architecture baseline/audit, CLAUDE.md, runbook/validation/rollback, feature-train head checklist.
+
+## [1.28.0] - 2026-08-09
+
+**Milestone M11 — Supplier On-Time Delivery Rate.** Read-only reliability scoring on the supplier detail screen: of completed orders with a known expected date (Exact or Estimated), what fraction were fully received on or before the deadline (expected date + grace days). **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API.** **Prerequisite:** `1.27.0` (M10). Not individually released — feature train.
+
+### Added
+
+- **`WC_Inventory_Overview_Expected_Deadline`** — narrow pure Internal class (four methods) owning deadline arithmetic and known-date eligibility (INV-M11-2); consumed by `PO_Delay` and `Supplier_Lead_Time_Service`.
+- **`Supplier_Lead_Time_Service` extension** — same single bulk query now also returns `on_time_count` / `rated_order_count`; new `is_on_time_rate_usable()`; optional `$grace_days` (default 0). Unknown-confidence orders excluded from both numerator and denominator (INV-M11-1).
+- **On-Time Delivery Rate row** on the supplier Observed Lead Time panel (grace days from `PO_Delay::grace_days_from_option()`).
+
+### Changed
+
+- **`PO_Delay` internal refactor** to compose `Expected_Deadline` — public contract and live delay behavior unchanged (pre-existing suite green unmodified).
+
+### Testing
+
+- Expected-deadline unit/architecture guards; on-time observation + performance regressions; M9/M10/`PO_Delay` regression coverage.
+
+### Documentation
+
+- New: `docs/milestones/m11-implementation-plan.md`.
+- Updated: architecture baseline/audit, CLAUDE.md, admin guide, runbook/validation/rollback.
+
+## [1.27.0] - 2026-08-09
+
+**Milestone M10 — Purchase Order Expected-Date Suggestion.** Advisory Expected Date/Confidence pre-fill on **new** Purchase Order creation from observed lead time (fallback: configured lead time). Always overridable; never runs on edit-PO (INV-M10-1). **Zero schema change (`DB_VERSION` stays 10), zero mutation of inventory/PO lifecycle beyond ordinary form fields, zero new public API.** **Prerequisite:** `1.26.0` (M9). Not individually released — feature train.
+
+### Added
+
+- **`WC_Inventory_Overview_Expected_Date_Suggestion_Service`** — Internal sole owner of observed → configured → none recommendation policy; delegates statistics to `Supplier_Lead_Time_Service::get_stats_bulk()`.
+- **`Supplier_Lead_Time_Service::is_observed_value_usable()`** — additive predicate so suggestion policy never duplicates M9's sample threshold.
+- **PO Admin + `po-admin.js` wiring** — localizes suggestions for new-PO only; confidence suggested as Estimated; manual edit latches the fields.
+
+### Testing
+
+- Architecture guards, unit policy tests, integration observations, 10/40/200 performance coverage.
+
+### Documentation
+
+- New: `docs/milestones/m10-implementation-plan.md`.
+- Updated: architecture baseline/audit, CLAUDE.md, admin guide, runbook/validation/rollback.
+
+## [1.26.0] - 2026-08-09
+
+**Milestone M9 — Supplier Observed Lead-Time Statistics.** The first post-GA milestone: one narrowly-scoped, read-only reporting feature, filling the `designed-for-later` slot `CLAUDE.md` Decision D8 reserved since M1 and explicitly named in `docs/admin-guide-suppliers.md`'s own "Not Yet Available" backlog. **Zero new domain concepts, zero schema change (`DB_VERSION` stays 10), zero new public API surface.** **Prerequisite:** v1.25.0 (M8 Hardening & GA).
+
+### Added
+
+- **`WC_Inventory_Overview_Supplier_Lead_Time_Service`** — new Internal (not Public — no concrete external consumer exists yet, D16) sole-owner service computing, per supplier, average/fastest/slowest delivery days and completed-order sample count from posted, non-migrated Goods Receipts linked to fully-`received` Purchase Orders. `get_stats_for_supplier()` delegates to `get_stats_bulk()` (single defined as bulk-of-one, same discipline as Inventory Position/Expected Delivery); one grouped aggregate SQL query regardless of scale (proven at 10/40/200 suppliers, no N+1). Nothing is ever persisted — every call recomputes from current operational history.
+- **Read-only "Observed Lead Time" panel** on the Supplier admin screen (Purchasing → Suppliers → edit), directly beneath the existing "Default Lead Time (days)" field. Average is rounded to the nearest whole calendar day for display only; a "not enough data yet" state renders below 2 completed orders. Unaffected by archiving a supplier.
+- New architecture guard test (`tests/unit/supplier-lead-time/test-supplier-lead-time-architecture.php`): sole-owner computation-signature scan, zero-write token scan, `$wpdb->get_results()`-only check, sole-caller allowlist, bulk-first delegation check.
+- `Test_WC_IO_Supplier_Lead_Time_` added to `tests/docker/run-phpunit.sh`'s CI-blocking filter — ships CI-blocking from day one.
+
+### Fixed
+
+- A real bug the new unit tests caught before shipping: `get_stats_bulk()` validated supplier IDs with `absint()`, which takes the *absolute value* of a negative number instead of rejecting it — `-1` would have silently become a lookup for supplier `1`. Switched to an explicit `(int)` cast plus `> 0` check.
+
+### Testing
+
+- 26 new tests. Unit suite 226 tests / 1,486 assertions; M1–M9-focused (CI-blocking) suite 476 tests / 2,373 assertions; full integration suite 261 tests / 930 assertions, 0 errors, 0 failures, 0 skips. Includes a dedicated insertion-order-independence test proving the computed lead time depends only on each receipt's `posted_at`, never on its row ID or insertion order.
+
+### Documentation
+
+- New: `docs/milestones/m9-implementation-plan.md`, `docs/GITHUB_RELEASE_NOTES_1.26.0.md`.
+- Updated in place (per `docs/ARCHITECTURE_BASELINE_v1.24.0.md` §12 rule 7, no new versioned baseline file — M9 changes no frozen boundary): `docs/ARCHITECTURE_BASELINE_v1.24.0.md`, `docs/architecture-audit.md`, `CLAUDE.md`'s Implementation Status table, `docs/release-runbook.md`, `docs/checklists/validation-checklist.md`, `docs/rollback-plan.md`. `docs/admin-guide-suppliers.md`'s "Lead-time statistics" backlog entry moved from "Not Yet Available" to "What Is Available Now," with a new Configured-vs-Observed comparison for merchants.
+
 ## [1.25.0] - 2026-08-08
 
 **Milestone M8 — Hardening & GA.** Not a feature milestone: a hardening, cleanup, and conformance pass that closes out every genuinely-justified, previously-deferred item from M0–M7, so the platform can be called production-finished. **Zero new domain concepts, zero schema change (`DB_VERSION` stays 10), zero public API change.** With M8 complete, M0–M8 is considered **Version 1.0 / GA ready** — see `docs/ARCHITECTURE_BASELINE_v1.24.0.md`'s updated milestone table and `docs/architecture-audit.md`'s M8 GA-readiness statement. **Prerequisite:** v1.24.0 (M7 Storefront Expected Delivery).

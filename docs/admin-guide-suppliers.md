@@ -147,17 +147,58 @@ If a supplier changes their invoicing currency:
 
 ---
 
-## Lead Time — Configured, Not Observed
+## Lead Time — Configured vs. Observed (M9/M10/M11/M12)
 
-The **Default lead time (days)** field is a **configured fallback** — a number you enter based on the supplier's typical delivery schedule. It is used:
+Two lead-time figures sit side by side on the supplier edit screen, and they answer two different questions:
 
-- When creating a new purchase order for this supplier, the system suggests this lead time to estimate the expected receipt date.
-- In future planning features, it will inform inventory coverage calculations.
+| | Configured Lead Time | Observed Lead Time |
+|---|---|---|
+| **What it is** | A number *you* enter — your estimate of the supplier's typical delivery schedule. | Computed automatically from your actual receiving history — evidence, not opinion. |
+| **Editable?** | Yes — the **Default lead time (days)** field. | No — read-only. There is no way to type in or override an observed figure. |
+| **Used for** | Suggesting an expected receipt date when you create a new purchase order for this supplier — but only when there isn't enough observed history yet to suggest from (see below). | Suggesting an expected receipt date once there's enough history, and comparing what you planned against what actually happened. |
+| **Available from day one?** | Yes, as soon as you set it. | Only once the supplier has at least 2 fully-received purchase orders on record (see below). |
 
-**Current milestone limitations:**
+### Observed Lead Time
 
-- **Lead time is never computed automatically** (no observed statistics yet). It is always the number you enter.
-- Observed lead-time statistics (average, fastest, slowest, completed orders) are a future feature (planned for a later milestone). For now, maintain the default lead time manually based on your experience with the supplier.
+The **Observed Lead Time** panel on the supplier edit screen shows:
+
+- **Average** — the mean number of calendar days from placing an order to fully receiving it, across every completed order, rounded to the nearest whole day for display.
+- **Fastest** / **Slowest** — the quickest and slowest completed orders on record.
+- **Completed Orders** — how many orders the statistics are based on.
+
+**How it's computed:** only purchase orders that reached the fully-`received` status count. For each one, the lead time is measured from when the order was **placed** to when it was **fully received** — if a supplier delivered your order in several shipments, the date used is the *last* shipment, the one that actually completed the order, not the first partial delivery. Orders that were closed short (never fully delivered), still open, or received via a receipt that was later voided are never counted.
+
+**"Not enough data yet":** with fewer than 2 completed orders on record, the panel shows this message instead of statistics that would be misleading from a single data point. The order(s) you do have are still on record and will count once more arrive.
+
+**Archived suppliers** keep showing their observed statistics — archiving only hides a supplier from active lists and autocomplete; it never erases purchasing history.
+
+### Expected-Date Suggestion (M10)
+
+When you create a **new** Purchase Order and select a supplier, the Expected Date and Confidence fields are pre-filled automatically:
+
+1. If the supplier has enough Observed Lead Time history (at least 2 completed orders), the suggestion uses the **observed average**, rounded to the nearest whole day — the same figure shown on the Observed Lead Time panel.
+2. Otherwise, if the supplier has a **Configured Lead Time** set, the suggestion uses that instead.
+3. If neither is available, nothing is suggested — the fields are left blank, exactly as before this feature existed.
+
+The suggested date is always `order date (or today) + N calendar days` — never business days, never a holiday-aware calculation. The suggestion always sets Confidence to **Estimated** (never Exact, which is reserved for a date the supplier has actually confirmed).
+
+**The suggestion is only ever a starting point.** It pre-fills the fields, but nothing about it is locked or enforced — edit the date or confidence to whatever is actually correct for this order, and once you do, your entry is never overwritten again for that order, even if you go back and change the supplier. Opening an **existing** Purchase Order for editing never triggers a suggestion; its stored date and confidence are shown exactly as they were saved.
+
+This does not change Observed Lead Time itself (still a read-only report), and the suggestion engine never writes to Storefront Expected Delivery or invents its own persistence. **Once you save the Purchase Order**, the Expected Date and Confidence you accepted (or edited) are ordinary frozen PO header fields — the same fields M11’s On-Time Delivery Rate later judges when the order is completed. Accepting an Estimated suggestion therefore can become part of future on-time history; that is intentional (historical rating of the date that was on the order), not a feedback loop into the suggestion engine.
+
+### On-Time Delivery Rate (M11)
+
+The **On-Time Delivery Rate** row, alongside Observed Lead Time on the supplier edit screen, answers a different question than lead time does: not "how fast does this supplier typically deliver," but "how often did they meet the date they were judged against."
+
+**How it's computed:** of this supplier's completed orders that also had a **known** expected date (Exact or Estimated confidence — orders with Unknown confidence are left out entirely, never assumed late), what fraction were fully received on or before that date? A grace period, if you've configured one (Settings), is applied the same way it already is for the "Delayed" flag elsewhere in the platform — so "on time" here and "not delayed" there always agree.
+
+Shown as a rounded percentage plus the number of rated orders it's based on, e.g. "83% — Based on 6 rated orders." Below 2 rated orders, the panel shows "Not enough data yet" instead — independently of whether Observed Lead Time itself has enough data, since a supplier can have several completed orders but few (or none) with a known expected date on them.
+
+Like Observed Lead Time, this is a read-only report computed from your purchasing history — it cannot be edited or overridden, and archiving a supplier never removes it.
+
+### Comparing suppliers on the list (M12)
+
+The Purchasing → Suppliers **list** also shows **Observed Lead Time** and **On-Time Rate** as read-only columns (after the configured Lead Time column), so you can compare suppliers without opening each one. The figures use the same history and the same “not enough data” thresholds as the edit screen; when there is not enough history yet, the cell shows an em dash (—). These columns are not sortable.
 
 ### Best Practice
 
@@ -165,12 +206,13 @@ Set the **Default lead time** to a conservative middle value:
 - Too low: purchase orders may arrive late, causing stock-outs.
 - Too high: you over-order early, tying up capital.
 - Example: If a supplier usually arrives in 10–14 days, set the default to 12 days.
+- Once Observed Lead Time has enough data, use its average as a sanity check against your configured default — a large, persistent gap between the two is worth investigating.
 
 ---
 
 ## Platform Status
 
-As of v1.24.0 (Milestones M0–M7 complete — see
+As of v1.29.0 (Milestones M0–M12 complete on the feature train — see
 [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md)),
 the purchasing platform built on top of Suppliers is fully shipped:
 
@@ -185,13 +227,16 @@ the purchasing platform built on top of Suppliers is fully shipped:
 ✓ **Inventory Position** (M3): live On Hand / Incoming / Position figures per item, driven by each supplier's open PO lines
 ✓ **Goods Receipts** (M4/M5): receiving against a PO or directly, with automatic PO status updates
 ✓ **Storefront Expected Delivery** (M7): customer-facing "Expected back around …" text, derived from each supplier's confirmed expected dates
+✓ **Observed Lead Time** (M9): read-only average/fastest/slowest/completed-order statistics, computed from actual receiving history, alongside the configured default
+✓ **Expected-Date Suggestion** (M10): new Purchase Orders pre-fill Expected Date/Confidence from observed (or configured) lead time — always editable, never authoritative
+✓ **On-Time Delivery Rate** (M11): read-only percentage of rated completed orders received on or before their expected date, alongside Observed Lead Time
+✓ **Supplier list performance columns** (M12): Observed Lead Time and On-Time Rate on the Suppliers list for at-a-glance comparison
 
 ### Not Yet Available
 
 The following remain deferred to a future milestone:
 
-- **Lead-time statistics**: Observed average/minimum/maximum delivery times (computed from actual receiving history) — the configured lead time is today's fallback.
-- **Supplier analytics**: Spend analysis, reliability scoring, and order history reporting.
+- **Supplier analytics**: Spend analysis and order history reporting. (Reliability scoring and list comparison are available — see On-Time Delivery Rate / M12 list columns.)
 - **Supplier merge tool**: Consolidating duplicate suppliers into one record is a manual process for now; a dedicated merge tool is planned.
 
 ---

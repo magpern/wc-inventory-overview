@@ -2,6 +2,52 @@
 
 ---
 
+## ✓ M12 (v1.29.0): code-only, read-only list columns — as clean as M7–M11, nothing to reverse
+
+**M12 wrote no data, changed no schema, and mutated nothing.** It only adds two read-only columns on the Suppliers list table that call the existing `Supplier_Lead_Time_Service::get_stats_bulk()` once per page. No new option, table, column, setting, or public API.
+
+- **Code rollback v1.29.0 → v1.28.0 is unconditionally safe.** The list simply stops showing Observed Lead Time and On-Time Rate; the configured Lead Time column and the supplier detail panel remain as in M11.
+- **No `wp_options` row, no new table, no new column, no new setting** — nothing for a rollback to leave behind.
+- **Historical Purchase Order / Goods Receipt data is untouched** — M12 only reads via the existing service.
+- Like M7–M11, **M12 leaves nothing behind** beyond the absence of the two list columns after rollback.
+
+---
+
+## ✓ M11 (v1.28.0): code-only, read-only feature — as clean as M7/M8/M9/M10's, nothing to reverse
+
+**M11 wrote no data, changed no schema, and mutated nothing anywhere in its surface.** The new `Expected_Deadline` class is pure (guard-enforced — zero `$wpdb`, zero writes, zero WordPress option access); the extended `Supplier_Lead_Time_Service` remains read-only by construction, computing `on_time_count`/`rated_order_count` fresh on every call from the exact same underlying Purchase Order / Goods Receipt data M9 already reads — nothing is ever persisted.
+
+- **Code rollback v1.28.0 → v1.27.0 is unconditionally safe.** The Supplier detail screen simply stops showing the "On-Time Delivery Rate" row; the Observed Lead Time panel above it, and everything else on the page, is unaffected. No other screen is touched.
+- **No `wp_options` row, no new table, no new column, no new setting** — there is nothing for a rollback to leave behind or need to clean up. `PO_Delay`'s existing `wc_io_po_delay_grace_days` option is read, never written, by the new feature.
+- **`PO_Delay`'s live delay-flagging behavior is provably unaffected either way** — its internal refactor to consume `Expected_Deadline` changed no public method's signature or output (proven by its complete pre-existing test suite passing unmodified); rolling back simply removes the `Expected_Deadline` class and reverts `PO_Delay` to its pre-M11 internals, with identical behavior throughout.
+- **Historical and in-flight Purchase Order / Goods Receipt data is untouched** in either direction — M11 never writes to any of it; rolling back changes nothing about already-recorded history.
+- Like M7, M8, M9, and M10, **M11 leaves nothing behind** — the plugin is byte-for-byte back to pre-M11 behavior the moment the code is rolled back; a rolled-back site simply stops showing the on-time delivery figure, which is not a functional regression a merchant would notice beyond the report's absence (Observed Lead Time and every other feature are unaffected).
+
+---
+
+## ✓ M10 (v1.27.0): code-only, advisory-only feature — as clean as M7/M8/M9's, nothing to reverse
+
+**M10 wrote no data, changed no schema, and mutated nothing anywhere in its surface.** `Expected_Date_Suggestion_Service` is read-only by construction (guard-enforced — zero writes, and it never touches `$wpdb` directly at all). The only stored values it ever influences (`expected_date`/`expected_confidence` on a new Purchase Order) are written through the exact same, unchanged form-submission path a manually-typed value already used — nothing about the suggestion mechanism itself is persisted (plan §5.2 return shape).
+
+- **Code rollback v1.27.0 → v1.26.0 is unconditionally safe.** The new-PO creation screen simply stops pre-filling Expected Date/Confidence; the fields go back to being blank/`unknown` by default, exactly as before M10. No other screen, including the M9 Observed Lead Time panel and PO editing, is touched.
+- **No `wp_options` row, no new table, no new column, no new setting** — there is nothing for a rollback to leave behind or need to clean up.
+- **Historical and in-flight Purchase Order data is untouched** in either direction — a PO created while M10 was active has ordinary `expected_date`/`expected_confidence` values indistinguishable from a manually-entered PO; rolling back changes nothing about already-submitted POs.
+- **The one small M9 code change (`is_observed_value_usable()`, an additive method) is also safe to roll back** — no other code calls it once M10's own service is removed, so removing it removes no behavior anything else depends on.
+- Like M7, M8, and M9, **M10 leaves nothing behind** — the plugin is byte-for-byte back to pre-M10 behavior the moment the code is rolled back; a rolled-back site simply stops offering the pre-fill suggestion, which is not a functional regression a merchant would notice beyond the convenience's absence (the underlying manual-entry workflow is unchanged).
+
+---
+
+## ✓ M9 (v1.26.0): code-only, read-only feature — as clean as M7/M8's, nothing to reverse
+
+**M9 wrote no data, changed no schema, and mutated nothing anywhere in its surface.** `Supplier_Lead_Time_Service` is read-only by construction (guard-enforced — no `set_stock_quantity`/`update_post_meta`/`->insert(`/`->update(`/`->delete(` anywhere in the file), and every statistic it returns is computed fresh from existing Purchase Order / Goods Receipt / Receipt Line data on every call — nothing is ever persisted (plan §6.1 "Source of Truth").
+
+- **Code rollback v1.26.0 → v1.25.0 is unconditionally safe.** The new admin panel (Purchasing → Suppliers → edit screen) simply disappears; the existing "Default Lead Time (days)" field and every other supplier/PO/receipt screen is untouched, since M9 added a new read-only display and changed no existing code path's behavior.
+- **No `wp_options` row, no new table, no new column, no new setting** — there is nothing for a rollback to leave behind or need to clean up.
+- **Historical Purchase Order and Goods Receipt data is untouched** in either direction — M9 only ever reads those tables; rolling back removes the code that reads them, never the data itself.
+- Like M7 and M8, **M9 leaves nothing behind** — the plugin is byte-for-byte back to pre-M9 behavior the moment the code is rolled back; a rolled-back site simply stops showing the Observed Lead Time panel, which is not a functional regression a merchant would notice beyond the panel's absence.
+
+---
+
 ## ✓ M8 (v1.25.0): code/test/CI-only — as clean as M7's, nothing to reverse
 
 **M8 wrote no data, changed no schema, and mutated nothing anywhere in its surface.** Unlike M1–M7, M8 is not a feature milestone: it removed already-unreachable dead code, fixed a computed-value predicate, added test-only guards, and hardened CI configuration — no new `wp_options` row, no new table, no new column.

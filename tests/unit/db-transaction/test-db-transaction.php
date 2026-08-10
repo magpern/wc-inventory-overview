@@ -40,7 +40,11 @@ class Test_DB_Transaction extends PHPUnit_Framework_TestCase {
 	/**
 	 * Set up before each test.
 	 *
-	 * Creates a scratch table for transaction testing.
+	 * Creates a fresh scratch TEMPORARY table. TEMPORARY tables live for the
+	 * whole MySQL connection (one PHPUnit process), so each method must drop
+	 * any leftover table before CREATE — otherwise WordPress prints a
+	 * "table already exists" HTML error and PHPUnit marks the test risky
+	 * under beStrictAboutOutputDuringTests / failOnRisky.
 	 */
 	public function setUp(): void {
 		parent::setUp();
@@ -48,7 +52,8 @@ class Test_DB_Transaction extends PHPUnit_Framework_TestCase {
 		global $wpdb;
 		$this->wpdb = $wpdb;
 
-		// Create a scratch table for testing (exists only during this test).
+		$this->drop_scratch_table();
+
 		$wpdb->query(
 			"CREATE TEMPORARY TABLE {$this->scratch_table} (
 				id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -57,20 +62,37 @@ class Test_DB_Transaction extends PHPUnit_Framework_TestCase {
 			)"
 		);
 
-		// Initialize the transaction helper.
 		$this->txn = new WC_Inventory_Overview_DB_Transaction( $wpdb );
 	}
 
 	/**
 	 * Tear down after each test.
 	 *
-	 * The scratch table is automatically dropped (TEMPORARY table).
+	 * Force-close any dangling transaction and drop the scratch table so the
+	 * next method (or a repeated suite run on the same connection) starts clean.
 	 */
 	public function tearDown(): void {
-		parent::tearDown();
+		if ( isset( $this->txn ) ) {
+			while ( $this->txn->is_active() ) {
+				$this->txn->rollback();
+			}
+		}
 
-		// Verify transaction is not left dangling.
-		$this->assertFalse( $this->txn->is_active(), 'Transaction should not be active after test' );
+		$this->drop_scratch_table();
+
+		parent::tearDown();
+	}
+
+	/**
+	 * Drop the scratch TEMPORARY table if it exists.
+	 */
+	private function drop_scratch_table(): void {
+		if ( ! isset( $this->wpdb ) ) {
+			return;
+		}
+
+		// DROP TEMPORARY TABLE IF EXISTS is silent when the table is absent.
+		$this->wpdb->query( "DROP TEMPORARY TABLE IF EXISTS {$this->scratch_table}" );
 	}
 
 	/**
@@ -89,6 +111,7 @@ class Test_DB_Transaction extends PHPUnit_Framework_TestCase {
 		);
 
 		$this->assertTrue( $this->txn->commit(), 'Commit should succeed' );
+		$this->assertFalse( $this->txn->is_active(), 'Transaction should not be active after commit' );
 
 		// Verify data persists after commit.
 		$row = $this->wpdb->get_row(
@@ -118,6 +141,7 @@ class Test_DB_Transaction extends PHPUnit_Framework_TestCase {
 		);
 
 		$this->assertTrue( $this->txn->rollback(), 'Rollback should succeed' );
+		$this->assertFalse( $this->txn->is_active(), 'Transaction should not be active after rollback' );
 
 		// Verify data is not persisted after rollback.
 		$row = $this->wpdb->get_row(
@@ -158,6 +182,8 @@ class Test_DB_Transaction extends PHPUnit_Framework_TestCase {
 
 		$this->txn->commit(); // Commits the inner savepoint.
 		$this->txn->commit(); // Commits the outer transaction.
+
+		$this->assertFalse( $this->txn->is_active(), 'Transaction should not be active after nested commits' );
 
 		// Both inserts should persist.
 		$outer = $this->wpdb->get_row(
@@ -205,6 +231,8 @@ class Test_DB_Transaction extends PHPUnit_Framework_TestCase {
 
 		$this->txn->rollback(); // Rollback only the inner savepoint.
 		$this->txn->commit();   // Commit outer.
+
+		$this->assertFalse( $this->txn->is_active(), 'Transaction should not be active after outer commit' );
 
 		// Outer insert should persist; inner should be gone.
 		$outer = $this->wpdb->get_row(
@@ -325,6 +353,8 @@ class Test_DB_Transaction extends PHPUnit_Framework_TestCase {
 		} catch ( RuntimeException $e ) {
 			$this->assertSame( 'Stock mutation failed', $e->getMessage() );
 		}
+
+		$this->assertFalse( $this->txn->is_active(), 'Transaction should be rolled back' );
 
 		// Verify both inserts are rolled back (transaction atomicity).
 		$count = $this->wpdb->get_var(

@@ -3,7 +3,11 @@
  * Computed PO delay detection (INV-5) — M2-B.
  *
  * Delayed is never stored. Pure calculator accepts grace days as an argument;
- * WordPress option lookup belongs to callers.
+ * WordPress option lookup belongs to callers. The deadline formula and
+ * known-date eligibility rule (M11) are owned by
+ * WC_Inventory_Overview_Expected_Deadline, not duplicated here -- this class
+ * composes that shared primitive with its own status/outstanding/comparison
+ * logic (docs/milestones/m11-implementation-plan.md §7, INV-M11-2).
  *
  * @package WC_Inventory_Overview
  */
@@ -61,17 +65,9 @@ class WC_Inventory_Overview_PO_Delay {
 		if ( $outstanding <= 0 ) {
 			return false;
 		}
-		if ( WC_Inventory_Overview_PO_Confidence::UNKNOWN === $effective_confidence ) {
-			return false;
-		}
-		if ( null === $effective_date || '' === $effective_date ) {
-			return false;
-		}
 
-		$today      = null === $today ? self::today() : (string) $today;
-		$grace_days = max( 0, $grace_days );
-
-		$deadline = self::add_days( (string) $effective_date, $grace_days );
+		$today    = null === $today ? self::today() : (string) $today;
+		$deadline = WC_Inventory_Overview_Expected_Deadline::deadline( $effective_date, $effective_confidence, $grace_days );
 		if ( null === $deadline ) {
 			return false;
 		}
@@ -141,6 +137,9 @@ class WC_Inventory_Overview_PO_Delay {
 		$effective_conf = "COALESCE(NULLIF(pol.expected_confidence, ''), NULLIF(po.expected_confidence, ''), 'unknown')";
 		$outstanding    = 'GREATEST(0, pol.qty_ordered - pol.qty_received - pol.qty_cancelled)';
 
+		$known_date = WC_Inventory_Overview_Expected_Deadline::sql_has_known_date_expression( $effective_date, $effective_conf );
+		$deadline   = WC_Inventory_Overview_Expected_Deadline::sql_deadline_expression( $effective_date, $grace_days );
+
 		// M8/WP2: 'placed' and 'partially_received' only -- mirrors
 		// is_line_delayed()'s PHP-side gate above and the same M5 precedent
 		// query_open_lines() already established for Incoming purposes.
@@ -150,14 +149,11 @@ class WC_Inventory_Overview_PO_Delay {
 		return sprintf(
 			"po.status IN ('placed', 'partially_received')
 			AND (%s) > 0
-			AND (%s) <> 'unknown'
-			AND (%s) IS NOT NULL
-			AND DATE_ADD((%s), INTERVAL %d DAY) < %s",
+			AND (%s)
+			AND %s < %s",
 			$outstanding,
-			$effective_conf,
-			$effective_date,
-			$effective_date,
-			$grace_days,
+			$known_date,
+			$deadline,
 			$today_sql
 		);
 	}
@@ -194,19 +190,18 @@ class WC_Inventory_Overview_PO_Delay {
 	/**
 	 * Add days to a Y-m-d date.
 	 *
+	 * Delegates to WC_Inventory_Overview_Expected_Deadline's day-arithmetic
+	 * (kept here as a public method for backward compatibility with any
+	 * existing direct callers/tests). WC_Inventory_Overview_PO_Confidence::EXACT
+	 * is passed only to satisfy Expected_Deadline::deadline()'s eligibility
+	 * check -- every existing caller of this method already guarantees a
+	 * real, non-empty $date, so the confidence value never affects the result.
+	 *
 	 * @param string $date Y-m-d.
 	 * @param int    $days Days to add.
 	 * @return string|null
 	 */
 	public static function add_days( string $date, int $days ) {
-		try {
-			$dt = new DateTimeImmutable( $date, new DateTimeZone( 'UTC' ) );
-		} catch ( Exception $e ) {
-			return null;
-		}
-		if ( $days > 0 ) {
-			$dt = $dt->modify( '+' . $days . ' days' );
-		}
-		return $dt->format( 'Y-m-d' );
+		return WC_Inventory_Overview_Expected_Deadline::deadline( $date, WC_Inventory_Overview_PO_Confidence::EXACT, $days );
 	}
 }
