@@ -145,6 +145,41 @@ class WC_Inventory_Overview_Purchase_Orders {
 	}
 
 	/**
+	 * Bulk ordered/received value per PO (M14 — Supplier Order History).
+	 *
+	 * One grouped query over the given PO ids' lines. Never sums across POs
+	 * (INV-M14-2) — the caller receives one row per po_id, each independent.
+	 * Ordered/received value here is PO-line cost only (qty × unit_cost in
+	 * that PO's own currency); it is not a landed-cost or inventory-valuation
+	 * figure (Receipt_Costs and product-meta weighted-average are untouched).
+	 *
+	 * @param int[] $po_ids PO ids.
+	 * @return array<int,array{ordered:float,received:float}> Keyed by po_id.
+	 *         PO ids absent from the result have no lines; treat as 0.0/0.0.
+	 */
+	public static function values_bulk( array $po_ids ): array {
+		$po_ids = array_values( array_unique( array_filter( array_map( 'absint', $po_ids ) ) ) );
+		if ( empty( $po_ids ) ) {
+			return array();
+		}
+
+		global $wpdb;
+		$lines        = WC_Inventory_Overview_Purchase_Order_Lines::table_name();
+		$placeholders = implode( ',', array_fill( 0, count( $po_ids ), '%d' ) );
+		$sql          = "SELECT po_id, COALESCE( SUM( qty_ordered * unit_cost ), 0 ) AS ordered_value, COALESCE( SUM( qty_received * unit_cost ), 0 ) AS received_value FROM {$lines} WHERE po_id IN ({$placeholders}) GROUP BY po_id"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $po_ids ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$by_po_id = array();
+		foreach ( (array) $rows as $row ) {
+			$by_po_id[ (int) $row['po_id'] ] = array(
+				'ordered'  => (float) $row['ordered_value'],
+				'received' => (float) $row['received_value'],
+			);
+		}
+		return $by_po_id;
+	}
+
+	/**
 	 * Insert a draft purchase order header.
 	 *
 	 * Allocates a PO number. Does not write events (service layer responsibility in M2-C).
