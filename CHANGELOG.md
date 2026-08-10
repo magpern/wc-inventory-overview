@@ -1,5 +1,26 @@
 # Changelog — WC Inventory Overview
 
+## [1.31.0] - 2026-08-10
+
+**Milestone M14 — Supplier Order History.** Read-only, paginated list of every Purchase Order for a supplier (every status included — draft, placed, partially received, received, cancelled, closed short), on the existing Supplier detail admin screen. Closes the longest-standing named gap in `docs/admin-guide-suppliers.md`'s "Not Yet Available" list (order-history reporting, named since M9). **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API, zero new capability, zero new hook.** **Prerequisite:** `1.30.0` (M13, frozen, unreleased). Second milestone of the same still-unreleased post-v1.29.0 feature train — not individually released.
+
+### Added
+
+- **"Order History" section** on the Supplier detail admin screen, below the Observed Lead Time panel — newest `order_date` first, paginated via a dedicated `wc_io_supplier_order_history_page` parameter (never the generic `paged`).
+- **`WC_Inventory_Overview_Supplier_Order_History_Service`** — new Internal (not Public — D16) service composing the paginated projection exclusively through `Purchase_Orders::count()`/`list()`/`values_bulk()` (INV-M14-3); zero mutation (INV-M14-1); every PO status included (INV-M14-4).
+- **`WC_Inventory_Overview_Purchase_Orders::values_bulk()`** — new additive method: one grouped query returning ordered/received PO-cost value per PO id, for the current page's POs only. Never sums across POs or currencies (INV-M14-2).
+- Each row shows **Ordered Value** and **Received Value (PO Cost)** — PO-line cost only (`qty × unit_cost`, that PO's own currency); explicitly not a landed-cost or inventory-valuation figure, and never blended across POs.
+- Architecture guards INV-M14-1 / INV-M14-2 / INV-M14-3 / INV-M14-4 (zero mutation, per-PO/per-currency value isolation, approved-read-owner-only sourcing, sole-consumer allowlist).
+
+### Notes
+
+- Value semantics are deliberately narrow: landed costs (`Receipt_Costs`) and the weighted-average/EUR inventory-value figure Goods Receipt posting maintains are untouched and never read here. Spend analysis (totals, trends, currency-normalized aggregates) remains a deliberately separate, deferred capability — not folded into this milestone.
+- A mechanical `order_date DESC, id DESC` tie-break was not enforced: the underlying `Purchase_Orders::list()` read owner accepts only a single `ORDER BY` column, its existing, unmodified contract shared by every other screen that sorts POs. Ties on identical `order_date` values fall back to that pre-existing, non-guaranteed ordering — a narrow, accepted limitation, not a new defect (see `docs/checklists/m14-release-readiness.md`).
+
+### Testing
+
+- New unit coverage for `values_bulk()` (formula correctness, empty-input short-circuit, no cross-PO/currency summing) and `Supplier_Order_History_Service` (pagination math, status inclusion, empty/out-of-range pages, query-count contract); new integration coverage for the rendered admin section (links, currency display, capability gate, pagination); new performance suite confirming the query contract at 200-PO scale. Full suites green with 0 risky.
+
 ## [1.30.0] - 2026-08-10
 
 **Milestone M13 — Printable Purchase Order.** Read-only, standalone HTML printable view of a single Purchase Order, reachable from the existing PO detail screen. A capability reserved since Architecture v1.0 (D17, §11.2) and never built until now. **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API, zero new capability, zero new public hook.** **Prerequisite:** `1.29.0` (M9–M12 feature train, released). First milestone of a new, unreleased feature train — not individually released.

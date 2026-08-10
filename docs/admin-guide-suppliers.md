@@ -200,6 +200,19 @@ Like Observed Lead Time, this is a read-only report computed from your purchasin
 
 The Purchasing → Suppliers **list** also shows **Observed Lead Time** and **On-Time Rate** as read-only columns (after the configured Lead Time column), so you can compare suppliers without opening each one. The figures use the same history and the same “not enough data” thresholds as the edit screen; when there is not enough history yet, the cell shows an em dash (—). These columns are not sortable.
 
+### Order History (M14)
+
+Below the Observed Lead Time panel on the supplier edit screen, an **Order History** section lists every Purchase Order ever placed with this supplier — newest first, paginated, and **every status included** (draft, placed, partially received, received, cancelled, and closed short all appear; nothing is filtered out).
+
+Each row shows:
+
+- **PO Number** — linked to that Purchase Order's own detail screen.
+- **Order Date** and **Status**.
+- **Expected Date**.
+- **Ordered Value** and **Received Value (PO Cost)** — both computed from the PO's own lines (`quantity × unit cost`) in that PO's own currency.
+
+**This is not a spend report.** Ordered/Received Value is the price you committed to on that specific Purchase Order — it excludes landed costs (freight, duty, etc.), excludes the weighted-average inventory-value figure Goods Receipt posting maintains, and is never converted or totaled across orders. A supplier invoiced in more than one currency over time will show each order's own value in its own currency, side by side, never blended into one number. Total spend and order-history analytics are a possible future capability, not this one.
+
 ### Best Practice
 
 Set the **Default lead time** to a conservative middle value:
@@ -231,12 +244,13 @@ the purchasing platform built on top of Suppliers is fully shipped:
 ✓ **Expected-Date Suggestion** (M10): new Purchase Orders pre-fill Expected Date/Confidence from observed (or configured) lead time — always editable, never authoritative
 ✓ **On-Time Delivery Rate** (M11): read-only percentage of rated completed orders received on or before their expected date, alongside Observed Lead Time
 ✓ **Supplier list performance columns** (M12): Observed Lead Time and On-Time Rate on the Suppliers list for at-a-glance comparison
+✓ **Order History** (M14): every Purchase Order for a supplier, every status included, with per-order Ordered/Received Value in that order's own currency — implemented on the unreleased post-v1.29.0 feature train (development version `1.31.0`), not yet merged, tagged, or released.
 
 ### Not Yet Available
 
 The following remain deferred to a future milestone:
 
-- **Supplier analytics**: Spend analysis and order history reporting. (Reliability scoring and list comparison are available — see On-Time Delivery Rate / M12 list columns.)
+- **Supplier spend analysis**: total/period spend, trends, or a top-suppliers-by-spend view. Order History (M14) shows each order's own value but never totals or converts across orders — a deliberate scope boundary, not an oversight; spend analysis needs its own currency-normalization policy decision.
 - **Supplier merge tool**: Consolidating duplicate suppliers into one record is a manual process for now; a dedicated merge tool is planned.
 
 ---

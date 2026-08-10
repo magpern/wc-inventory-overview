@@ -22,6 +22,12 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 
 == Changelog ==
 
+= 1.31.0 =
+* Milestone M14 — Supplier Order History (same unreleased feature train as M13). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
+* New "Order History" section on the Supplier detail screen (Purchasing -> Suppliers): every Purchase Order for that supplier, every status included (draft, placed, partially received, received, cancelled, closed short), newest first, paginated.
+* Each row shows Ordered Value and Received Value (PO Cost) -- the price committed to on that specific purchase order, in its own currency; never summed or converted across orders, and never a landed-cost or inventory-valuation figure.
+* Not individually released -- continues the unreleased feature train M13 opened.
+
 = 1.30.0 =
 * Milestone M13 — Printable Purchase Order (new feature train). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
 * New "Print" entry point on the Purchase Order detail screen (Purchasing -> Purchase Orders): a standalone, read-only, printable HTML document -- store name, PO details, supplier, line items, and total. Browser print / Save as PDF is the supported PDF mechanism; no PDF library is bundled.
