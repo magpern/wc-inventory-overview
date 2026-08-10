@@ -1,5 +1,6 @@
 # Build artifacts
 /builds/*.zip
+/builds/*.zip.sha256
 /builds/zips/
 
 # Dependencies / tooling
