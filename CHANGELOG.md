@@ -1,5 +1,26 @@
 # Changelog — WC Inventory Overview
 
+## [1.30.0] - 2026-08-10
+
+**Milestone M13 — Printable Purchase Order.** Read-only, standalone HTML printable view of a single Purchase Order, reachable from the existing PO detail screen. A capability reserved since Architecture v1.0 (D17, §11.2) and never built until now. **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API, zero new capability, zero new public hook.** **Prerequisite:** `1.29.0` (M9–M12 feature train, released). First milestone of a new, unreleased feature train — not individually released.
+
+### Added
+
+- **"Print" entry point** on the PO detail screen — available for `placed`, `partially_received`, `received`, `cancelled`, and `closed_short` POs; never for `draft`.
+- **`WC_Inventory_Overview_PO_Print_Renderer`** — new presentation-only class (INV-M13-2) rendering the standalone printable document: store name, PO number/status/dates/currency, supplier name/reference/email/phone, per-line product/SKU/quantities/price/line-total, and PO total. Zero repository access, zero authorization, zero mutation, zero product lookup.
+- **`admin_post_wc_io_po_print`** handler in `PO_Admin` — requires `VIEW_PO` capability and a PO-and-action-scoped nonce before any purchasing/supplier data is read (INV-M13-4); composes the render model from the existing `Purchase_Orders`, `Purchase_Order_Lines`, and `Suppliers` read owners plus `PO_Statuses::label()` (INV-M13-3) — no new domain owner.
+- Architecture guards INV-M13-1 / INV-M13-2 / INV-M13-3 / INV-M13-4 (renderer purity, sole-consumer allowlist, approved-read-owner-only sourcing, capability+nonce ordering).
+- New admin guide `docs/admin-guide-purchase-orders.md` documenting the print feature.
+
+### Notes
+
+- Product/variation identity on the printed document always comes from the PO line's own historical `name_snapshot`/`sku_snapshot` — never a live product lookup — so a deleted product/variation cannot break printing. Supplier name falls back to the PO header's own `supplier_name_snapshot` when the live supplier row is unavailable.
+- Browser print / Save as PDF is the entire PDF mechanism — no PDF library, no generated/stored file.
+
+### Testing
+
+- New unit coverage for the renderer (document content, escaping, arithmetic, fallback behavior) and the print handler (full capability/nonce/status security matrix, deleted-product and unresolvable-supplier resilience); full suites green with 0 risky.
+
 ## [1.29.0] - 2026-08-09
 
 **Milestone M12 — Supplier List Performance Surface.** Read-only Observed Lead Time and On-Time Rate columns on the Purchasing → Suppliers list table, populated by one `Supplier_Lead_Time_Service::get_stats_bulk()` call per page. Completes the M9–M11 supplier performance narrative at the comparison decision point. **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API.** **Prerequisite:** feature-train head with M9–M11 + CI recovery (`1.28.0`). Not individually released — joins the unreleased feature train pending WP6 bundled release.

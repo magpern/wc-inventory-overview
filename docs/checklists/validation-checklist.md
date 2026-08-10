@@ -343,6 +343,31 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **M9/M10/M11 surfaces unaffected** — detail Observed Lead Time, Expected-Date Suggestion, On-Time Rate detail, and `PO_Delay` unchanged.
 
+### For M13 (Printable Purchase Order, v1.30.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`.
+
+- [ ] **Print visible/hidden correctly**: "Print" link appears on the PO detail screen for `placed`/`partially_received`/`received`/`cancelled`/`closed_short`; absent for `draft`.
+
+- [ ] **Printed document correct**: store name, PO number, status, order/expected date, confidence, currency, supplier name/reference/email/phone, every line (product/SKU/supplier-SKU/qty-ordered/qty-received/unit-price/line-total), and PO total all render.
+
+- [ ] **Security order enforced**: direct-URL attempts are denied (capability, missing nonce, invalid nonce, nonce for a different PO id, nonexistent PO, draft PO) before any purchasing/supplier data is rendered.
+
+- [ ] **Snapshot resilience**: a PO line referencing a since-deleted product/variation still prints (via `name_snapshot`/`sku_snapshot`); a PO whose supplier row is unresolvable still prints (via the header's `supplier_name_snapshot`), with contact/reference fields simply absent.
+
+- [ ] **Read-only**: printing does not change PO status, quantities, dates, stock, cost, or Inventory Position under any code path.
+
+- [ ] **No PDF library, no generated/stored file** — browser print / Save as PDF is the only PDF mechanism; the page prints via native browser Print even with JavaScript disabled.
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_PO_Print_'
+  ```
+
+- [ ] **Full test suite green** — unit, M1–M13-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+
+- [ ] **Existing PO Admin behavior unaffected** — save/place/cancel/close-short/duplicate/receiving-history/timeline all unchanged (pre-existing `Test_WC_IO_PO_Admin` suite passes unmodified).
+
 ## Sign-off
 
 Once all checks pass:

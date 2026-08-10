@@ -117,6 +117,7 @@ All are **admin-only** (`wp_ajax_*`, not `nopriv`).
 | `wc_io_po_close_short` | **M2** Close short (terminal) | v7+ |
 | `wc_io_po_delete_draft` | **M2** Hard-delete draft PO | v7+ |
 | `wc_io_po_duplicate` | **M2** Duplicate to new draft | v7+ |
+| `wc_io_po_print` | **M13** Read-only printable PO document (`VIEW_PO` + PO-scoped nonce; no mutation) | v10+ |
 | `wc_io_restock` | Quick restock line | v1+ |
 | `wc_io_batch_apply` | Commit batch intake | v1+ |
 | `wc_io_cost_adjustment` | Average cost adjustment | v1+ |
@@ -150,7 +151,8 @@ No public REST routes. **One storefront-facing hook as of M7:** `woocommerce_get
 | `WC_Inventory_Overview_Purchase_Orders` | **M2:** PO header persistence | v7+ |
 | `WC_Inventory_Overview_Purchase_Order_Lines` | **M2:** PO line persistence; **M3:** adds `list_open_lines_for_product_ids()` / `list_open_lines_for_variation_ids()` bulk read methods for Inventory Position (two separate queries, `status = placed` only, no `qty_received`) | v7+ |
 | `WC_Inventory_Overview_PO_Events` | **M2:** Append-only PO event log | v7+ |
-| `WC_Inventory_Overview_PO_Admin` | **M2:** PO list/detail UI, PRG handlers, timeline | v7+ |
+| `WC_Inventory_Overview_PO_Admin` | **M2:** PO list/detail UI, PRG handlers, timeline; **M13:** `handle_print()` composes the print render model from the three read owners below | v7+ |
+| `WC_Inventory_Overview_PO_Print_Renderer` | **M13:** Presentation-only standalone printable-PO HTML renderer; zero repository access, zero authorization, zero mutation (INV-M13-2) | v10+ |
 | `WC_Inventory_Overview_Purchase_Orders_List_Table` | **M2:** WP_List_Table for PO list/views | v7+ |
 | `WC_Inventory_Overview_PO_Lifecycle` | **M2:** Transition table and action availability | v7+ |
 | `WC_Inventory_Overview_PO_Numbering` | **M2:** `PO-{YYYY}-{NNNN}` allocation (ADR-0002) | v7+ |
@@ -480,7 +482,33 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 **Testing:** `tests/unit/suppliers/test-suppliers-list-performance.php`, `tests/integration/suppliers/test-suppliers-list-performance.php`, `tests/integration/suppliers/test-suppliers-list-performance-queries.php`; architecture coverage in `tests/unit/supplier-lead-time/test-supplier-lead-time-architecture.php`.
 
-**Explicitly excluded from M12:** spend analysis, order-history reporting, supplier merge, grace-days Settings UI, expected-date suggestion source UI, Inventory Position supplier column, storefront Expected Delivery confidence changes, printable PO, Coverage/Forecast, warehouse locations, Plugin god-class refactor, unrelated PHPCS cleanup. Next process step after freeze: **feature-train closure**, not M13.
+**Explicitly excluded from M12:** spend analysis, order-history reporting, supplier merge, grace-days Settings UI, expected-date suggestion source UI, Inventory Position supplier column, storefront Expected Delivery confidence changes, printable PO, Coverage/Forecast, warehouse locations, Plugin god-class refactor, unrelated PHPCS cleanup. Released together with M9–M11 as the M9–M12 feature train, `v1.29.0`.
+
+---
+
+## Milestone M13 — Printable Purchase Order (1.30.0, frozen, unreleased)
+
+**Status:** Complete, development version `1.30.0`. **Schema unchanged (v10), zero new tables, zero new columns.** First milestone of a new feature train opened after the M9–M12 train released as `v1.29.0`. Frozen with a Level A completion review (see `docs/checklists/m13-release-readiness.md`); not yet merged, tagged, or released. Zero new public API surface (Internal, D16); zero new capability; zero new public hook.
+
+**Scope:** a read-only, standalone HTML printable view of a single Purchase Order, reachable from the existing PO detail screen for any PO in a printable status. Architecturally reserved since Architecture v1.0 (`CLAUDE.md` D17, §11.2 — "printable-PO reserved capability") but never built until now.
+
+**New presentation-only class:** `WC_Inventory_Overview_PO_Print_Renderer` (`includes/class-wc-inventory-overview-po-print-renderer.php`) takes an already-composed plain array and formats/escapes it into a standalone HTML document — zero `$wpdb`, zero calls into `Purchase_Orders`/`Purchase_Order_Lines`/`Suppliers`/any repository class, zero product lookup, zero authorization/lifecycle logic (INV-M13-2). Its only computation is trivial display arithmetic: `qty_ordered * unit_cost` per line, and the plain sum of those for the PO total.
+
+**`PO_Admin` composition:** new `handle_print()`, registered as `admin_post_wc_io_po_print` via the existing action-map pattern in `init()`. Strict order (INV-M13-4): `VIEW_PO` capability → PO-and-action-scoped nonce (`wc_io_po_print_<id>`) → PO id validation → PO read (`Purchase_Orders::get()`) → existence check → printable-status check → line read (`Purchase_Order_Lines::list_for_po()`) → supplier read (`Suppliers::get()`) → render-model composition → renderer output. No PO/line/supplier data is read before both capability and nonce pass — verified by source position in the architecture guard, not just presence.
+
+**Printable statuses:** `placed`, `partially_received`, `received`, `cancelled`, `closed_short`. **Not printable:** `draft` (never placed/sent; still fluid, no commitment behind it) — enforced both by omitting the "Print" link on the detail screen and by the handler's own server-side status check.
+
+**Resilience to deleted/unresolvable references:** product/variation identity on the printed document always comes from the PO line's own historical `name_snapshot`/`sku_snapshot` columns — the same columns `PO_Admin::render_line_row()` already uses for the existing detail screen — never a live `wc_get_product()` lookup, so a since-deleted product/variation cannot break printing. Supplier name always falls back to the PO header's own `supplier_name_snapshot`; contact/reference fields (`email`/`phone`/`supplier_reference`) are populated only when `Suppliers::get()` still resolves and are simply omitted, never a failed render, when it does not.
+
+**Document content:** store name (`get_bloginfo('name')`), PO number, status label (`PO_Statuses::label()`), order date, expected date/confidence, currency; supplier name/reference/email/phone; per-line product/SKU/supplier-SKU/qty-ordered/qty-received/unit-price/line-total; PO total. No tax/shipping/discount fields (none exist in the PO domain). Money formatted as `number_format(..., 2)` plus a bare currency code — never `wc_price()`, which would format in the store's base currency rather than the PO's own supplier currency.
+
+**Print UX:** a screen-only "Print" button calling `window.print()`, hidden from print output via `@media print`; the page remains fully printable via the browser's native Print command with JavaScript disabled. Browser print → Save as PDF is the entire PDF mechanism — no PDF library, no generated/stored file, no email/attachment feature.
+
+**Architecture guards:** `tests/unit/po-print/test-po-print-architecture.php` — renderer has zero repository/product-lookup tokens, zero write tokens, zero authorization/lifecycle tokens; only `PO_Admin` calls the renderer (sole-consumer allowlist); the handler uses only the three approved read owners plus `PO_Statuses::label()`; capability and nonce checks textually precede the first repository read; the printable-status set is locked to exactly the five non-draft statuses.
+
+**Testing:** unit (`tests/unit/po-print/test-po-print-renderer.php`: every approved field renders, line/PO total arithmetic, em-dash fallback, unresolvable-supplier fallback, snapshot-based line identity, HTML escaping of injected markup, money formatting, print-button/`@media print` contract, standalone document, no external resources); handler/security matrix (`tests/unit/po-print/test-po-print-admin.php`: every printable status succeeds; draft denied; missing/invalid/wrongly-scoped nonce denied with nothing rendered; unauthorized user denied; nonexistent PO denied; a deleted product line still prints via its snapshot; an unresolvable (hard-deleted) supplier still prints via the header snapshot with contact fields omitted).
+
+**Explicitly excluded from M13:** spend analysis, order-history reporting, supplier merge, grace-days Settings UI, expected-date suggestion source UI, Inventory Position supplier column, storefront Expected Delivery confidence changes, printable Goods Receipt, Coverage/Forecast, warehouse locations, Plugin god-class refactor, unrelated PHPCS cleanup, any PDF-generation dependency, any new public hook/API/capability. Next process step: planning M14, or closing this new train, only with explicit approval.
 
 ---
 
@@ -491,7 +519,7 @@ An independent audit of the completed M5 implementation (before this branch was 
 3. **`posts_clauses` filter:** Global filter at priority 999; scoped by query depth and admin context — avoid front-end product queries while filter is active.
 4. **Danger zone reset:** Can bulk-delete plugin tables/meta snapshots; gated by capability + nonces + preview token — still high impact for operators.
 5. **Inline stock AJAX:** Uses `edit_products` (broader than `manage_woocommerce`) with per-product `edit_product` — intentional for catalog editors.
-6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery + M8 conformance/hardening + M9 supplier-lead-time + M10 expected-date-suggestion + M11 expected-deadline/on-time-rate + M12 suppliers-list-performance), PHPCS (local, not CI-gated — ~559 pre-existing errors/634 warnings as of M8/M9, not re-measured since; evaluated and deliberately excluded from M8 as disproportionate to a hardening pass), and GitHub Actions CI (PHP lint + release ZIP + the full integration suite, blocking since M8). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
+6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery + M8 conformance/hardening + M9 supplier-lead-time + M10 expected-date-suggestion + M11 expected-deadline/on-time-rate + M12 suppliers-list-performance + M13 po-print), PHPCS (local, not CI-gated — ~559 pre-existing errors/634 warnings as of M8/M9, not re-measured since; evaluated and deliberately excluded from M8 as disproportionate to a hardening pass; M13's own touched files are PHPCS-clean), and GitHub Actions CI (PHP lint + release ZIP + the full integration suite, blocking since M8). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
 7. **Monorepo mirror:** A development copy may exist under `biopentra-custom-plugins/plugins/wc-inventory-overview/`; this standalone repo is canonical for releases.
 
 ---
@@ -504,6 +532,7 @@ An independent audit of the completed M5 implementation (before this branch was 
 - ~~Wiring observed lead time into PO-creation expected-date suggestions~~ — **done in M10** (see the M10 section above).
 - ~~Supplier reliability scoring~~ — **done in M11** as On-Time Delivery Rate (see the M11 section above). Spend analysis and order-history reporting, the other two thirds of `docs/admin-guide-suppliers.md`'s original compound "Supplier analytics" bullet, and the supplier merge tool, remain unaffected and still open.
 - ~~Surfacing Observed Lead Time / On-Time Rate on the Suppliers list~~ — **done in M12** (see the M12 section above).
+- ~~Printable Purchase Order (D17 §11.2's reserved-since-v1.0 capability)~~ — **done in M13** (see the M13 section above).
 - ~~Physically delete the M6-deprecated Batch Intake code~~ — **done in M8** (see the M8 section above).
 - ~~`PO_Delay`'s "Delayed" detection does not extend to `partially_received` POs~~ — **fixed in M8** (see the M8 section above).
 - PHPCS-clean the codebase, or actually wire up the empty `.phpcs-baseline.xml` ratchet — evaluated for M8 and deliberately excluded (disproportionate scope for a hardening pass); still a reasonable future initiative on its own.

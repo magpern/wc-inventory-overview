@@ -293,6 +293,19 @@ No additional steps. The release is a pure-tooling change with no functional or 
 6. **Prior surfaces unaffected:** supplier detail (M9/M11), PO expected-date suggestion (M10), and `PO_Delay` behavior unchanged.
 7. **Rollback awareness:** code rollback 1.29.0 → 1.28.0 is unconditionally safe (see `docs/rollback-plan.md`'s M12 note).
 
+### M13: Printable Purchase Order
+
+**M13 opens a new unreleased feature train** (the M9–M12 train closed and released as `v1.29.0`) — the steps below apply once this new train is tagged and released; they are not performed at M13's own implementation completion. After M13 freeze, the next authorized process step is planning M14, or closing this new train, only with explicit approval.
+
+0. **Release notes file:** no standalone `docs/GITHUB_RELEASE_NOTES_1.30.0.md` at this stage — produced at the future WP6 batched release for whichever version tags this train.
+1. **No schema change:** confirm `DB_VERSION` is still `'10'`. M13 adds no table, column, or index.
+2. **Print feature verified:** "Print" link present for `placed`/`partially_received`/`received`/`cancelled`/`closed_short`, absent for `draft`; printed document contains all approved header/supplier/line/total fields; a deleted-product line and an unresolvable-supplier PO both still print correctly.
+3. **Security verified:** capability + PO-scoped nonce both required before any data renders; missing/invalid/wrongly-scoped nonce, unauthorized user, nonexistent PO, and draft PO are all denied server-side.
+4. **Architecture guards pass:** filter includes `Test_WC_IO_PO_Print_` — 0 failures.
+5. **Full test suite green:** unit, M1–M13-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+6. **Prior surfaces unaffected:** existing PO Admin save/place/cancel/close-short/duplicate/receiving-history/timeline behavior unchanged (pre-existing `Test_WC_IO_PO_Admin` suite green unmodified).
+7. **Rollback awareness:** M13 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (renderer is pure, guard-enforced). A code rollback is unconditionally safe (see `docs/rollback-plan.md`'s M13 note).
+
 ## Post-release communication
 
 After a successful release:

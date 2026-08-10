@@ -22,10 +22,17 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 
 == Changelog ==
 
+= 1.30.0 =
+* Milestone M13 — Printable Purchase Order (new feature train). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
+* New "Print" entry point on the Purchase Order detail screen (Purchasing -> Purchase Orders): a standalone, read-only, printable HTML document -- store name, PO details, supplier, line items, and total. Browser print / Save as PDF is the supported PDF mechanism; no PDF library is bundled.
+* Available for placed, partially received, received, cancelled, and closed-short purchase orders; never for drafts.
+* Product/supplier identity on the printed document always comes from the purchase order's own historical record, never a live lookup, so a since-deleted product or supplier cannot break printing.
+* Not individually released -- opens a new unreleased feature train.
+
 = 1.29.0 =
 * Milestone M12 — Supplier List Performance Surface (feature train). Zero schema change (v10 unchanged), zero mutation, zero new public API.
 * Purchasing → Suppliers list adds read-only Observed Lead Time and On-Time Rate columns (same thresholds as the supplier detail panel), via one bulk statistics call per page.
-* Not individually released — joins the unreleased M9–M12 feature train pending a bundled release.
+* Released as part of the bundled M9–M12 feature train (this version).
 
 = 1.26.0 =
 * Milestone M9 — Supplier Observed Lead-Time Statistics: the first post-GA milestone. Zero new domain concepts, zero schema change (v10 unchanged), zero new public API.

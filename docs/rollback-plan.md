@@ -2,6 +2,17 @@
 
 ---
 
+## ✓ M13 (v1.30.0, frozen/unreleased): code-only, read-only print view — as clean as M7–M12, nothing to reverse
+
+**M13 wrote no data, changed no schema, and mutated nothing.** It only adds a standalone, read-only printable HTML view of a Purchase Order (`PO_Print_Renderer`, composed by `PO_Admin::handle_print()`) reachable via one new `admin_post_wc_io_po_print` action. No new option, table, column, setting, capability, or public API/hook.
+
+- **Code rollback is unconditionally safe.** The "Print" link and the `admin_post_wc_io_po_print` handler simply disappear; every existing PO admin behavior (save/place/cancel/close-short/duplicate/receiving history/timeline) is untouched, proven by the pre-existing PO Admin test suite passing unmodified alongside the new M13 tests.
+- **No `wp_options` row, no new table, no new column, no new setting** — nothing for a rollback to leave behind.
+- **Historical Purchase Order / Goods Receipt / Supplier data is untouched** — M13 only reads via the three existing repositories (`Purchase_Orders`, `Purchase_Order_Lines`, `Suppliers`), never writes.
+- Like M7–M12, **M13 leaves nothing behind** beyond the absence of the Print link/document after rollback.
+
+---
+
 ## ✓ M12 (v1.29.0): code-only, read-only list columns — as clean as M7–M11, nothing to reverse
 
 **M12 wrote no data, changed no schema, and mutated nothing.** It only adds two read-only columns on the Suppliers list table that call the existing `Supplier_Lead_Time_Service::get_stats_bulk()` once per page. No new option, table, column, setting, or public API.

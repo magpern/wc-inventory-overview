@@ -2,23 +2,23 @@
 
 **Status: FROZEN.** This document freezes the *architectural boundaries* of
 WC Inventory Overview established by the completion of Milestones M0–M7 —
-kept as the document's name and identity, since M8–M12 (below)
+kept as the document's name and identity, since M8–M13 (below)
 each closed gaps or added an Internal-only sole-owner (or narrow internal
 value/policy) boundary, or presentation surface, within this same frozen shape
 without changing any boundary recorded here (per §12 rule 7's update-in-place
 instruction, no
-`ARCHITECTURE_BASELINE_v1.25.0.md`/`v1.26.0.md`/`v1.27.0.md`/`v1.28.0.md`/`v1.29.0.md`
+`ARCHITECTURE_BASELINE_v1.25.0.md`/`v1.26.0.md`/`v1.27.0.md`/`v1.28.0.md`/`v1.29.0.md`/`v1.30.0.md`
 was created). It is the official architectural baseline for every future
-milestone (M13 onward).
+milestone (M14 onward).
 
 | | |
 |---|---|
-| **Plugin version** | 1.29.0 (current development tip — architectural boundaries themselves were frozen at 1.24.0/M7; M8–M12 each stayed inside that shape; last published tag remains `v1.25.0`) |
+| **Plugin version** | 1.30.0 (current development tip, M13 frozen/unreleased — architectural boundaries themselves were frozen at 1.24.0/M7; M8–M13 each stayed inside that shape; last published tag remains `v1.29.0`) |
 | **Schema version (`DB_VERSION`)** | 10 |
-| **Milestones complete** | M0 – M12 (M9–M12 on the unreleased feature train) |
-| **Baseline date** | 2026-08-08 (M7 freeze); updated in place through M12 2026-08-09/10 |
-| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M12 status snapshot** of that same architecture, plus the M1–M12 rules layered on top of it. |
-| **Governs** | All milestones from M13 onward; next process step is feature-train WP6 release, not M13 |
+| **Milestones complete** | M0 – M13 (M13 frozen, opening a new unreleased feature train after the M9–M12 train released as v1.29.0) |
+| **Baseline date** | 2026-08-08 (M7 freeze); updated in place through M13 2026-08-10 |
+| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M13 status snapshot** of that same architecture, plus the M1–M13 rules layered on top of it. |
+| **Governs** | All milestones from M14 onward; next process step is planning M14, or closing the current train, only with explicit approval |
 
 This is a **documentation-only** artifact. It changes no code, no schema, no
 public API, and no `DB_VERSION`.
@@ -137,27 +137,33 @@ contract.
 | M9 | Supplier Observed Lead-Time Statistics | 1.26.0 | v10 (unchanged) | `Supplier_Lead_Time_Service` (new sole-owner boundary, Internal not Public — no concrete external consumer exists yet, D16) computes read-only average/fastest/slowest/completed-order statistics per supplier from posted Goods Receipts linked to fully-`received` Purchase Orders; one bulk aggregate query, no persistence, no N+1 (proven at 10/40/200-supplier scale). Displayed read-only on the Supplier admin screen alongside the existing configured-lead-time fallback. Zero schema change, zero new public API, zero new domain concept — fills the `designed-for-later` slot D8 already reserved. |
 | M10 | Purchase Order Expected-Date Suggestion | 1.27.0 | v10 (unchanged) | `Expected_Date_Suggestion_Service` (new sole-owner boundary, Internal not Public, D16) combines M9's observed statistics with the supplier's configured fallback into an advisory expected-date suggestion (observed → configured → none priority; calendar days only). Pre-fills the new-PO creation form's Expected Date/Confidence via the existing `wp_localize_script`/`po-admin.js` plumbing — no AJAX, no new endpoint. Always overridable, never authoritative (INV-M10-1); never runs on the edit-PO screen. `Supplier_Lead_Time_Service` gains one small additive predicate, `is_observed_value_usable()`, so M10 never duplicates M9's own "is this average good enough" threshold. Zero schema change, zero new public API, zero new domain concept. |
 | M11 | Supplier On-Time Delivery Rate | 1.28.0 | v10 (unchanged) | `Expected_Deadline` (new, narrow, pure internal value/policy class — not a sole-owner *domain* boundary in the M9/M10 sense; owns only the "expected_date + grace_days → deadline" formula and known-date eligibility rule, INV-M11-2) is consumed by both `PO_Delay` (internally refactored, public contract unchanged) and the further-extended `Supplier_Lead_Time_Service`, which now also returns `on_time_count`/`rated_order_count` per supplier from the same single query M9 already runs — zero additional queries. Unknown-confidence completed orders are excluded from both numerator and denominator (INV-M11-1). Displayed read-only alongside Observed Lead Time on the Supplier admin screen. Zero schema change, zero new public API, zero new domain concept. |
-| M12 | Supplier List Performance Surface | 1.29.0 | v10 (unchanged) | Presentation-only: Suppliers list table gains read-only Observed Lead Time and On-Time Rate columns, populated by one `Supplier_Lead_Time_Service::get_stats_bulk()` call per page (INV-M12-1/2). No new service, no schema change, no public API, no mutation. Completes the supplier performance comparison decision point on the list; next authorized process step is feature-train closure, not M13. |
+| M12 | Supplier List Performance Surface | 1.29.0 | v10 (unchanged) | Presentation-only: Suppliers list table gains read-only Observed Lead Time and On-Time Rate columns, populated by one `Supplier_Lead_Time_Service::get_stats_bulk()` call per page (INV-M12-1/2). No new service, no schema change, no public API, no mutation. Completes the supplier performance comparison decision point on the list; released as part of the M9–M12 train, v1.29.0. |
+| M13 | Printable Purchase Order | 1.30.0 (frozen, unreleased) | v10 (unchanged) | Presentation-only: new `PO_Print_Renderer` (Internal, INV-M13-2) renders a standalone, read-only, printable HTML view of a Purchase Order from an already-composed model, composed by `PO_Admin::handle_print()` (new `admin_post_wc_io_po_print` action) using only the three existing read owners (`Purchase_Orders`, `Purchase_Order_Lines`, `Suppliers`) plus `PO_Statuses::label()` — no new domain owner (§4/§6 unchanged). Requires `VIEW_PO` + a PO-and-action-scoped nonce before any data is read (INV-M13-4). Printable for every status except `draft`. No schema change, no mutation, no new public API, no new capability, no new hook. First milestone of a new post-v1.29.0 feature train. |
 
 Full detail for each milestone: `docs/milestones/m{N}-implementation-plan.md`
 and the corresponding section of `docs/architecture-audit.md`.
 
-**M0–M12 complete on the feature train.** This baseline is updated in place for
-M9–M12, per the same §12 rule M8 established — no
-`ARCHITECTURE_BASELINE_v1.26.0.md`/`v1.27.0.md`/`v1.28.0.md`/`v1.29.0.md` was
-created, since none of M9–M12 changed a frozen boundary or introduced a new
-domain concept; M9 and M10 each added one new *Internal* sole-owner boundary
-(see §4's `Supplier_Lead_Time_Service` and `Expected_Date_Suggestion_Service`
-rows), M11 added one narrow internal value/policy class (`Expected_Deadline`),
-and M12 is presentation-only on an existing list table — all inside the domain
+**M0–M12 released as v1.29.0; M13 frozen, opening a new train.** This
+baseline is updated in place for M9–M13, per the same §12 rule M8
+established — no `ARCHITECTURE_BASELINE_v1.26.0.md` through
+`v1.30.0.md` was created, since none of M9–M13 changed a frozen boundary or
+introduced a new domain concept; M9 and M10 each added one new *Internal*
+sole-owner boundary (see §4's `Supplier_Lead_Time_Service` and
+`Expected_Date_Suggestion_Service` rows), M11 added one narrow internal
+value/policy class (`Expected_Deadline`), M12 is presentation-only on an
+existing list table, and M13 is presentation-only via one new *Internal*
+renderer with zero repository access of its own (§4) — all inside the domain
 this plugin already owns. Per `docs/process/milestone-lifecycle.md` (the
-Standard Milestone Lifecycle, v2, adopted after M9), M9–M12 are all part of
-the current unreleased "feature train" — each implemented and frozen
-independently (M9 via a full independent audit and remediation pass; M10–M12
-via a lightweight WP4 completion review), batched into one future release. The
-next authorized process step is **feature-train closure (WP6)**; see §10 for
-extension philosophy and §12 for the governance rules any later milestone must
-follow.
+Standard Milestone Lifecycle, v2, adopted after M9), M9–M12 were implemented,
+frozen, and released together as one feature train (M9 via a full independent
+audit and remediation pass; M10–M12 via a lightweight WP4 completion review;
+train closed and tagged `v1.29.0` per
+`docs/checklists/feature-train-m9-m12-release-readiness.md`). M13 opens a new
+unreleased feature train on the same lifecycle, frozen with its own Level A
+completion review (`docs/checklists/m13-release-readiness.md`); the next
+authorized process step is planning M14, or closing this new train, only with
+explicit approval — see §10 for extension philosophy and §12 for the
+governance rules any later milestone must follow.
 
 ---
 
@@ -182,6 +188,7 @@ just prose — a violation fails CI, not just code review.
 | **Supplier list performance presentation (M12)** | Suppliers list table may display Observed Lead Time and On-Time Rate only via `Supplier_Lead_Time_Service` usability predicates and bulk stats — never via direct PO/GR aggregation or per-row `get_stats_for_supplier()`. | `tests/unit/suppliers/test-suppliers-list-performance.php`; `tests/integration/suppliers/test-suppliers-list-performance*.php` |
 | **Expected-date suggestion policy (M10)** | Only `Expected_Date_Suggestion_Service` combines observed and configured lead-time signals into a suggestion (sole-owner rule, source-scanned for the `is_observed_value_usable(` call signature). Distinct responsibility from `Supplier_Lead_Time_Service` (owns *statistics*) — this service owns *recommendation policy* only, and never independently computes an average/min/max itself (guard-verified absence of M9's own `DATEDIFF(`/`observed_days` tokens). Never touches `$wpdb` directly at all — every read goes through `Supplier_Lead_Time_Service::get_stats_bulk()`. Internal, not Public, no `API_VERSION`, no interface. Sole caller: `WC_Inventory_Overview_PO_Admin`, and only on the new-PO creation screen. | `tests/unit/expected-date-suggestion/test-expected-date-suggestion-architecture.php` |
 | **Expected-deadline policy primitive (M11)** | Only `Expected_Deadline` owns the "expected_date + grace_days → deadline" formula and the known-date eligibility rule (INV-M11-2), as pure PHP and as minimal SQL micro-fragments — deliberately closed to exactly four methods (`has_known_date()`, `deadline()`, `sql_deadline_expression()`, `sql_has_known_date_expression()`), guard-verified, so it can never grow into a general SQL-expression provider. Zero `$wpdb`, zero writes, zero WordPress option access (grace-days lookup stays `PO_Delay::grace_days_from_option()`'s responsibility). Sole callers: `PO_Delay` and `Supplier_Lead_Time_Service` — neither depends on the other. Smaller than a sole-owner *domain* boundary (it owns no concept from `docs/OWNERSHIP.md`); listed here for completeness since it is guard-enforced the same way. | `tests/unit/expected-deadline/test-expected-deadline-architecture.php` |
+| **Printable Purchase Order presentation (M13)** | Only `PO_Print_Renderer` renders the printable PO document, and it is presentation-only (INV-M13-2): zero `$wpdb`, zero calls into `Purchase_Orders`/`Purchase_Order_Lines`/`Suppliers`/any repository class, zero product lookup (`wc_get_product`), zero authorization/lifecycle logic — it only formats an already-composed plain array. Sole caller: `WC_Inventory_Overview_PO_Admin::handle_print()`. That handler sources data only through the three approved read owners plus `PO_Statuses::label()` (INV-M13-3), and its own source requires the `VIEW_PO` capability check and a PO-and-action-scoped nonce (`wc_io_po_print_<id>`) to both textually precede the first repository read (INV-M13-4) — verified by source position, not just presence. Product/variation identity always comes from the PO line's own historical `name_snapshot`/`sku_snapshot`, never a live product lookup; supplier name always falls back to the PO header's own `supplier_name_snapshot` when the live `Suppliers` row does not resolve. Printable for `placed`/`partially_received`/`received`/`cancelled`/`closed_short`; never `draft` (INV-M13-1). | `tests/unit/po-print/test-po-print-architecture.php` |
 
 **The pattern, stated once:** every domain fact in this system has exactly
 one class that is allowed to compute it or write it, and every other class
@@ -265,7 +272,7 @@ paths get introduced:
 | Stage | Business ownership | Read ownership | Mutation ownership | Presentation ownership |
 |---|---|---|---|---|
 | **Suppliers** | This plugin (`wc-inventory-overview`) | `Suppliers` repository | `Suppliers` class (CRUD + normalization) | Purchasing → Suppliers admin page |
-| **Purchase Orders** | This plugin | `Purchase_Orders`/`Purchase_Order_Lines` repositories | `PO_Service` (create/place/cancel/close-short/duplicate) | Purchasing → Purchase Orders admin page |
+| **Purchase Orders** | This plugin | `Purchase_Orders`/`Purchase_Order_Lines` repositories | `PO_Service` (create/place/cancel/close-short/duplicate) | Purchasing → Purchase Orders admin page; standalone read-only print view (M13) via `PO_Print_Renderer`, composed by `PO_Admin` from the same repositories — no separate read/mutation ownership |
 | **Goods Receipts** | This plugin | `Goods_Receipts`/`Receipt_Lines`/`Receipt_Costs` repositories | `Goods_Receipt_Service` (D3/INV-2 sole mutator) | Purchasing → Receive Stock admin page |
 | **Inventory Position** | This plugin (derived, not stored) | `Inventory_Position_Service` (D12 sole calculator) | N/A — read-only, nothing to mutate | Inventory Overview admin page (Incoming/Position columns) |
 | **Expected Delivery** | This plugin (derived, not stored — API v1) | `Expected_Delivery_Service` (sole public API) | N/A — read-only | `Expected_Delivery_Renderer` (storefront) |
