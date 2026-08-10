@@ -1,6 +1,8 @@
 # WC Inventory Overview 1.26.0
 
-**Canonical standalone release** from [magpern/wc-inventory-overview](https://github.com/magpern/wc-inventory-overview).
+> **Historical / superseded draft.** Milestone M9 was developed at development version `1.26.0`, but **`v1.26.0` was never tagged or published.** The bundled public release that includes M9 (together with M10–M12) is **`v1.29.0`** — see [`docs/GITHUB_RELEASE_NOTES_1.29.0.md`](GITHUB_RELEASE_NOTES_1.29.0.md). Keep this file only as a development-history artifact; do not use it to publish a standalone `1.26.0` GitHub Release.
+
+**Original draft title:** Canonical standalone release (unused) from [magpern/wc-inventory-overview](https://github.com/magpern/wc-inventory-overview).
 
 ## Prerequisite
 
@@ -30,22 +32,10 @@ Upgrade from **1.25.0** (M8 Hardening & GA, schema v10).
 
 ## Install / upgrade
 
-1. Download **`wc-inventory-overview-1.26.0.zip`** from this release.
-2. Upload via **Plugins → Add New → Upload**, or use **Dashboard → Updates** on production.
-3. No schema step — `DB_VERSION` stays `10`, no `ALTER` runs, no upgrade routine fires.
-4. Merchant-visible change: a new read-only "Observed Lead Time" panel appears on each supplier's edit screen (Purchasing → Suppliers) once that supplier has at least one fully-received purchase order on record. Nothing else changes.
-
-## Before tagging
-
-Per [docs/release-runbook.md](release-runbook.md#m9-supplier-observed-lead-time-statistics): confirm `DB_VERSION` is still `10` and the schema assertion is `ok: true`; verify the Observed Lead Time panel against a manual `DATEDIFF()` spot-check on a real supplier; confirm the panel is read-only everywhere; confirm the architecture guard passes; confirm the full test suite (unit, M1–M9-focused, and integration) passes with zero failures; confirm Suppliers, Purchase Orders, Inventory Position, Goods Receipts, PO Receiving, batch migration CLI, and Storefront Expected Delivery all remain fully functional.
+> Do **not** install a `1.26.0` ZIP. Use **`wc-inventory-overview-1.29.0.zip`** from the [v1.29.0 release](https://github.com/magpern/wc-inventory-overview/releases/tag/v1.29.0).
 
 ## Rollback
 
-**M9 is code-only — as clean as M7/M8's rollback story, nothing to reverse.**
-
-- **Code rollback 1.26.0 → 1.25.0:** unconditionally safe. M9 wrote no data, changed no schema, and mutated nothing anywhere in its surface (`Supplier_Lead_Time_Service` is read-only by construction, guard-enforced). Rolling back simply removes the new admin panel; every other screen is untouched.
-- Historical Purchase Order and Goods Receipt data is untouched either direction — M9 only ever reads those tables.
-
-See [docs/rollback-plan.md](rollback-plan.md) for the full explanation.
+See the bundled [v1.29.0 rollback section](GITHUB_RELEASE_NOTES_1.29.0.md#rollback) and [docs/rollback-plan.md](rollback-plan.md).
 
 Changelog: [CHANGELOG.md](../CHANGELOG.md)
