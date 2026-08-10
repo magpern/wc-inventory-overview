@@ -15,7 +15,7 @@
 
 class Test_WC_IO_Supplier_Order_History_Architecture extends WP_UnitTestCase {
 
-	private const SERVICE_FILE = 'class-wc-inventory-overview-supplier-order-history-service.php';
+	private const SERVICE_FILE         = 'class-wc-inventory-overview-supplier-order-history-service.php';
 	private const PURCHASE_ORDERS_FILE = 'class-wc-inventory-overview-purchase-orders.php';
 
 	/**
@@ -127,8 +127,9 @@ class Test_WC_IO_Supplier_Order_History_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * values_bulk() itself, on Purchase_Orders (which otherwise legitimately
-	 * writes elsewhere in the same file), must contain no write statement.
+	 * The values_bulk() method itself, on Purchase_Orders (which otherwise
+	 * legitimately writes elsewhere in the same file), must contain no
+	 * write statement.
 	 */
 	public function test_values_bulk_method_has_zero_write_tokens() {
 		$src = $this->src( $this->includes_dir() . self::PURCHASE_ORDERS_FILE );

@@ -44,8 +44,8 @@ class Test_WC_IO_Supplier_Order_History_Admin extends WC_Inventory_Overview_Test
 	 * Render the Supplier detail screen (tab=suppliers, action=edit) and
 	 * capture its output -- the same public entry point wp-admin uses.
 	 *
-	 * @param int                  $supplier_id Supplier id.
-	 * @param array<string,mixed>  $extra_get   Extra $_GET overrides (e.g. pagination arg).
+	 * @param int                 $supplier_id Supplier id.
+	 * @param array<string,mixed> $extra_get   Extra $_GET overrides (e.g. pagination arg).
 	 * @return string
 	 */
 	private function render_supplier_detail_html( int $supplier_id, array $extra_get = array() ): string {
@@ -138,11 +138,33 @@ class Test_WC_IO_Supplier_Order_History_Admin extends WC_Inventory_Overview_Test
 	public function test_multiple_currencies_never_blended_into_a_total() {
 		$supplier = $this->create_supplier();
 
-		$po_eur = $this->create_purchase_order( array( 'supplier_id' => $supplier['id'], 'currency' => 'EUR' ) );
-		$this->add_po_line( $po_eur['id'], array( 'qty_ordered' => 1, 'unit_cost' => 100.0 ) );
+		$po_eur = $this->create_purchase_order(
+			array(
+				'supplier_id' => $supplier['id'],
+				'currency'    => 'EUR',
+			)
+		);
+		$this->add_po_line(
+			$po_eur['id'],
+			array(
+				'qty_ordered' => 1,
+				'unit_cost'   => 100.0,
+			)
+		);
 
-		$po_usd = $this->create_purchase_order( array( 'supplier_id' => $supplier['id'], 'currency' => 'USD' ) );
-		$this->add_po_line( $po_usd['id'], array( 'qty_ordered' => 1, 'unit_cost' => 50.0 ) );
+		$po_usd = $this->create_purchase_order(
+			array(
+				'supplier_id' => $supplier['id'],
+				'currency'    => 'USD',
+			)
+		);
+		$this->add_po_line(
+			$po_usd['id'],
+			array(
+				'qty_ordered' => 1,
+				'unit_cost'   => 50.0,
+			)
+		);
 
 		$html = $this->render_supplier_detail_html( $supplier['id'] );
 
@@ -219,10 +241,29 @@ class Test_WC_IO_Supplier_Order_History_Admin extends WC_Inventory_Overview_Test
 	 * The pre-existing manage_woocommerce gate (unchanged by M14) still
 	 * denies the whole Supplier detail screen to a user without the
 	 * capability.
+	 *
+	 * This is the only test anywhere in tests/integration/ that exercises
+	 * wp_die()'s WPDieException conversion (every other such test in this
+	 * codebase lives in the separate tests/unit/ testsuite). wp_die()
+	 * routes through a *different* filter, `wp_die_ajax_handler`, once
+	 * `wp_doing_ajax()` is true -- and
+	 * tests/integration/expected-delivery/test-expected-delivery-renderer.php
+	 * permanently `define()`s the DOING_AJAX constant true earlier in this
+	 * same testsuite run (constants can never be unset). WP_UnitTestCase
+	 * only wires WPDieException conversion for the *plain* `wp_die_handler`
+	 * filter; `wp_die_ajax_handler` is only ever wired by the separate
+	 * WP_Ajax_UnitTestCase base class, which this test does not use. Left
+	 * alone, that leaked constant makes wp_die() here fall through to the
+	 * real, non-test `_ajax_wp_die_handler` -- which calls a genuine
+	 * exit(), silently killing the whole PHPUnit process instead of
+	 * failing one test. Forcing exception-throwing handlers onto *both*
+	 * filters here (removed again in `finally`) makes this test
+	 * self-sufficient regardless of whether DOING_AJAX has leaked true by
+	 * the time it runs.
 	 */
 	public function test_capability_gate_denies_unauthorized_user() {
-		$supplier    = $this->create_supplier();
-		$subscriber  = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$supplier   = $this->create_supplier();
+		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber );
 
 		$_GET = array(
@@ -232,6 +273,14 @@ class Test_WC_IO_Supplier_Order_History_Admin extends WC_Inventory_Overview_Test
 			'supplier_id' => (string) $supplier['id'],
 		);
 
+		$force_throwing_die_handler = static function () {
+			return static function ( $message, $title = '', $args = array() ) {
+				throw new WPDieException( is_string( $message ) ? $message : 'wp_die' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- $message is wp_die()'s own message argument being re-thrown as a test exception, not output.
+			};
+		};
+		add_filter( 'wp_die_handler', $force_throwing_die_handler, PHP_INT_MAX );
+		add_filter( 'wp_die_ajax_handler', $force_throwing_die_handler, PHP_INT_MAX );
+
 		try {
 			ob_start();
 			WC_Inventory_Overview_Purchasing_Page::instance()->render_page();
@@ -240,6 +289,9 @@ class Test_WC_IO_Supplier_Order_History_Admin extends WC_Inventory_Overview_Test
 		} catch ( WPDieException $e ) {
 			$html = ob_get_clean();
 			$this->assertStringNotContainsString( 'Order History', $html );
+		} finally {
+			remove_filter( 'wp_die_handler', $force_throwing_die_handler, PHP_INT_MAX );
+			remove_filter( 'wp_die_ajax_handler', $force_throwing_die_handler, PHP_INT_MAX );
 		}
 	}
 }

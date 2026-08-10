@@ -8,7 +8,7 @@
 // phpcs:disable WordPress.Files.FileName -- PHPUnit test class naming convention.
 
 /**
- * values_bulk() correctness/edge cases.
+ * Correctness/edge cases for values_bulk().
  */
 class Test_WC_IO_PO_Values_Bulk extends WC_Inventory_Overview_Test_Case {
 
