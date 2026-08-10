@@ -6,11 +6,12 @@
 
 **Process:** [`docs/process/milestone-lifecycle.md`](docs/process/milestone-lifecycle.md) — the Standard Milestone Lifecycle (v2, effective M10 onward) governing plan → implement → audit → remediate → freeze → next-milestone sequencing and feature-train release batching. Read it before starting any milestone from M10 forward.
 
-**Canonical unreleased development head:** after M12 freeze, the tip of
-`feature/m12-supplier-list-performance` (branched from
-[`feature/feature-train-m9-m11`](docs/checklists/feature-train-development-head.md))
+**Canonical unreleased development head:** tip of
+`feature/m12-supplier-list-performance`
+([`docs/checklists/feature-train-development-head.md`](docs/checklists/feature-train-development-head.md);
+closure: [`docs/checklists/feature-train-m9-m12-release-readiness.md`](docs/checklists/feature-train-m9-m12-release-readiness.md))
 — contains M9 + M10 + M11 + CI recovery + M12; GitHub CI baseline is green.
-**Next authorized process step is feature-train closure (WP6), not M13.**
+**Next authorized process step is bundled WP6 release preparation/execution, not M13.**
 Last released tag remains `v1.25.0`.
 
 ## Platform status: M0–M8 GA baseline, M9–M12 on the first post-GA feature train

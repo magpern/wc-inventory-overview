@@ -2,22 +2,23 @@
 
 **Status: FROZEN.** This document freezes the *architectural boundaries* of
 WC Inventory Overview established by the completion of Milestones M0–M7 —
-kept as the document's name and identity, since M8, M9, M10, and M11 (below)
+kept as the document's name and identity, since M8–M12 (below)
 each closed gaps or added an Internal-only sole-owner (or narrow internal
-value/policy) boundary within this same frozen shape without changing any
-boundary recorded here (per §12 rule 7's update-in-place instruction, no
-`ARCHITECTURE_BASELINE_v1.25.0.md`/`v1.26.0.md`/`v1.27.0.md`/`v1.28.0.md` was
-created). It is the official architectural baseline for every future
-milestone (M12 onward).
+value/policy) boundary, or presentation surface, within this same frozen shape
+without changing any boundary recorded here (per §12 rule 7's update-in-place
+instruction, no
+`ARCHITECTURE_BASELINE_v1.25.0.md`/`v1.26.0.md`/`v1.27.0.md`/`v1.28.0.md`/`v1.29.0.md`
+was created). It is the official architectural baseline for every future
+milestone (M13 onward).
 
 | | |
 |---|---|
-| **Plugin version** | 1.28.0 (current — architectural boundaries themselves were frozen at 1.24.0/M7; M8/v1.25.0 closed gaps within them, M9/v1.26.0 added one new Internal sole-owner boundary, M10/v1.27.0 added a second, and M11/v1.28.0 added one narrow internal value/policy class, changing no frozen boundary) |
+| **Plugin version** | 1.29.0 (current development tip — architectural boundaries themselves were frozen at 1.24.0/M7; M8–M12 each stayed inside that shape; last published tag remains `v1.25.0`) |
 | **Schema version (`DB_VERSION`)** | 10 |
-| **Milestones complete** | M0 – M11 |
-| **Baseline date** | 2026-08-08 (M7 freeze); updated in place 2026-08-08 for M8; updated in place 2026-08-09 for M9; updated in place 2026-08-09 for M10; updated in place 2026-08-09 for M11 |
-| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M11 status snapshot** of that same architecture, plus the M1–M11 rules layered on top of it. |
-| **Governs** | All milestones from M12 onward |
+| **Milestones complete** | M0 – M12 (M9–M12 on the unreleased feature train) |
+| **Baseline date** | 2026-08-08 (M7 freeze); updated in place through M12 2026-08-09/10 |
+| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M12 status snapshot** of that same architecture, plus the M1–M12 rules layered on top of it. |
+| **Governs** | All milestones from M13 onward; next process step is feature-train WP6 release, not M13 |
 
 This is a **documentation-only** artifact. It changes no code, no schema, no
 public API, and no `DB_VERSION`.

@@ -19,6 +19,48 @@
 - New: `docs/milestones/m12-implementation-plan.md`.
 - Updated: admin guide, architecture baseline/audit, CLAUDE.md, runbook/validation/rollback, feature-train head checklist.
 
+## [1.28.0] - 2026-08-09
+
+**Milestone M11 — Supplier On-Time Delivery Rate.** Read-only reliability scoring on the supplier detail screen: of completed orders with a known expected date (Exact or Estimated), what fraction were fully received on or before the deadline (expected date + grace days). **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API.** **Prerequisite:** `1.27.0` (M10). Not individually released — feature train.
+
+### Added
+
+- **`WC_Inventory_Overview_Expected_Deadline`** — narrow pure Internal class (four methods) owning deadline arithmetic and known-date eligibility (INV-M11-2); consumed by `PO_Delay` and `Supplier_Lead_Time_Service`.
+- **`Supplier_Lead_Time_Service` extension** — same single bulk query now also returns `on_time_count` / `rated_order_count`; new `is_on_time_rate_usable()`; optional `$grace_days` (default 0). Unknown-confidence orders excluded from both numerator and denominator (INV-M11-1).
+- **On-Time Delivery Rate row** on the supplier Observed Lead Time panel (grace days from `PO_Delay::grace_days_from_option()`).
+
+### Changed
+
+- **`PO_Delay` internal refactor** to compose `Expected_Deadline` — public contract and live delay behavior unchanged (pre-existing suite green unmodified).
+
+### Testing
+
+- Expected-deadline unit/architecture guards; on-time observation + performance regressions; M9/M10/`PO_Delay` regression coverage.
+
+### Documentation
+
+- New: `docs/milestones/m11-implementation-plan.md`.
+- Updated: architecture baseline/audit, CLAUDE.md, admin guide, runbook/validation/rollback.
+
+## [1.27.0] - 2026-08-09
+
+**Milestone M10 — Purchase Order Expected-Date Suggestion.** Advisory Expected Date/Confidence pre-fill on **new** Purchase Order creation from observed lead time (fallback: configured lead time). Always overridable; never runs on edit-PO (INV-M10-1). **Zero schema change (`DB_VERSION` stays 10), zero mutation of inventory/PO lifecycle beyond ordinary form fields, zero new public API.** **Prerequisite:** `1.26.0` (M9). Not individually released — feature train.
+
+### Added
+
+- **`WC_Inventory_Overview_Expected_Date_Suggestion_Service`** — Internal sole owner of observed → configured → none recommendation policy; delegates statistics to `Supplier_Lead_Time_Service::get_stats_bulk()`.
+- **`Supplier_Lead_Time_Service::is_observed_value_usable()`** — additive predicate so suggestion policy never duplicates M9's sample threshold.
+- **PO Admin + `po-admin.js` wiring** — localizes suggestions for new-PO only; confidence suggested as Estimated; manual edit latches the fields.
+
+### Testing
+
+- Architecture guards, unit policy tests, integration observations, 10/40/200 performance coverage.
+
+### Documentation
+
+- New: `docs/milestones/m10-implementation-plan.md`.
+- Updated: architecture baseline/audit, CLAUDE.md, admin guide, runbook/validation/rollback.
+
 ## [1.26.0] - 2026-08-09
 
 **Milestone M9 — Supplier Observed Lead-Time Statistics.** The first post-GA milestone: one narrowly-scoped, read-only reporting feature, filling the `designed-for-later` slot `CLAUDE.md` Decision D8 reserved since M1 and explicitly named in `docs/admin-guide-suppliers.md`'s own "Not Yet Available" backlog. **Zero new domain concepts, zero schema change (`DB_VERSION` stays 10), zero new public API surface.** **Prerequisite:** v1.25.0 (M8 Hardening & GA).

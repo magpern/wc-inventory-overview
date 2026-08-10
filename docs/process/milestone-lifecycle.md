@@ -60,7 +60,7 @@ Create `docs/checklists/mXX-release-readiness.md` recording:
 
 Unless this milestone changed architecture (see Release Triggers below), **stop here** and begin the next milestone's WP0. No release, no deployment, no tag, no GitHub Release yet.
 
-**Current unreleased feature-train head (M9 + M10 + M11 + CI recovery):** branch `feature/feature-train-m9-m11`. The next milestone (e.g. M12) **must branch from that head**, not from `main` and not from a frozen per-milestone tip. See `docs/checklists/feature-train-development-head.md`.
+**Current unreleased feature-train head (M9 + M10 + M11 + CI recovery + M12):** branch `feature/m12-supplier-list-performance` (branched from `feature/feature-train-m9-m11` @ `8a5d4d8`). See `docs/checklists/feature-train-development-head.md` and `docs/checklists/feature-train-m9-m12-release-readiness.md`. After M12 freeze, the next authorized process step is **WP6 Feature Train Release**, not M13.
 
 ## WP6 — Feature Train Release
 

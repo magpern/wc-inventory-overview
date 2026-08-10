@@ -184,7 +184,7 @@ The suggested date is always `order date (or today) + N calendar days` — never
 
 **The suggestion is only ever a starting point.** It pre-fills the fields, but nothing about it is locked or enforced — edit the date or confidence to whatever is actually correct for this order, and once you do, your entry is never overwritten again for that order, even if you go back and change the supplier. Opening an **existing** Purchase Order for editing never triggers a suggestion; its stored date and confidence are shown exactly as they were saved.
 
-This does not change anything else about the platform — Observed Lead Time itself is still purely a read-only report elsewhere (e.g. the Supplier screen's own panel), and this suggestion never feeds into Storefront Expected Delivery or any other feature.
+This does not change Observed Lead Time itself (still a read-only report), and the suggestion engine never writes to Storefront Expected Delivery or invents its own persistence. **Once you save the Purchase Order**, the Expected Date and Confidence you accepted (or edited) are ordinary frozen PO header fields — the same fields M11’s On-Time Delivery Rate later judges when the order is completed. Accepting an Estimated suggestion therefore can become part of future on-time history; that is intentional (historical rating of the date that was on the order), not a feedback loop into the suggestion engine.
 
 ### On-Time Delivery Rate (M11)
 

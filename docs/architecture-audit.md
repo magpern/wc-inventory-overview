@@ -1,7 +1,7 @@
-# Architecture audit — WC Inventory Overview 1.28.0
+# Architecture audit — WC Inventory Overview 1.29.0
 
-**Date:** 2026-08-08 (updated through Milestone M8); updated through M9 and M10 2026-08-09; updated through M11 2026-08-09.
-**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M11 complete (schema `DB_VERSION` 10) — Version 1.0 / GA ready since M8; M9, M10, and M11 are the first three milestones of the post-GA "feature train" (`docs/process/milestone-lifecycle.md`), all implemented and frozen but intentionally not yet released individually (M9 additionally received a full independent audit and remediation pass; M10 and M11 were each frozen after a lightweight completion review — see `docs/checklists/m9-release-readiness.md` / `docs/checklists/m10-release-readiness.md` / `docs/checklists/m11-release-readiness.md`). For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place through M11, filename unchanged since none of M8/M9/M10/M11 changed a frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
+**Date:** 2026-08-08 (updated through Milestone M8); updated through M9–M12 2026-08-09/10.
+**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M12 complete on the feature train (schema `DB_VERSION` 10) — Version 1.0 / GA ready since M8 (`v1.25.0` published); M9–M12 are the post-GA feature train (`docs/process/milestone-lifecycle.md`), all implemented and frozen but intentionally not yet released (M9 received a full independent audit and remediation; M10–M12 each froze after a lightweight Level A completion review — see `docs/checklists/m9-release-readiness.md` … `m12-release-readiness.md`). For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place through M12, filename unchanged since none of M8–M12 changed a frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
 
 ---
 
