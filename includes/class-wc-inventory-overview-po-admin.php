@@ -30,6 +30,7 @@ class WC_Inventory_Overview_PO_Admin {
 			'wc_io_po_close_short',
 			'wc_io_po_delete_draft',
 			'wc_io_po_duplicate',
+			'wc_io_po_print',
 		);
 		foreach ( $actions as $action ) {
 			add_action( 'admin_post_' . $action, array( __CLASS__, 'handle_' . substr( $action, strlen( 'wc_io_po_' ) ) ) );
@@ -160,6 +161,46 @@ class WC_Inventory_Overview_PO_Admin {
 				$extra
 			),
 			admin_url( 'admin.php' )
+		);
+	}
+
+	/**
+	 * PO statuses eligible for printing (M13). A draft was never placed/sent
+	 * and has no commitment behind it, so it is deliberately excluded — see
+	 * docs/milestones/m13-implementation-plan.md Part D.1. The remaining
+	 * five statuses, including the terminal ones, stay printable as a
+	 * historical record (INV-6 auditability).
+	 *
+	 * @return string[]
+	 */
+	public static function printable_statuses(): array {
+		return array(
+			WC_Inventory_Overview_PO_Statuses::PLACED,
+			WC_Inventory_Overview_PO_Statuses::PARTIALLY_RECEIVED,
+			WC_Inventory_Overview_PO_Statuses::RECEIVED,
+			WC_Inventory_Overview_PO_Statuses::CANCELLED,
+			WC_Inventory_Overview_PO_Statuses::CLOSED_SHORT,
+		);
+	}
+
+	/**
+	 * Nonce-carrying print URL for a given PO. Routes through admin-post.php
+	 * (internal request routing, not a new plugin API — M13 plan Part M).
+	 *
+	 * @param int $po_id PO id.
+	 * @return string
+	 */
+	public static function print_url( int $po_id ): string {
+		return wp_nonce_url(
+			add_query_arg(
+				array(
+					'action' => 'wc_io_po_print',
+					'po_id'  => $po_id,
+				),
+				admin_url( 'admin-post.php' )
+			),
+			'wc_io_po_print_' . $po_id,
+			'wc_io_po_print_nonce'
 		);
 	}
 
@@ -595,6 +636,13 @@ class WC_Inventory_Overview_PO_Admin {
 		);
 		echo '<div class="wc-io-po-actions"><h3>' . esc_html__( 'Actions', 'wc-inventory-overview' ) . '</h3>';
 
+		// M13: "Print" entry point -- read-only, available for every printable
+		// status (docs/milestones/m13-implementation-plan.md Part D.1); never
+		// rendered for a draft, which has no commitment behind it yet.
+		if ( in_array( (string) $po['status'], self::printable_statuses(), true ) ) {
+			echo '<a class="button" href="' . esc_url( self::print_url( $po_id ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Print', 'wc-inventory-overview' ) . '</a> ';
+		}
+
 		// M5: "Receive" entry point — not a WC_Inventory_Overview_PO_Lifecycle action
 		// (receiving auto-transitions status via PO_Receiving_Sync, never via this
 		// operator-gated map); gated on its own capability and on PO receivability.
@@ -812,6 +860,92 @@ class WC_Inventory_Overview_PO_Admin {
 			'duplicated',
 			array( 'source' => $source_number )
 		);
+	}
+
+	/**
+	 * Handle print (M13). Read-only. Strict order per
+	 * docs/milestones/m13-implementation-plan.md Part G / INV-M13-4:
+	 * capability -> nonce -> PO id validation -> PO read -> PO existence ->
+	 * printable-status check -> line read -> supplier read -> render-model
+	 * composition -> renderer output. No PO/line/supplier data is read
+	 * before both the capability and nonce checks pass. No code path here
+	 * mutates PO, line, receipt, stock, cost, Inventory Position, or
+	 * supplier state (INV-M13-1).
+	 */
+	public static function handle_print() {
+		self::guard( WC_Inventory_Overview_Purchasing_Caps::VIEW_PO );
+
+		$po_id = isset( $_GET['po_id'] ) ? absint( $_GET['po_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce verified explicitly on the next line.
+		check_admin_referer( 'wc_io_po_print_' . $po_id, 'wc_io_po_print_nonce' );
+
+		if ( $po_id <= 0 ) {
+			wp_die( esc_html__( 'Invalid purchase order.', 'wc-inventory-overview' ), 400 );
+		}
+
+		$po = WC_Inventory_Overview_Purchase_Orders::get( $po_id );
+		if ( is_wp_error( $po ) ) {
+			wp_die( esc_html__( 'Purchase order not found.', 'wc-inventory-overview' ), 404 );
+		}
+
+		if ( ! in_array( (string) $po['status'], self::printable_statuses(), true ) ) {
+			wp_die( esc_html__( 'This purchase order cannot be printed.', 'wc-inventory-overview' ), 400 );
+		}
+
+		$lines = WC_Inventory_Overview_Purchase_Order_Lines::list_for_po( $po_id );
+
+		// Supplier name always falls back to the PO header's own resilient
+		// snapshot (M13 plan Part D.2); contact/reference fields are only
+		// populated when the live Suppliers row still resolves, and are
+		// simply omitted -- never fail the print view -- when it does not.
+		$supplier    = array(
+			'name'      => (string) ( $po['supplier_name_snapshot'] ?? '' ),
+			'reference' => '',
+			'email'     => '',
+			'phone'     => '',
+		);
+		$supplier_id = (int) ( $po['supplier_id'] ?? 0 );
+		if ( $supplier_id > 0 ) {
+			$supplier_row = WC_Inventory_Overview_Suppliers::get( $supplier_id );
+			if ( ! is_wp_error( $supplier_row ) ) {
+				$supplier['reference'] = (string) ( $supplier_row['supplier_reference'] ?? '' );
+				$supplier['email']     = (string) ( $supplier_row['email'] ?? '' );
+				$supplier['phone']     = (string) ( $supplier_row['phone'] ?? '' );
+			}
+		}
+
+		// Product/variation identity always comes from the line's own
+		// historical name_snapshot/sku_snapshot -- never a live product
+		// lookup (M13 plan Part D.2) -- so a deleted product/variation
+		// cannot break printing.
+		// Deliberately no line-total/PO-total computation here -- per the
+		// approved renderer contract, qty_ordered * unit_cost and the
+		// line-total sum are the renderer's own trivial display arithmetic
+		// (M13 plan Part F / task Renderer Contract), not a handler concern.
+		$model_lines = array();
+		foreach ( $lines as $line ) {
+			$model_lines[] = array(
+				'name'         => (string) ( $line['name_snapshot'] ?? '' ),
+				'sku'          => (string) ( $line['sku_snapshot'] ?? '' ),
+				'supplier_sku' => (string) ( $line['supplier_sku'] ?? '' ),
+				'qty_ordered'  => (float) ( $line['qty_ordered'] ?? 0 ),
+				'qty_received' => (float) ( $line['qty_received'] ?? 0 ),
+				'unit_cost'    => (float) ( $line['unit_cost'] ?? 0 ),
+			);
+		}
+
+		$model = array(
+			'store_name'          => get_bloginfo( 'name' ),
+			'po_number'           => (string) ( $po['po_number'] ?? '' ),
+			'status_label'        => WC_Inventory_Overview_PO_Statuses::label( (string) $po['status'] ),
+			'order_date'          => (string) ( $po['order_date'] ?? '' ),
+			'expected_date'       => (string) ( $po['expected_date'] ?? '' ),
+			'expected_confidence' => (string) ( $po['expected_confidence'] ?? '' ),
+			'currency'            => (string) ( $po['currency'] ?? '' ),
+			'supplier'            => $supplier,
+			'lines'               => $model_lines,
+		);
+
+		echo WC_Inventory_Overview_PO_Print_Renderer::render( $model ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render() returns a complete, already-escaped standalone HTML document (INV-M13 output contract); re-escaping here would corrupt its markup.
 	}
 
 	/**
