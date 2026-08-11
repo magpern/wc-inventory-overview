@@ -407,7 +407,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 		<p class="description">
 			<?php esc_html_e( 'Totals include placed, partially received, received, and closed-short orders only; drafts and cancelled orders are excluded. Currencies are shown separately and never combined.', 'wc-inventory-overview' ); ?>
 			<br>
-			<?php esc_html_e( "\"Committed POs\" counts distinct orders contributing to that currency row; a PO with lines in more than one currency may be counted in more than one row.", 'wc-inventory-overview' ); ?>
+			<?php esc_html_e( '"Committed POs" counts distinct orders contributing to that currency row; a PO with lines in more than one currency may be counted in more than one row.', 'wc-inventory-overview' ); ?>
 		</p>
 		<?php
 	}

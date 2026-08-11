@@ -82,13 +82,13 @@ class Test_WC_IO_Supplier_Spend_Performance extends WC_Inventory_Overview_Test_C
 			$wpdb->insert(
 				WC_Inventory_Overview_Purchase_Order_Lines::table_name(),
 				array(
-					'po_id'       => $po_id,
-					'line_index'  => 0,
-					'product_id'  => $product->get_id(),
-					'currency'    => $currency,
-					'qty_ordered' => 10,
+					'po_id'        => $po_id,
+					'line_index'   => 0,
+					'product_id'   => $product->get_id(),
+					'currency'     => $currency,
+					'qty_ordered'  => 10,
 					'qty_received' => 5,
-					'unit_cost'   => 5,
+					'unit_cost'    => 5,
 				)
 			);
 		}

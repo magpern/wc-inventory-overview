@@ -149,7 +149,7 @@ class Test_WC_IO_PO_Spend_Summary extends WC_Inventory_Overview_Test_Case {
 	}
 
 	/**
-	 * draft and cancelled POs never contribute to spend totals (BR-M15-1,
+	 * Draft and cancelled POs never contribute to spend totals (BR-M15-1,
 	 * INV-M15-1) even when a committed-status PO exists alongside them.
 	 */
 	public function test_draft_and_cancelled_excluded_from_totals() {

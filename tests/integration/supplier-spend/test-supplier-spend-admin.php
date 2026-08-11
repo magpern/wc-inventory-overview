@@ -237,9 +237,9 @@ class Test_WC_IO_Supplier_Spend_Admin extends WC_Inventory_Overview_Test_Case {
 
 		$html = $this->render_supplier_detail_html( $supplier['id'] );
 
-		$spend_pos    = strpos( $html, 'Spend Summary' );
+		$spend_pos     = strpos( $html, 'Spend Summary' );
 		$lead_time_pos = strpos( $html, 'Observed Lead Time' );
-		$history_pos  = strpos( $html, 'Order History' );
+		$history_pos   = strpos( $html, 'Order History' );
 
 		$this->assertNotFalse( $spend_pos );
 		$this->assertNotFalse( $lead_time_pos );

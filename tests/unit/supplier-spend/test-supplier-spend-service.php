@@ -15,7 +15,7 @@
 // phpcs:disable WordPress.Files.FileName -- PHPUnit test class naming convention.
 
 /**
- * get_summary() correctness via the service layer.
+ * Correctness of get_summary() via the service layer.
  */
 class Test_WC_IO_Supplier_Spend_Service extends WC_Inventory_Overview_Test_Case {
 
@@ -154,8 +154,8 @@ class Test_WC_IO_Supplier_Spend_Service extends WC_Inventory_Overview_Test_Case 
 			)
 		);
 
-		$result   = WC_Inventory_Overview_Supplier_Spend_Service::get_summary( (int) $supplier['id'] );
-		$by_curr  = array();
+		$result  = WC_Inventory_Overview_Supplier_Spend_Service::get_summary( (int) $supplier['id'] );
+		$by_curr = array();
 		foreach ( $result as $row ) {
 			$by_curr[ $row['currency'] ] = $row;
 		}
