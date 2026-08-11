@@ -15,10 +15,13 @@ defined( 'ABSPATH' ) || exit;
 class WC_Inventory_Overview_Supplier_Merges {
 
 	/**
-	 * Get the table name, unprefix qualified.
+	 * Get table name (prefixed), matching every other repository class in
+	 * this codebase (Suppliers::table_name(), Purchase_Orders::table_name(),
+	 * Goods_Receipts::table_name() all return the prefixed name).
 	 */
-	public static function table_name() {
-		return 'wc_io_supplier_merges';
+	public static function table_name(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'wc_io_supplier_merges';
 	}
 
 	/**
@@ -62,7 +65,7 @@ class WC_Inventory_Overview_Supplier_Merges {
 		}
 
 		$result = $wpdb->insert(
-			$wpdb->prefix . self::table_name(),
+			self::table_name(),
 			array(
 				'source_supplier_id'            => (int) $data['source_supplier_id'],
 				'source_supplier_name_snapshot' => (string) $data['source_supplier_name_snapshot'],
@@ -98,7 +101,7 @@ class WC_Inventory_Overview_Supplier_Merges {
 
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				'SELECT * FROM ' . $wpdb->prefix . self::table_name() . ' WHERE id = %d',
+				'SELECT * FROM ' . self::table_name() . ' WHERE id = %d',
 				$id
 			),
 			ARRAY_A
@@ -117,7 +120,7 @@ class WC_Inventory_Overview_Supplier_Merges {
 
 		return $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT * FROM ' . $wpdb->prefix . self::table_name() . ' WHERE source_supplier_id = %d ORDER BY created_at DESC',
+				'SELECT * FROM ' . self::table_name() . ' WHERE source_supplier_id = %d ORDER BY created_at DESC',
 				$source_id
 			),
 			ARRAY_A
