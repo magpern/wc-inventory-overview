@@ -180,6 +180,64 @@ class WC_Inventory_Overview_Purchase_Orders {
 	}
 
 	/**
+	 * Per-currency ordered/received spend totals for a supplier (M15 —
+	 * Supplier Spend Summary). One grouped aggregate query, bounded to the
+	 * given statuses (INV-M15-1) and never blended across currencies
+	 * (INV-M15-2) — self-contained, does not compose through list() or
+	 * build_where(), since this is a supplier-wide aggregate, not a paged
+	 * row set.
+	 *
+	 * Groups by the PO **line's** own currency, not the PO header's, so a
+	 * PO with lines in two different currencies contributes to both
+	 * currency rows independently. `po_count` is `COUNT(DISTINCT po.id)`
+	 * evaluated inside each currency's GROUP BY bucket (BR-M15-5) — never a
+	 * supplier-wide PO count, never meant to be summed across rows.
+	 *
+	 * @param int      $supplier_id Supplier id.
+	 * @param string[] $statuses    Committed statuses to include (BR-M15-1). Never empty.
+	 * @return array<int,array{currency:string,ordered_total:float,received_total:float,po_count:int}>
+	 *         One row per currency actually present in the supplier's matching lines.
+	 *         Empty array if the supplier has no matching POs.
+	 */
+	public static function spend_summary_for_supplier( int $supplier_id, array $statuses ): array {
+		$statuses = array_values( array_unique( array_map( 'sanitize_key', $statuses ) ) );
+		if ( empty( $statuses ) ) {
+			return array();
+		}
+
+		global $wpdb;
+		$lines        = WC_Inventory_Overview_Purchase_Order_Lines::table_name();
+		$orders       = self::table_name();
+		$placeholders = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+
+		$sql = "SELECT pol.currency AS currency,
+				COALESCE( SUM( pol.qty_ordered * pol.unit_cost ), 0 ) AS ordered_total,
+				COALESCE( SUM( pol.qty_received * pol.unit_cost ), 0 ) AS received_total,
+				COUNT( DISTINCT po.id ) AS po_count
+			FROM {$lines} pol
+			INNER JOIN {$orders} po ON po.id = pol.po_id
+			WHERE po.supplier_id = %d
+				AND po.status IN ({$placeholders})
+			GROUP BY pol.currency"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$params = array_merge( array( $supplier_id ), $statuses );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
+
+		$summary = array();
+		foreach ( (array) $rows as $row ) {
+			$summary[] = array(
+				'currency'       => (string) $row['currency'],
+				'ordered_total'  => (float) $row['ordered_total'],
+				'received_total' => (float) $row['received_total'],
+				'po_count'       => (int) $row['po_count'],
+			);
+		}
+		return $summary;
+	}
+
+	/**
 	 * Insert a draft purchase order header.
 	 *
 	 * Allocates a PO number. Does not write events (service layer responsibility in M2-C).
