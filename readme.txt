@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.29.0
+Stable tag: 1.32.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,12 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.32.0 =
+* Milestone M15 — Supplier Spend Summary (same unreleased feature train as M13/M14). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
+* New "Spend Summary" section on the Supplier detail screen (Purchasing -> Suppliers), above Observed Lead Time: one row per currency totaling Ordered Value and Received Value (PO Cost) across this supplier's committed purchase orders (placed, partially received, received, closed short -- draft and cancelled orders are always excluded).
+* Currencies are never blended or converted; each currency gets its own row. "Committed POs" counts distinct orders per currency row -- a PO with lines in more than one currency may be counted in more than one row.
+* Not individually released -- continues the unreleased feature train M13 opened.
 
 = 1.31.0 =
 * Milestone M14 — Supplier Order History (same unreleased feature train as M13). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.

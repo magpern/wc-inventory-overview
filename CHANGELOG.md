@@ -1,5 +1,29 @@
 # Changelog — WC Inventory Overview
 
+## [1.32.0] - 2026-08-11
+
+**Milestone M15 — Supplier Spend Summary.** Read-only, per-currency total of Ordered/Received Value across a supplier's *committed* Purchase Orders, on the existing Supplier detail admin screen, above the Observed Lead Time panel. Closes the one remaining named gap in `docs/admin-guide-suppliers.md`'s "Not Yet Available" list (supplier spend analysis), resolving M14's stated currency-normalization blocker by choosing to never blend or convert currencies. **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API, zero new capability, zero new hook.** **Prerequisite:** `1.31.0` (M14, frozen, unreleased). Third milestone of the same still-unreleased post-v1.29.0 feature train — not individually released.
+
+### Added
+
+- **"Spend Summary" section** on the Supplier detail admin screen, rendered before the Observed Lead Time / Order History sections.
+- **`WC_Inventory_Overview_Supplier_Spend_Service`** — new Internal (not Public — D16) service owning the committed-status business rule (BR-M15-1: `placed`/`partially_received`/`received`/`closed_short` only; `draft`/`cancelled` always excluded, INV-M15-1) and composing the aggregate exclusively through `Purchase_Orders::spend_summary_for_supplier()` (INV-M15-3).
+- **`WC_Inventory_Overview_Purchase_Orders::spend_summary_for_supplier()`** — new additive, self-contained aggregate read method: one grouped query (`GROUP BY` PO-line currency) returning ordered/received totals and a distinct committed-PO count per currency for a supplier's entire order history. Never blends or converts currencies (INV-M15-2). `po_count` is `COUNT(DISTINCT po.id)` scoped to each currency row (BR-M15-5) — a PO with lines in more than one currency may contribute once to more than one row.
+- Each currency row shows **Currency**, **Ordered Value**, **Received Value (PO Cost)**, and **Committed POs**.
+- Architecture guards INV-M15-1 / INV-M15-2 / INV-M15-3 / INV-M15-4 (committed-status filtering, currency isolation, zero mutation + approved-read-owner-only sourcing, sole-consumer allowlist).
+
+### Notes
+
+- Value semantics are deliberately narrow, matching M14: PO-line cost only (`qty × unit_cost`), never landed costs (`Receipt_Costs`) or the weighted-average/EUR inventory-value figure Goods Receipt posting maintains.
+- Unlike M14's Order History (status-inclusive, for a full audit trail), Spend Summary is the first feature in this plugin to define a "committed spend" status subset that also excludes `cancelled` — a genuinely new business decision (BR-M15-1), not reused verbatim from M13 or M14.
+- Unlike M14's page-scoped 3-query contract, this is a true database-level aggregate over the supplier's entire history: exactly 1 query, independent of history size (proven at 200-PO/3-currency scale).
+- Version-surface convention for this milestone only: the plugin header, `WC_INVENTORY_OVERVIEW_VERSION`, and `readme.txt`'s `Stable tag` are all bumped together to `1.32.0` (unlike M13/M14, which deliberately left `Stable tag` behind at `1.29.0`) — this repository distributes via its own GitHub updater, not the public WordPress.org directory, so `Stable tag` carries no auto-push-to-users implication here.
+- `docs/ARCHITECTURE_BASELINE_v1.24.0.md` and `docs/architecture-audit.md` are brought current for both M14 and M15 in this release — both had fallen out of date after M14 (a documentation-currency gap found during M15 discovery, not a product or architecture defect).
+
+### Testing
+
+- New unit coverage for `spend_summary_for_supplier()` (formula correctness, committed-status filtering, currency-row isolation, `po_count` semantics including a required mixed-line-currency fixture, empty-result short-circuit, no cross-PO/currency summing) and `Supplier_Spend_Service` (committed-status constant, delegation correctness); new integration coverage for the rendered admin section (totals, empty state, currency display, section ordering, capability gate); new performance suite confirming the 1-query contract at 200-PO/3-currency scale. Full suites green with 0 risky.
+
 ## [1.31.0] - 2026-08-10
 
 **Milestone M14 — Supplier Order History.** Read-only, paginated list of every Purchase Order for a supplier (every status included — draft, placed, partially received, received, cancelled, closed short), on the existing Supplier detail admin screen. Closes the longest-standing named gap in `docs/admin-guide-suppliers.md`'s "Not Yet Available" list (order-history reporting, named since M9). **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API, zero new capability, zero new hook.** **Prerequisite:** `1.30.0` (M13, frozen, unreleased). Second milestone of the same still-unreleased post-v1.29.0 feature train — not individually released.

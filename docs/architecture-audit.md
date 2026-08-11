@@ -1,7 +1,7 @@
 # Architecture audit — WC Inventory Overview 1.29.0
 
-**Date:** 2026-08-08 (updated through Milestone M8); updated through M9–M12 2026-08-09/10.
-**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M12 complete on the feature train (schema `DB_VERSION` 10) — Version 1.0 / GA ready since M8 (`v1.25.0` published); M9–M12 are the post-GA feature train (`docs/process/milestone-lifecycle.md`), all implemented and frozen but intentionally not yet released (M9 received a full independent audit and remediation; M10–M12 each froze after a lightweight Level A completion review — see `docs/checklists/m9-release-readiness.md` … `m12-release-readiness.md`). For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place through M12, filename unchanged since none of M8–M12 changed a frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
+**Date:** 2026-08-08 (updated through Milestone M8); updated through M9–M12 2026-08-09/10; updated through M13–M15 2026-08-11 (M14 was not brought current at the time of its own freeze — a documentation-currency gap closed retroactively together with M15, per `docs/milestones/m15-implementation-plan.md` Part A; no fact about M9–M13 changed in this pass).
+**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M15 complete on the feature train (schema `DB_VERSION` 10) — Version 1.0 / GA ready since M8 (`v1.25.0` published); M9–M12 released as `v1.29.0`; M13–M15 are the current post-GA feature train (`docs/process/milestone-lifecycle.md`), all implemented and frozen but intentionally not yet released (M9 received a full independent audit and remediation; M10–M15 each froze after a lightweight Level A completion review — see `docs/checklists/m9-release-readiness.md` … `m15-release-readiness.md`). For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place through M15, filename unchanged since none of M8–M15 changed a frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
 
 ---
 
@@ -512,6 +512,54 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ---
 
+## Milestone M14 — Supplier Order History (1.31.0, frozen, unreleased)
+
+**Status:** Complete, development version `1.31.0`. **Schema unchanged (v10), zero new tables, zero new columns.** Second milestone of the same feature train M13 opened after the M9–M12 train released as `v1.29.0`. Frozen with a Level A completion review (see `docs/checklists/m14-release-readiness.md`); not yet merged, tagged, or released. Zero new public API surface (Internal, D16); zero new capability; zero new public hook.
+
+**Scope:** a read-only, paginated list of every Purchase Order for a supplier — every status included — on the existing Supplier detail admin screen, below the Observed Lead Time panel. Closes the longest-standing named gap in `docs/admin-guide-suppliers.md`'s "Not Yet Available" list (order-history reporting, named since M9).
+
+**New Internal sole-owner class:** `WC_Inventory_Overview_Supplier_Order_History_Service` (`includes/class-wc-inventory-overview-supplier-order-history-service.php`) composes one page of a supplier's order history — `get_page( $supplier_id, $page, $per_page )` — exclusively through `Purchase_Orders::count()`/`list()`/`values_bulk()` (INV-M14-3); never `$wpdb` directly, never `Purchase_Order_Lines`/`Goods_Receipts`/`Receipt_Lines`/`Receipt_Costs`/`Suppliers` directly. Zero mutation (INV-M14-1). Every PO status appears — `draft`, `placed`, `partially_received`, `received`, `cancelled`, `closed_short` (INV-M14-4) — unlike M13's print feature, which deliberately excludes `draft`.
+
+**New additive read method:** `WC_Inventory_Overview_Purchase_Orders::values_bulk( array $po_ids )` — one grouped `SUM(qty_ordered*unit_cost)`/`SUM(qty_received*unit_cost)` query over the given page's PO ids, keyed by `po_id`. Never sums across POs (INV-M14-2); no new table.
+
+**Presentation:** new private `render_order_history_section( $supplier_id )` on `WC_Inventory_Overview_Purchasing_Page`, called from `render_supplier_detail()` after `render_observed_lead_time()`. Dedicated `wc_io_supplier_order_history_page` pagination parameter (never the generic `paged`); default page size 20; reuses the existing `manage_woocommerce` gate — no new capability.
+
+**Value semantics:** Ordered Value / Received Value (PO Cost) are PO-line cost only (`qty × unit_cost`, that PO's own currency) — never landed cost (`Receipt_Costs`), never the weighted-average inventory-value figure Goods Receipt posting maintains, never converted or totaled across orders (INV-M14-2). Column labels ("Ordered Value" / "Received Value (PO Cost)") are deliberately chosen to avoid any landed-cost/valuation implication.
+
+**Accepted limitation (not a defect):** the stated `order_date DESC, id DESC` tie-break is not fully enforced — `Purchase_Orders::list()` accepts only a single `ORDER BY` column, its existing, unmodified contract. Ties on identical `order_date` fall back to that pre-existing, non-guaranteed ordering (see `CHANGELOG.md` 1.31.0 entry and `docs/checklists/m14-release-readiness.md`).
+
+**Architecture guards:** `tests/unit/supplier-order-history/test-supplier-order-history-architecture.php` — zero unapproved read tokens in the service; service uses only `Purchase_Orders::count()`/`list()`/`values_bulk()`; zero write tokens in both the service and `values_bulk()`'s own method body; sole-consumer allowlist (only `Purchasing_Page` may call the service).
+
+**Testing:** unit (pagination math, status inclusion, empty/out-of-range pages, `values_bulk()` formula/edge cases, query-count contract); integration (rendered admin section: links, currency display, capability gate, pagination, all-statuses rendering); performance (`tests/integration/supplier-order-history/test-supplier-order-history-performance.php`: exactly 3 queries for a non-empty page, exactly 1 for a zero-PO supplier, independent of page size/number/history size, proven at 200-PO scale).
+
+**Explicitly excluded from M14:** spend analysis/totals, cross-PO or cross-currency aggregation, trend charts, changes to PO write paths/lifecycle/statuses/events, supplier merge, grace-days Settings UI, expected-date suggestion source UI, Inventory Position supplier column, storefront Expected Delivery confidence changes, Coverage/Forecast, Reservations, Inbound Shipment, warehouse locations, REST/Store API/GraphQL, any new public hook/API/capability, sortable columns beyond the fixed `order_date DESC`. Next process step: planning M15, or closing this train, only with explicit approval.
+
+---
+
+## Milestone M15 — Supplier Spend Summary (1.32.0, frozen, unreleased)
+
+**Status:** Complete, development version `1.32.0`. **Schema unchanged (v10), zero new tables, zero new columns.** Third milestone of the same feature train M13 opened. Frozen with a Level A completion review (see `docs/checklists/m15-release-readiness.md`); not yet merged, tagged, or released. Zero new public API surface (Internal, D16); zero new capability; zero new public hook.
+
+**Scope:** a read-only, per-currency total of Ordered Value and Received Value (PO Cost) across a supplier's *committed* Purchase Orders, on the existing Supplier detail admin screen, rendered before the Observed Lead Time / Order History sections. Closes the one remaining named gap in `docs/admin-guide-suppliers.md`'s "Not Yet Available" list (supplier spend analysis) by resolving M14's stated currency-normalization blocker: the policy is "never blend or convert," not "normalize later."
+
+**New Internal sole-owner class:** `WC_Inventory_Overview_Supplier_Spend_Service` (`includes/class-wc-inventory-overview-supplier-spend-service.php`) owns the "committed spend" status rule — `committed_statuses()` returns exactly `placed`/`partially_received`/`received`/`closed_short` (BR-M15-1, INV-M15-1); `draft` and `cancelled` are always excluded, a genuinely new business decision distinct from M14's status-inclusive Order History. `get_summary( $supplier_id )` composes the result exclusively through `Purchase_Orders::spend_summary_for_supplier()` (INV-M15-3) — never `$wpdb` directly, never `Purchase_Order_Lines`/`Goods_Receipts`/`Receipt_Lines`/`Receipt_Costs`/`Suppliers` directly.
+
+**New additive, self-contained read method:** `WC_Inventory_Overview_Purchase_Orders::spend_summary_for_supplier( $supplier_id, $statuses )` — unlike M14's `values_bulk()`, this does **not** compose through `list()`/`build_where()`; it issues its own parameterized `SELECT ... JOIN ... GROUP BY pol.currency` directly against `wc_io_purchase_order_lines`/`wc_io_purchase_orders`, a true database-level aggregate over the supplier's *entire* history (not page-scoped). Returns one row per currency: `ordered_total`, `received_total` (`SUM(qty_ordered*unit_cost)`/`SUM(qty_received*unit_cost)`), and `po_count = COUNT(DISTINCT po.id)` — evaluated *within* each currency's `GROUP BY` bucket (BR-M15-5), so a PO with lines in two currencies is correctly counted once in each of the two resulting rows, never double-counted within one row and never meant to be summed across rows into a supplier-wide count.
+
+**Presentation:** new private `render_spend_summary_section( $supplier_id )` on `WC_Inventory_Overview_Purchasing_Page`, called from `render_supplier_detail()` before `render_observed_lead_time()`. Table columns: Currency, Ordered Value, Received Value (PO Cost), Committed POs. Reuses the existing `manage_woocommerce` gate and the existing `format_po_cost_value()` money-formatting helper — no new capability, no new hook.
+
+**Value/currency semantics:** identical PO-line-cost-only formula to M14 (never landed cost, never the weighted-average inventory-value figure). Currencies are never blended or converted (INV-M15-2) — a supplier invoiced in more than one currency shows one row per currency, side by side.
+
+**Query/performance contract:** exactly 1 query for a non-empty result and exactly 1 query for an empty result (no separate existence-check query) — a genuinely different shape from M14's paginated 3-query contract, since Spend Summary has no pagination step at all. Proven at 200-PO/3-currency scale, independent of history size (`tests/integration/supplier-spend/test-supplier-spend-performance.php`).
+
+**Architecture guards:** `tests/unit/supplier-spend/test-supplier-spend-architecture.php` — zero unapproved read tokens in the service; service uses only `Purchase_Orders::spend_summary_for_supplier()`; zero write tokens in both the service and `spend_summary_for_supplier()`'s own method body; zero FX/currency-blending tokens in either; sole-consumer allowlist (only `Purchasing_Page` may call the service).
+
+**Testing:** unit (`tests/unit/purchase-orders/test-po-spend-summary.php`: formula correctness, committed-status filtering, currency-row isolation, a required mixed-line-currency fixture proving `po_count` semantics, empty-result short-circuit, scoped-to-one-supplier correctness, single-query proof; `tests/unit/supplier-spend/test-supplier-spend-service.php`: committed-status constant, delegation correctness, multi-currency pass-through); integration (`tests/integration/supplier-spend/test-supplier-spend-admin.php`: totals rendering, empty state, draft/cancelled exclusion scoped to the Spend Summary section specifically (not the whole page, since Order History legitimately shows a draft PO's own value elsewhere), currency isolation, section ordering, capability gate); performance (200-PO/3-currency exactly-1-query proof, uncommitted-only and zero-PO exactly-1-query proofs).
+
+**Explicitly excluded from M15:** cross-supplier/storewide spend rollup or "top suppliers" view, FX conversion or a single blended cross-currency total, trend charts/time-bucketing/date-range filtering, changes to PO write paths/lifecycle/statuses/events, changes to `Supplier_Order_History_Service`/M14's per-PO rows/pagination, a Suppliers-list-table spend column, supplier merge, grace-days Settings UI, expected-date suggestion source UI, Inventory Position supplier column, storefront Expected Delivery confidence changes, Coverage/Forecast, Reservations, Inbound Shipment, warehouse locations, REST/Store API/GraphQL, any new public hook/API/capability. Next process step: close and release the M13–M15 train, only with explicit approval (see `docs/milestones/m15-implementation-plan.md` Part G).
+
+---
+
 ## Known risks / tech debt
 
 1. **Large god class:** `class-wc-inventory-overview-plugin.php` centralizes UI, handlers, and exports — harder to test and review. Evaluated for M8 and deliberately deferred (see the M8 section above) — a whole-admin-surface refactor is the opposite of hardening under GA time pressure; remains open for a future, dedicated milestone.
@@ -519,7 +567,7 @@ An independent audit of the completed M5 implementation (before this branch was 
 3. **`posts_clauses` filter:** Global filter at priority 999; scoped by query depth and admin context — avoid front-end product queries while filter is active.
 4. **Danger zone reset:** Can bulk-delete plugin tables/meta snapshots; gated by capability + nonces + preview token — still high impact for operators.
 5. **Inline stock AJAX:** Uses `edit_products` (broader than `manage_woocommerce`) with per-product `edit_product` — intentional for catalog editors.
-6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery + M8 conformance/hardening + M9 supplier-lead-time + M10 expected-date-suggestion + M11 expected-deadline/on-time-rate + M12 suppliers-list-performance + M13 po-print), PHPCS (local, not CI-gated — ~559 pre-existing errors/634 warnings as of M8/M9, not re-measured since; evaluated and deliberately excluded from M8 as disproportionate to a hardening pass; M13's own touched files are PHPCS-clean), and GitHub Actions CI (PHP lint + release ZIP + the full integration suite, blocking since M8). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
+6. **Automated tests:** PHPUnit unit/integration suites (M0 golden + M1 suppliers + M2 purchase orders + M3 Inventory Position + M4 Goods Receipts + M5 PO Receiving + M6 Batch Migration + M7 expected-delivery + M8 conformance/hardening + M9 supplier-lead-time + M10 expected-date-suggestion + M11 expected-deadline/on-time-rate + M12 suppliers-list-performance + M13 po-print + M14 supplier-order-history + M15 supplier-spend), PHPCS (local, not CI-gated — ~559 pre-existing errors/634 warnings as of M8/M9, not re-measured since; evaluated and deliberately excluded from M8 as disproportionate to a hardening pass; M13's/M14's/M15's own touched files are PHPCS-clean), and GitHub Actions CI (PHP lint + release ZIP + the full integration suite, blocking since M8). PHPUnit runs via Docker harness under `tests/docker/`. See `docs/testing.md`.
 7. **Monorepo mirror:** A development copy may exist under `biopentra-custom-plugins/plugins/wc-inventory-overview/`; this standalone repo is canonical for releases.
 
 ---
@@ -527,12 +575,14 @@ An independent audit of the completed M5 implementation (before this branch was 
 ## Recommended follow-ups (non-blocking)
 
 - Split `Plugin` into tab controllers or modules — real tech debt (item 1 above), explicitly evaluated and deferred past M8/GA; a future dedicated milestone, not a hardening-pass item.
-- Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; M6 added `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at`; M8–M12 introduced no schema change — next relevant whenever a future milestone next changes schema).
+- Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; M6 added `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at`; M8–M15 introduced no schema change — next relevant whenever a future milestone next changes schema).
 - ~~Observed lead-time statistics (average/minimum/maximum delivery times, computed from actual receiving history)~~ — **done in M9** (see the M9 section above).
 - ~~Wiring observed lead time into PO-creation expected-date suggestions~~ — **done in M10** (see the M10 section above).
-- ~~Supplier reliability scoring~~ — **done in M11** as On-Time Delivery Rate (see the M11 section above). Spend analysis and order-history reporting, the other two thirds of `docs/admin-guide-suppliers.md`'s original compound "Supplier analytics" bullet, and the supplier merge tool, remain unaffected and still open.
+- ~~Supplier reliability scoring~~ — **done in M11** as On-Time Delivery Rate (see the M11 section above).
 - ~~Surfacing Observed Lead Time / On-Time Rate on the Suppliers list~~ — **done in M12** (see the M12 section above).
 - ~~Printable Purchase Order (D17 §11.2's reserved-since-v1.0 capability)~~ — **done in M13** (see the M13 section above).
+- ~~Order-history reporting~~ — **done in M14** (see the M14 section above).
+- ~~Spend analysis~~ — **done in M15** as Spend Summary (see the M15 section above), resolving the currency-normalization blocker M14 named by choosing to never blend or convert. The supplier merge tool remains unaffected and still open.
 - ~~Physically delete the M6-deprecated Batch Intake code~~ — **done in M8** (see the M8 section above).
 - ~~`PO_Delay`'s "Delayed" detection does not extend to `partially_received` POs~~ — **fixed in M8** (see the M8 section above).
 - PHPCS-clean the codebase, or actually wire up the empty `.phpcs-baseline.xml` ratchet — evaluated for M8 and deliberately excluded (disproportionate scope for a hardening pass); still a reasonable future initiative on its own.
