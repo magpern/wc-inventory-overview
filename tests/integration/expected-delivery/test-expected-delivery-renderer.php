@@ -267,6 +267,17 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 		$this->assertSame( $availability, $out );
 	}
 
+	/**
+	 * Simulates AJAX context via the `wp_doing_ajax` filter rather than
+	 * `define( 'DOING_AJAX', true )`. PHP constants can never be undefined,
+	 * so a real define() here would permanently leak wp_doing_ajax() === true
+	 * to every test that runs later in the same PHPUnit process, regardless
+	 * of suite ordering (see M14's test_capability_gate_denies_unauthorized_user
+	 * hardening, which had to defend against exactly that leak). The
+	 * production code under test (WC_Inventory_Overview_Expected_Delivery_Renderer)
+	 * only ever calls wp_doing_ajax(), never the raw constant, so the filter
+	 * is a behaviorally equivalent and fully reversible stand-in.
+	 */
 	public function test_filter_is_inactive_on_admin_non_ajax_and_active_under_ajax() {
 		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'exact' );
 		$availability = array(
@@ -280,15 +291,16 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 		$inactive = WC_Inventory_Overview_Expected_Delivery_Renderer::filter_availability( $availability, $product );
 		$this->assertSame( $availability, $inactive, 'Admin, non-AJAX must be inert' );
 
-		if ( ! defined( 'DOING_AJAX' ) ) {
-			define( 'DOING_AJAX', true );
-		}
+		add_filter( 'wp_doing_ajax', '__return_true' );
 		WC_Inventory_Overview_Expected_Delivery_Service::flush_memo();
 
-		$active = WC_Inventory_Overview_Expected_Delivery_Renderer::filter_availability( $availability, $product );
-		$this->assertNotSame( $availability, $active, 'woocommerce_get_variation runs on admin-ajax.php where is_admin() is true; the filter must stay live under wp_doing_ajax()' );
-
-		set_current_screen( 'front' );
+		try {
+			$active = WC_Inventory_Overview_Expected_Delivery_Renderer::filter_availability( $availability, $product );
+			$this->assertNotSame( $availability, $active, 'woocommerce_get_variation runs on admin-ajax.php where is_admin() is true; the filter must stay live under wp_doing_ajax()' );
+		} finally {
+			remove_filter( 'wp_doing_ajax', '__return_true' );
+			set_current_screen( 'front' );
+		}
 	}
 
 	/**
