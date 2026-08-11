@@ -119,7 +119,7 @@ export WP_TESTS_PHPUNIT_POLYFILLS_PATH=/tmp/phpunit-polyfills/vendor/yoast/phpun
 cd "${PLUGIN_DIR}"
 FILTER_ARGS=("$@")
 if [[ ${#FILTER_ARGS[@]} -eq 0 ]]; then
-	# Default: M1–M13 focused blocking suite.
+	# Default: M1–M15 focused blocking suite.
 	# Filter notes (substring / regex match on class names):
 	# - Prefer prefix_ forms (trailing underscore) when every intended class
 	#   shares that prefix (e.g. Test_WC_IO_PO_).
@@ -139,7 +139,12 @@ if [[ ${#FILTER_ARGS[@]} -eq 0 ]]; then
 	#   specific) -- added explicitly below. Test_WC_IO_PO_Values_Bulk
 	#   (values_bulk() on Purchase_Orders) is already covered by the
 	#   existing Test_WC_IO_PO_ entry.
-	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_PO_Print_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received|Test_WC_IO_Supplier_Lead_Time_|Test_WC_IO_Expected_Date_Suggestion_|Test_WC_IO_Expected_Deadline|Test_WC_IO_Supplier_On_Time_Rate_|Test_WC_IO_Supplier_Order_History_' )
+	# - M15 (Test_WC_IO_Supplier_Spend_*) is a new, distinct prefix -- added
+	#   explicitly below (same reasoning as M14's Supplier_Order_History_
+	#   entry). Test_WC_IO_PO_Spend_Summary (spend_summary_for_supplier() on
+	#   Purchase_Orders) is already covered by the existing Test_WC_IO_PO_
+	#   entry (verified via --list-tests before adding this).
+	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_PO_Print_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received|Test_WC_IO_Supplier_Lead_Time_|Test_WC_IO_Expected_Date_Suggestion_|Test_WC_IO_Expected_Deadline|Test_WC_IO_Supplier_On_Time_Rate_|Test_WC_IO_Supplier_Order_History_|Test_WC_IO_Supplier_Spend_' )
 fi
 
 echo "Running PHPUnit ${FILTER_ARGS[*]}..."
