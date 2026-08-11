@@ -93,7 +93,14 @@ class WC_Inventory_Overview_Supplier_Merge_Service {
 				$txn->rollback();
 				$existing_target = WC_Inventory_Overview_Suppliers::get( (int) $source['merged_into_supplier_id'] );
 				$target_name     = is_wp_error( $existing_target ) ? '' : $existing_target['name'];
-				return new WP_Error( 'wc_io_supplier_merge_source_already_merged', sprintf( __( 'This supplier was already merged into %s.', 'wc-inventory-overview' ), $target_name ) );
+				return new WP_Error(
+					'wc_io_supplier_merge_source_already_merged',
+					sprintf(
+						/* translators: %s: name of the supplier this source was already merged into */
+						__( 'This supplier was already merged into %s.', 'wc-inventory-overview' ),
+						$target_name
+					)
+				);
 			}
 			if ( WC_Inventory_Overview_Suppliers::STATUS_ACTIVE !== $target['status'] ) {
 				$txn->rollback();
@@ -186,11 +193,11 @@ class WC_Inventory_Overview_Supplier_Merge_Service {
 	 * No-op in production.
 	 *
 	 * @param string $step Current step.
-	 * @throws RuntimeException if failure is armed.
+	 * @throws RuntimeException If failure is armed for this step.
 	 */
 	private static function maybe_inject_test_failure( string $step ): void {
 		if ( defined( 'WC_IO_PHPUNIT_RUNNING' ) && self::$test_fail_after_step === $step ) {
-			throw new RuntimeException( 'wc_io_test_injected_failure:' . $step );
+			throw new RuntimeException( 'wc_io_test_injected_failure:' . $step ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- $step is always one of this class's own three fixed literal strings, never user input.
 		}
 	}
 }

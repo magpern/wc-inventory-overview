@@ -145,13 +145,11 @@ class Test_WC_IO_Supplier_Merge_Performance extends WP_UnitTestCase {
 			$this->markTestSkipped( 'Test-only failure injection not available' );
 		}
 
-		global $wpdb;
-
 		$source_id = $this->seed_supplier_with_pos( 5 );
 		$target_id = (int) WC_Inventory_Overview_Suppliers::create( array( 'name' => 'Rollback Target 1-' . uniqid(), 'default_currency' => 'EUR' ) );
 
-		$po_count_before = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Purchase_Orders::table_name() . ' WHERE supplier_id = %d', $source_id ) );
-		$merges_count_before = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Supplier_Merges::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$po_count_before     = $this->count_rows_for_supplier( WC_Inventory_Overview_Purchase_Orders::table_name(), $source_id );
+		$merges_count_before = $this->count_all_rows( WC_Inventory_Overview_Supplier_Merges::table_name() );
 
 		WC_Inventory_Overview_Supplier_Merge_Service::set_test_fail_after_step( 'po_reassign' );
 		$result = WC_Inventory_Overview_Supplier_Merge_Service::merge( $source_id, $target_id, 1, WC_Inventory_Overview_Suppliers::get( $source_id )['name'] );
@@ -160,9 +158,9 @@ class Test_WC_IO_Supplier_Merge_Performance extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 		$this->assertSame( 'wc_io_supplier_merge_failed', $result->get_error_code() );
 
-		$po_count_after = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Purchase_Orders::table_name() . ' WHERE supplier_id = %d', $source_id ) );
-		$merges_count_after = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Supplier_Merges::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$source = WC_Inventory_Overview_Suppliers::get( $source_id );
+		$po_count_after     = $this->count_rows_for_supplier( WC_Inventory_Overview_Purchase_Orders::table_name(), $source_id );
+		$merges_count_after = $this->count_all_rows( WC_Inventory_Overview_Supplier_Merges::table_name() );
+		$source             = WC_Inventory_Overview_Suppliers::get( $source_id );
 
 		$this->assertSame( $po_count_before, $po_count_after );
 		$this->assertSame( $merges_count_before, $merges_count_after );
@@ -196,9 +194,9 @@ class Test_WC_IO_Supplier_Merge_Performance extends WP_UnitTestCase {
 			)
 		);
 
-		$po_count_before = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Purchase_Orders::table_name() . ' WHERE supplier_id = %d', $source_id ) );
-		$gr_count_before  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Goods_Receipts::table_name() . ' WHERE supplier_id = %d', $source_id ) );
-		$merges_count_before = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Supplier_Merges::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$po_count_before     = $this->count_rows_for_supplier( WC_Inventory_Overview_Purchase_Orders::table_name(), $source_id );
+		$gr_count_before     = $this->count_rows_for_supplier( WC_Inventory_Overview_Goods_Receipts::table_name(), $source_id );
+		$merges_count_before = $this->count_all_rows( WC_Inventory_Overview_Supplier_Merges::table_name() );
 
 		WC_Inventory_Overview_Supplier_Merge_Service::set_test_fail_after_step( 'gr_reassign' );
 		$result = WC_Inventory_Overview_Supplier_Merge_Service::merge( $source_id, $target_id, 1, WC_Inventory_Overview_Suppliers::get( $source_id )['name'] );
@@ -207,10 +205,10 @@ class Test_WC_IO_Supplier_Merge_Performance extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 		$this->assertSame( 'wc_io_supplier_merge_failed', $result->get_error_code() );
 
-		$po_count_after = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Purchase_Orders::table_name() . ' WHERE supplier_id = %d', $source_id ) );
-		$gr_count_after  = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Goods_Receipts::table_name() . ' WHERE supplier_id = %d', $source_id ) );
-		$merges_count_after = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Supplier_Merges::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$source = WC_Inventory_Overview_Suppliers::get( $source_id );
+		$po_count_after     = $this->count_rows_for_supplier( WC_Inventory_Overview_Purchase_Orders::table_name(), $source_id );
+		$gr_count_after     = $this->count_rows_for_supplier( WC_Inventory_Overview_Goods_Receipts::table_name(), $source_id );
+		$merges_count_after = $this->count_all_rows( WC_Inventory_Overview_Supplier_Merges::table_name() );
+		$source             = WC_Inventory_Overview_Suppliers::get( $source_id );
 
 		// PO reassignment must ALSO be rolled back (single transaction, INV-M17-1).
 		$this->assertSame( $po_count_before, $po_count_after );
@@ -230,13 +228,11 @@ class Test_WC_IO_Supplier_Merge_Performance extends WP_UnitTestCase {
 			$this->markTestSkipped( 'Test-only failure injection not available' );
 		}
 
-		global $wpdb;
-
 		$source_id = $this->seed_supplier_with_pos( 5 );
 		$target_id = (int) WC_Inventory_Overview_Suppliers::create( array( 'name' => 'Rollback Target 3-' . uniqid(), 'default_currency' => 'EUR' ) );
 
-		$po_count_before = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Purchase_Orders::table_name() . ' WHERE supplier_id = %d', $source_id ) );
-		$merges_count_before = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Supplier_Merges::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$po_count_before     = $this->count_rows_for_supplier( WC_Inventory_Overview_Purchase_Orders::table_name(), $source_id );
+		$merges_count_before = $this->count_all_rows( WC_Inventory_Overview_Supplier_Merges::table_name() );
 
 		WC_Inventory_Overview_Supplier_Merge_Service::set_test_fail_after_step( 'audit_insert' );
 		$result = WC_Inventory_Overview_Supplier_Merge_Service::merge( $source_id, $target_id, 1, WC_Inventory_Overview_Suppliers::get( $source_id )['name'] );
@@ -245,13 +241,38 @@ class Test_WC_IO_Supplier_Merge_Performance extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 		$this->assertSame( 'wc_io_supplier_merge_failed', $result->get_error_code() );
 
-		$po_count_after = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Purchase_Orders::table_name() . ' WHERE supplier_id = %d', $source_id ) );
-		$merges_count_after = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . WC_Inventory_Overview_Supplier_Merges::table_name() ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		$source = WC_Inventory_Overview_Suppliers::get( $source_id );
+		$po_count_after     = $this->count_rows_for_supplier( WC_Inventory_Overview_Purchase_Orders::table_name(), $source_id );
+		$merges_count_after = $this->count_all_rows( WC_Inventory_Overview_Supplier_Merges::table_name() );
+		$source             = WC_Inventory_Overview_Suppliers::get( $source_id );
 
 		$this->assertSame( $po_count_before, $po_count_after );
 		$this->assertSame( $merges_count_before, $merges_count_after );
 		$this->assertSame( 'active', $source['status'] );
 		$this->assertNull( $source['merged_into_supplier_id'] );
+	}
+
+	/**
+	 * Count rows in a table matching a supplier_id, via prepare() against a
+	 * locally-scoped table-name variable (avoids the PreparedSQLPlaceholders
+	 * sniff's false positive on a method-call fragment inlined into the SQL string).
+	 *
+	 * @param string $table       Prefixed table name.
+	 * @param int    $supplier_id Supplier ID.
+	 * @return int
+	 */
+	private function count_rows_for_supplier( string $table, int $supplier_id ): int {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE supplier_id = %d", $supplier_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	}
+
+	/**
+	 * Count all rows in a table.
+	 *
+	 * @param string $table Prefixed table name.
+	 * @return int
+	 */
+	private function count_all_rows( string $table ): int {
+		global $wpdb;
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 	}
 }

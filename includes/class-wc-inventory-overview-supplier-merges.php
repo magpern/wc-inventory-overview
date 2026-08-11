@@ -98,12 +98,10 @@ class WC_Inventory_Overview_Supplier_Merges {
 	 */
 	public static function get( int $id ) {
 		global $wpdb;
+		$table = self::table_name();
 
 		return $wpdb->get_row(
-			$wpdb->prepare(
-				'SELECT * FROM ' . self::table_name() . ' WHERE id = %d',
-				$id
-			),
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			ARRAY_A
 		);
 	}
@@ -117,13 +115,13 @@ class WC_Inventory_Overview_Supplier_Merges {
 	 */
 	public static function get_for_source( int $source_id ) {
 		global $wpdb;
+		$table = self::table_name();
 
-		return $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT * FROM ' . self::table_name() . ' WHERE source_supplier_id = %d ORDER BY created_at DESC',
-				$source_id
-			),
+		$results = $wpdb->get_results(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE source_supplier_id = %d ORDER BY created_at DESC", $source_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			ARRAY_A
-		) ?: array();
+		);
+
+		return is_array( $results ) ? $results : array();
 	}
 }
