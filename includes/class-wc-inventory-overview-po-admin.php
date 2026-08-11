@@ -84,8 +84,10 @@ class WC_Inventory_Overview_PO_Admin {
 			'wcIoPoAdmin',
 			array(
 				'i18n'                => array(
-					'removeLine' => __( 'Remove line', 'wc-inventory-overview' ),
-					'product'    => __( 'Search for a product…', 'wc-inventory-overview' ),
+					'removeLine'           => __( 'Remove line', 'wc-inventory-overview' ),
+					'product'              => __( 'Search for a product…', 'wc-inventory-overview' ),
+					'suggestionObserved'   => __( "Suggested from this supplier's delivery history (%1\$s orders, avg %2\$s days).", 'wc-inventory-overview' ),
+					'suggestionConfigured' => __( "Suggested from supplier's configured default (%1\$s days).", 'wc-inventory-overview' ),
 				),
 				'isNewPurchaseOrder'  => $is_new_po,
 				'leadTimeSuggestions' => $is_new_po ? self::lead_time_suggestions_for_localize() : array(),
@@ -100,7 +102,7 @@ class WC_Inventory_Overview_PO_Admin {
 	 * Caller (enqueue_assets()) already confirmed we're on the create
 	 * screen before calling this.
 	 *
-	 * @return array<int,array{days:?int,confidence:?string,source:string}>
+	 * @return array<int,array{days:?int,confidence:?string,source:string,sample_count:?int,average_days:?int}>
 	 */
 	private static function lead_time_suggestions_for_localize(): array {
 		$suppliers = WC_Inventory_Overview_Suppliers::list(
@@ -120,8 +122,11 @@ class WC_Inventory_Overview_PO_Admin {
 				continue; // Only entries with an actual suggestion are sent to the client.
 			}
 			$localized[ $supplier_id ] = array(
-				'days'       => $suggestion['days'],
-				'confidence' => $suggestion['confidence'],
+				'days'         => $suggestion['days'],
+				'confidence'   => $suggestion['confidence'],
+				'source'       => $suggestion['source'],
+				'sample_count' => $suggestion['sample_count'],
+				'average_days' => $suggestion['average_days'],
 			);
 		}
 
@@ -456,6 +461,9 @@ class WC_Inventory_Overview_PO_Admin {
 						</select>
 					<?php else : ?>
 						<?php echo esc_html( (string) ( $po['expected_confidence'] ?? '' ) ); ?>
+					<?php endif; ?>
+					<?php if ( $editable ) : ?>
+						<p class="description" id="wc_io_po_suggestion_hint"></p>
 					<?php endif; ?>
 				</td>
 			</tr>

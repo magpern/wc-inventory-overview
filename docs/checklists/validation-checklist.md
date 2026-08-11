@@ -410,6 +410,31 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **M9/M11/M13/M14 surfaces unaffected** — Observed Lead Time, On-Time Rate, PO Print, and Order History behavior unchanged.
 
+### For M16 (PO Expected-Date & Delay Transparency, v1.33.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`.
+
+- [ ] **Suggestion provenance renders correctly**: on the New PO screen, selecting a supplier with ≥2 completed orders shows "Suggested from this supplier's delivery history (N orders, avg D days)."; a supplier with only a configured default shows "Suggested from supplier's configured default (D days)."; a supplier with neither shows no message.
+
+- [ ] **Provenance is presentation-only**: the hint text is never submitted with the form; typing into Expected Date or Confidence clears the hint and disables further auto-fill for the rest of the page session (pre-existing M10 behavior, unaffected).
+
+- [ ] **Grace-days Settings field validate-or-preserve contract**: on the Settings tab (Purchasing section), submitting a valid integer 0–365 (including `0` and `365`) saves it; submitting a negative value, a value `>365`, a non-numeric value, or omitting the field entirely all leave the previously stored value unchanged — never coerced into range.
+
+- [ ] **Grace-days value takes effect immediately**: `PO_Delay::grace_days_from_option()` (and every existing "Delayed" indicator throughout the plugin) reflects a saved value with no cache/stale-read.
+
+- [ ] **Drilldown Supplier/Status columns correct**: the Inventory Position drilldown mini-table renders exactly seven columns in this order — PO number, Supplier, Status, Outstanding, Expected date, Confidence, Delayed. Supplier shows the PO's own snapshot name (still correct after the supplier is archived); Status shows the shared `PO_Statuses::label()` text.
+
+- [ ] **Drilldown query count unchanged**: `test_position_query_count_bounded_for_twenty_plus_rows` still passes (≤2 SELECTs against the PO-lines join, page-load-independent of row count) with the two extra columns.
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Settings_|Test_WC_IO_Inventory_Position_Architecture'
+  ```
+
+- [ ] **Full test suite green** — unit, M1–M16-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+
+- [ ] **M3/M9/M10 surfaces unaffected** — Inventory Position's pre-existing five drilldown columns, Observed Lead Time, and the underlying suggestion resolution algorithm (observed → configured → none) behave exactly as before.
+
 ## Sign-off
 
 Once all checks pass:

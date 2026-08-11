@@ -332,6 +332,20 @@ No additional steps. The release is a pure-tooling change with no functional or 
 6. **Prior surfaces unaffected:** Observed Lead Time, Order History (M14), PO Print (M13), and PO Admin behavior unchanged.
 7. **Rollback awareness:** M15 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (aggregate query is read-only, guard-enforced). A code rollback is unconditionally safe (see `docs/rollback-plan.md`'s M15 note).
 
+### M16: PO Expected-Date & Delay Transparency
+
+**M16 is the first milestone of a new, not-yet-named post-v1.32.0 feature train** — the steps below apply once this train (standalone or bundled) is tagged and released; they are not performed at M16's own implementation completion. After M16 freeze, the next authorized process step is the **release-timing/train decision** for M16 (standalone release vs. opening a train with a following milestone), only with explicit approval.
+
+0. **Release notes file:** no standalone `docs/GITHUB_RELEASE_NOTES_1.33.0.md` at this stage — produced when the release-timing decision is made, for whichever version tags this milestone/train.
+1. **No schema change:** confirm `DB_VERSION` is still `'10'`. M16 adds no table, column, or index.
+2. **Suggestion provenance verified:** on the New PO screen, the observed-history and configured-default provenance messages render with the correct evidence values (`sample_count`/`average_days`, never the bare `days` value as evidence); no message when there is no suggestion.
+3. **Grace-days Settings field verified:** the validate-or-preserve contract holds exactly — missing/negative/`>365`/non-numeric/non-clean-integer input all preserve the previously stored value untouched (never `absint()`-coerced); `0` and `365` both save correctly.
+4. **Drilldown columns verified:** the Inventory Position drilldown renders exactly seven columns in the fixed order (PO number, Supplier, Status, Outstanding, Expected date, Confidence, Delayed); Supplier survives supplier archive (PO-time snapshot); Status uses the shared `PO_Statuses::label()` map.
+5. **Architecture guards pass:** filter includes `Test_WC_IO_Settings_` (sole-mutator guard for the grace-days option) — 0 failures; the pre-existing M3 `test-inventory-position-architecture.php` sole-caller guard passes unmodified.
+6. **Full test suite green:** unit, M1–M16-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+7. **Prior surfaces unaffected:** Observed Lead Time, On-Time Rate, Order History (M14), Spend Summary (M15), and PO Admin behavior unchanged; the existing five drilldown columns and the suggestion resolution algorithm itself (observed → configured → none) unchanged.
+8. **Rollback awareness:** M16 is code-only plus one pre-existing settings option (`wc_io_po_delay_grace_days`, readable since M8, only newly *editable* via UI) — no new data written, no schema changed. A code rollback is unconditionally safe (see `docs/rollback-plan.md`'s M16 note).
+
 ## Post-release communication
 
 After a successful release:

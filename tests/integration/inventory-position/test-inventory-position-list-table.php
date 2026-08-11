@@ -361,6 +361,103 @@ class Test_WC_IO_Inventory_Position_List_Table extends WC_Inventory_Overview_Tes
 		$this->assertStringContainsString( 'wc-io-badge-delayed', $html );
 	}
 
+	// -----------------------------------------------------------------
+	// M16: Supplier + Status drilldown columns (BR-M16-6/BR-M16-7/BR-M16-8)
+	// -----------------------------------------------------------------
+
+	/**
+	 * The drilldown mini-table header renders the seven columns in the
+	 * exact fixed order defined by BR-M16-8 -- Supplier and Status are the
+	 * only new columns, inserted between PO number and Outstanding; the
+	 * five pre-existing columns keep their relative order.
+	 */
+	public function test_drilldown_column_order_is_fixed_per_br_m16_8() {
+		$product = $this->create_simple_product();
+		$po      = $this->create_purchase_order();
+		$this->add_po_line( $po['id'], array( 'product_id' => $product->get_id(), 'qty_ordered' => 1 ) );
+		$this->place_po( $po['id'] );
+
+		$table = $this->new_table();
+		$html  = $this->render_table_html( $table );
+
+		// prepare_items() is not scoped to this test's own fixture -- other
+		// products may still be present from earlier tests in this file
+		// (dbDelta()'s implicit commit breaks per-test transaction
+		// rollback, a pre-existing quirk of this suite, not introduced by
+		// M16). A bare strpos() for the first "<thead><tr>" in the whole
+		// page can false-match an unrelated "Variations on this page"
+		// mini-table from a leftover variable-parent product. Scope the
+		// search to this test's own detail panel instead.
+		$panel_marker = 'wc-io-detail-panel-' . $product->get_id() . '"';
+		$panel_start  = strpos( $html, $panel_marker );
+		$this->assertNotFalse( $panel_start, 'This product\'s own detail panel must be present.' );
+
+		$header_start = strpos( $html, '<thead><tr>', $panel_start );
+		$header_end   = strpos( $html, '</tr></thead>', $header_start );
+		$this->assertNotFalse( $header_start );
+		$this->assertNotFalse( $header_end );
+		$header = substr( $html, $header_start, $header_end - $header_start );
+
+		$expected_order = array( 'PO number', 'Supplier', 'Status', 'Outstanding', 'Expected date', 'Confidence', 'Delayed' );
+		$last_pos       = -1;
+		foreach ( $expected_order as $label ) {
+			$pos = strpos( $header, $label );
+			$this->assertNotFalse( $pos, "Drilldown header must contain the column \"$label\"." );
+			$this->assertGreaterThan( $last_pos, $pos, "Column \"$label\" must appear after the previous column, per the BR-M16-8 fixed order." );
+			$last_pos = $pos;
+		}
+	}
+
+	/**
+	 * The Supplier column displays the PO's own denormalized
+	 * supplier_name_snapshot -- never a live Suppliers lookup -- and
+	 * continues to display it unchanged even after the supplier is later
+	 * archived (BR-M16-6).
+	 */
+	public function test_drilldown_supplier_column_shows_snapshot_and_survives_archive() {
+		$supplier = $this->create_supplier( array( 'name' => 'M16 Snapshot Supplier' ) );
+		$product  = $this->create_simple_product();
+		// create_purchase_order() calls the raw repository create_draft(),
+		// which (unlike WC_Inventory_Overview_PO_Service::create_draft())
+		// does not auto-populate supplier_name_snapshot from the supplier
+		// row -- pass it explicitly, matching the same pattern used by
+		// tests/unit/purchase-orders/test-po-numbering.php and
+		// test-po-architecture.php.
+		$po = $this->create_purchase_order(
+			array(
+				'supplier_id'             => (int) $supplier['id'],
+				'supplier_name_snapshot'  => 'M16 Snapshot Supplier',
+			)
+		);
+		$this->add_po_line( $po['id'], array( 'product_id' => $product->get_id(), 'qty_ordered' => 1 ) );
+		$this->place_po( $po['id'] );
+
+		WC_Inventory_Overview_Suppliers::archive( (int) $supplier['id'] );
+
+		$table = $this->new_table();
+		$html  = $this->render_table_html( $table );
+
+		$this->assertStringContainsString( 'M16 Snapshot Supplier', $html, 'Archived supplier\'s name must still render from the PO snapshot (BR-M16-6).' );
+	}
+
+	/**
+	 * The Status column uses WC_Inventory_Overview_PO_Statuses::label() --
+	 * the same shared label map used elsewhere in the codebase, never a
+	 * locally re-derived label (BR-M16-7).
+	 */
+	public function test_drilldown_status_column_uses_shared_label() {
+		$product = $this->create_simple_product();
+		$po      = $this->create_purchase_order();
+		$this->add_po_line( $po['id'], array( 'product_id' => $product->get_id(), 'qty_ordered' => 1 ) );
+		$this->place_po( $po['id'] );
+
+		$table = $this->new_table();
+		$html  = $this->render_table_html( $table );
+
+		$expected_label = WC_Inventory_Overview_PO_Statuses::label( WC_Inventory_Overview_PO_Statuses::PLACED );
+		$this->assertStringContainsString( $expected_label, $html );
+	}
+
 	/**
 	 * Low-stock badge remains visible alongside Incoming -- composable, not
 	 * mutually exclusive states (D13/INV-5).

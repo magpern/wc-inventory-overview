@@ -423,6 +423,8 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 				pol.id AS line_id,
 				pol.po_id AS po_id,
 				po.po_number AS po_number,
+				po.supplier_name_snapshot AS supplier_name,
+				po.status AS po_status,
 				pol.product_id AS product_id,
 				pol.variation_id AS variation_id,
 				{$outstanding_expr} AS outstanding,

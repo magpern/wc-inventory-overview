@@ -2,14 +2,14 @@
 
 **Status: FROZEN.** This document freezes the *architectural boundaries* of
 WC Inventory Overview established by the completion of Milestones M0–M7 —
-kept as the document's name and identity, since M8–M15 (below)
+kept as the document's name and identity, since M8–M16 (below)
 each closed gaps or added an Internal-only sole-owner (or narrow internal
 value/policy) boundary, or presentation surface, within this same frozen shape
 without changing any boundary recorded here (per §12 rule 7's update-in-place
 instruction, no
-`ARCHITECTURE_BASELINE_v1.25.0.md`/`v1.26.0.md`/`v1.27.0.md`/`v1.28.0.md`/`v1.29.0.md`/`v1.30.0.md`/`v1.31.0.md`/`v1.32.0.md`
+`ARCHITECTURE_BASELINE_v1.25.0.md`/`v1.26.0.md`/`v1.27.0.md`/`v1.28.0.md`/`v1.29.0.md`/`v1.30.0.md`/`v1.31.0.md`/`v1.32.0.md`/`v1.33.0.md`
 was created). It is the official architectural baseline for every future
-milestone (M16 onward).
+milestone (M17 onward).
 
 **Documentation-currency note (recorded during M15 discovery):** this
 document was not updated in place for M14 at the time of M14's own freeze —
@@ -19,12 +19,12 @@ recorded for M13 or earlier changed as part of this correction.
 
 | | |
 |---|---|
-| **Plugin version** | 1.32.0 (published, tag `v1.32.0` — architectural boundaries themselves were frozen at 1.24.0/M7; M8–M15 each stayed inside that shape) |
+| **Plugin version** | 1.33.0 (feature-branch-only, unreleased — M16 implemented and frozen on `feature/m16-po-expected-date-delay-transparency`, `main` remains at `v1.32.0`; architectural boundaries themselves were frozen at 1.24.0/M7, M8–M16 each stayed inside that shape) |
 | **Schema version (`DB_VERSION`)** | 10 |
-| **Milestones complete** | M0 – M15 (M15 published, third milestone of the feature train opened after the M9–M12 train released as v1.29.0, released together as v1.32.0) |
-| **Baseline date** | 2026-08-08 (M7 freeze); updated in place through M15 2026-08-11 |
-| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M15 status snapshot** of that same architecture, plus the M1–M15 rules layered on top of it. |
-| **Governs** | All milestones from M16 onward; next process step is planning M16+, only with explicit approval |
+| **Milestones complete** | M0 – M16 (M16 frozen but unreleased, first milestone of a new, not-yet-named post-v1.32.0 train) |
+| **Baseline date** | 2026-08-08 (M7 freeze); updated in place through M16 2026-08-11 |
+| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M16 status snapshot** of that same architecture, plus the M1–M16 rules layered on top of it. |
+| **Governs** | All milestones from M17 onward; next process step is the release-timing/train decision for M16, then planning M17+ |
 
 This is a **documentation-only** artifact. It changes no code, no schema, no
 public API, and no `DB_VERSION`.
@@ -147,6 +147,7 @@ contract.
 | M13 | Printable Purchase Order | 1.30.0 | v10 (unchanged) | Presentation-only: new `PO_Print_Renderer` (Internal, INV-M13-2) renders a standalone, read-only, printable HTML view of a Purchase Order from an already-composed model, composed by `PO_Admin::handle_print()` (new `admin_post_wc_io_po_print` action) using only the three existing read owners (`Purchase_Orders`, `Purchase_Order_Lines`, `Suppliers`) plus `PO_Statuses::label()` — no new domain owner (§4/§6 unchanged). Requires `VIEW_PO` + a PO-and-action-scoped nonce before any data is read (INV-M13-4). Printable for every status except `draft`. No schema change, no mutation, no new public API, no new capability, no new hook. First milestone of the M13–M15 feature train. |
 | M14 | Supplier Order History | 1.31.0 | v10 (unchanged) | Presentation + new Internal sole-owner boundary: new `Supplier_Order_History_Service` (Internal, INV-M14-3) composes a paginated, status-inclusive (INV-M14-4) list of a supplier's Purchase Orders exclusively through `Purchase_Orders::count()`/`list()`/`values_bulk()` (new additive method on the existing read owner) — no new domain owner. Rendered as an "Order History" section on the Supplier detail screen, reusing the existing `manage_woocommerce` gate; dedicated `wc_io_supplier_order_history_page` pagination parameter. Each row's Ordered/Received Value is PO-line cost only, in that PO's own currency, never summed across POs or currencies (INV-M14-2). Zero mutation (INV-M14-1), zero schema change, zero new public API, zero new capability, zero new hook. Second milestone of the M13–M15 feature train. |
 | M15 | Supplier Spend Summary | 1.32.0 | v10 (unchanged) | Presentation + new Internal sole-owner boundary: new `Supplier_Spend_Service` (Internal, INV-M15-3) owns the "committed spend" status rule (BR-M15-1 — `placed`/`partially_received`/`received`/`closed_short` only, `draft`/`cancelled` always excluded, INV-M15-1) and composes a per-currency spend summary exclusively through the new, self-contained `Purchase_Orders::spend_summary_for_supplier()` (does not compose through `list()`) — no new domain owner. Rendered as a "Spend Summary" section on the Supplier detail screen, before Observed Lead Time / Order History, reusing the existing `manage_woocommerce` gate. Currencies never blended or converted (INV-M15-2); `po_count` is `COUNT(DISTINCT po.id)` scoped per currency row (BR-M15-5). A true database-level aggregate — exactly 1 query regardless of history size, unlike M14's page-scoped 3-query contract. Zero mutation, zero schema change, zero new public API, zero new capability, zero new hook. Completes the M13–M15 feature train; released as v1.32.0. |
+| M16 | PO Expected-Date & Delay Transparency | 1.33.0 | v10 (unchanged) | Presentation-only, no new domain owner. Three additive surfaces: (1) `Expected_Date_Suggestion_Service`'s return shape gains `sample_count`/`average_days` (BR-M16-2), sourced from the same already-fetched `Supplier_Lead_Time_Service` stats — no additional query, no duplicated computation — so the New PO screen can display suggestion provenance (BR-M16-1). (2) A Settings-tab field exposes the pre-existing `PO_Delay::OPTION_GRACE_DAYS` option through an explicit validate-or-preserve contract in `Settings::save_from_post()` (BR-M16-4) — invalid/missing input always preserves the stored value, deliberately not `absint()`-style coercion; `PO_Delay` remains the sole authority on how `grace_days` affects delay computation, unchanged. (3) The Inventory Position drilldown (M3) gains Supplier/Status columns via two additional `SELECT` columns on the already-whitelisted `query_open_lines()` query — the M3 sole-caller architecture guard needed zero changes. Zero domain/operational mutation (one pre-existing settings-option write only), zero schema change, zero new public API, zero new capability, zero new hook. First milestone of a new, not-yet-named post-v1.32.0 train; frozen but unreleased. |
 
 Full detail for each milestone: `docs/milestones/m{N}-implementation-plan.md`
 and the corresponding section of `docs/architecture-audit.md`.

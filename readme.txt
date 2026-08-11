@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.32.0
+Stable tag: 1.33.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,13 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.33.0 =
+* Milestone M16 — PO Expected-Date & Delay Transparency (first milestone of a new, unreleased post-1.32.0 train). Zero schema change (v10 unchanged), zero domain/operational mutation, zero new public API, zero new capability.
+* New PO screen: an advisory hint explains where a pre-filled Expected Date suggestion came from -- observed delivery history (with order count and average days) or the supplier's configured default.
+* New Settings field (Purchasing section): "PO delay grace period (days)", 0-365. Invalid or missing input always preserves the previous value -- never silently coerced into range.
+* Inventory Position drilldown gains Supplier and Status columns (after PO number, before Outstanding).
+* Not individually released -- implemented and frozen on a feature branch; release timing decided separately.
 
 = 1.32.0 =
 * Milestone M15 — Supplier Spend Summary (feature train). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.

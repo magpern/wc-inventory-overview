@@ -168,6 +168,8 @@ class Test_WC_IO_Expected_Date_Suggestion_Observations extends WC_Inventory_Over
 		$this->assertSame( 8, $suggestion['days'], 'Rounded average of 5 and 10 is 7.5, rounds to 8 (matches M9\'s own (int) round() convention).' );
 		$this->assertSame( WC_Inventory_Overview_PO_Confidence::ESTIMATED, $suggestion['confidence'] );
 		$this->assertSame( 'observed', $suggestion['source'], 'Observed must win over the supplier\'s own configured 20-day fallback once enough history exists.' );
+		$this->assertSame( 2, $suggestion['sample_count'], 'M16: evidence sample_count must match the two completed orders.' );
+		$this->assertSame( 8, $suggestion['average_days'], 'M16: evidence average_days must use the same (int) round() convention as days.' );
 	}
 
 	// -----------------------------------------------------------------
@@ -182,6 +184,8 @@ class Test_WC_IO_Expected_Date_Suggestion_Observations extends WC_Inventory_Over
 		$this->assertSame( 14, $suggestion['days'] );
 		$this->assertSame( WC_Inventory_Overview_PO_Confidence::ESTIMATED, $suggestion['confidence'] );
 		$this->assertSame( 'configured', $suggestion['source'] );
+		$this->assertNull( $suggestion['sample_count'] );
+		$this->assertNull( $suggestion['average_days'] );
 	}
 
 	/**
@@ -234,12 +238,18 @@ class Test_WC_IO_Expected_Date_Suggestion_Observations extends WC_Inventory_Over
 
 		$this->assertSame( 10, $bulk[ $observed_id ]['days'] );
 		$this->assertSame( 'observed', $bulk[ $observed_id ]['source'] );
+		$this->assertSame( 2, $bulk[ $observed_id ]['sample_count'] );
+		$this->assertSame( 10, $bulk[ $observed_id ]['average_days'] );
 
 		$this->assertSame( 6, $bulk[ (int) $configured_supplier['id'] ]['days'] );
 		$this->assertSame( 'configured', $bulk[ (int) $configured_supplier['id'] ]['source'] );
+		$this->assertNull( $bulk[ (int) $configured_supplier['id'] ]['sample_count'] );
+		$this->assertNull( $bulk[ (int) $configured_supplier['id'] ]['average_days'] );
 
 		$this->assertNull( $bulk[ (int) $no_data_supplier['id'] ]['days'] );
 		$this->assertSame( 'none', $bulk[ (int) $no_data_supplier['id'] ]['source'] );
+		$this->assertNull( $bulk[ (int) $no_data_supplier['id'] ]['sample_count'] );
+		$this->assertNull( $bulk[ (int) $no_data_supplier['id'] ]['average_days'] );
 
 		foreach ( $suppliers as $supplier ) {
 			$single = WC_Inventory_Overview_Expected_Date_Suggestion_Service::get_suggestion_for_supplier( $supplier );

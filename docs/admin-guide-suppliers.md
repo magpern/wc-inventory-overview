@@ -186,11 +186,21 @@ The suggested date is always `order date (or today) + N calendar days` — never
 
 This does not change Observed Lead Time itself (still a read-only report), and the suggestion engine never writes to Storefront Expected Delivery or invents its own persistence. **Once you save the Purchase Order**, the Expected Date and Confidence you accepted (or edited) are ordinary frozen PO header fields — the same fields M11’s On-Time Delivery Rate later judges when the order is completed. Accepting an Estimated suggestion therefore can become part of future on-time history; that is intentional (historical rating of the date that was on the order), not a feedback loop into the suggestion engine.
 
+### Suggestion Provenance (M16)
+
+Whenever a suggestion is pre-filled, a short line of text beneath the Expected Date/Confidence fields explains **where the number came from**, so you don't have to guess how much to trust it:
+
+- **From observed history**: "Suggested from this supplier's delivery history (N orders, avg D days)." — N is the number of fully-received orders behind the figure, D is the same rounded average shown on the Observed Lead Time panel.
+- **From the configured default**: "Suggested from supplier's configured default (D days)." — D is the supplier's own **Default lead time (days)** field.
+- **No suggestion**: no message is shown (matches case 3 above).
+
+This text is purely informational — it is never submitted with the form and has no effect on what gets saved. As soon as you type into either the Expected Date or Confidence field, the hint clears (the suggestion no longer describes what you're about to save).
+
 ### On-Time Delivery Rate (M11)
 
 The **On-Time Delivery Rate** row, alongside Observed Lead Time on the supplier edit screen, answers a different question than lead time does: not "how fast does this supplier typically deliver," but "how often did they meet the date they were judged against."
 
-**How it's computed:** of this supplier's completed orders that also had a **known** expected date (Exact or Estimated confidence — orders with Unknown confidence are left out entirely, never assumed late), what fraction were fully received on or before that date? A grace period, if you've configured one (Settings), is applied the same way it already is for the "Delayed" flag elsewhere in the platform — so "on time" here and "not delayed" there always agree.
+**How it's computed:** of this supplier's completed orders that also had a **known** expected date (Exact or Estimated confidence — orders with Unknown confidence are left out entirely, never assumed late), what fraction were fully received on or before that date? A grace period, if you've configured one (**Inventory & Profit → Settings → Purchasing → PO delay grace period (days)**, M16), is applied the same way it already is for the "Delayed" flag elsewhere in the platform — so "on time" here and "not delayed" there always agree. Accepts 0–365 days; invalid input is ignored and the previous value is kept.
 
 Shown as a rounded percentage plus the number of rated orders it's based on, e.g. "83% — Based on 6 rated orders." Below 2 rated orders, the panel shows "Not enough data yet" instead — independently of whether Observed Lead Time itself has enough data, since a supplier can have several completed orders but few (or none) with a known expected date on them.
 
@@ -258,6 +268,7 @@ the purchasing platform built on top of Suppliers is fully shipped:
 ✓ **Supplier list performance columns** (M12): Observed Lead Time and On-Time Rate on the Suppliers list for at-a-glance comparison
 ✓ **Order History** (M14): every Purchase Order for a supplier, every status included, with per-order Ordered/Received Value in that order's own currency.
 ✓ **Spend Summary** (M15): per-currency totals of Ordered/Received Value across a supplier's committed Purchase Orders.
+✓ **Expected-Date & Delay Transparency** (M16): a provenance hint explaining where each Expected-Date suggestion came from, a Settings field to configure the "Delayed" grace period, and Supplier/Status columns on the Inventory Position drilldown.
 
 ### Not Yet Available
 
