@@ -200,6 +200,31 @@ Like Observed Lead Time, this is a read-only report computed from your purchasin
 
 The Purchasing → Suppliers **list** also shows **Observed Lead Time** and **On-Time Rate** as read-only columns (after the configured Lead Time column), so you can compare suppliers without opening each one. The figures use the same history and the same “not enough data” thresholds as the edit screen; when there is not enough history yet, the cell shows an em dash (—). These columns are not sortable.
 
+### Order History (M14)
+
+Below the Observed Lead Time panel on the supplier edit screen, an **Order History** section lists every Purchase Order ever placed with this supplier — newest first, paginated, and **every status included** (draft, placed, partially received, received, cancelled, and closed short all appear; nothing is filtered out).
+
+Each row shows:
+
+- **PO Number** — linked to that Purchase Order's own detail screen.
+- **Order Date** and **Status**.
+- **Expected Date**.
+- **Ordered Value** and **Received Value (PO Cost)** — both computed from the PO's own lines (`quantity × unit cost`) in that PO's own currency.
+
+**This is not a spend report.** Ordered/Received Value is the price you committed to on that specific Purchase Order — it excludes landed costs (freight, duty, etc.), excludes the weighted-average inventory-value figure Goods Receipt posting maintains, and is never converted or totaled across orders. A supplier invoiced in more than one currency over time will show each order's own value in its own currency, side by side, never blended into one number. For the totaled view across a supplier's whole order history, see **Spend Summary** below.
+
+### Spend Summary (M15)
+
+Above the Observed Lead Time panel on the supplier edit screen, a **Spend Summary** section totals Ordered Value and Received Value (PO Cost) across this supplier's entire order history — one row per currency, plus a count of the committed Purchase Orders contributing to that row.
+
+Unlike Order History, Spend Summary only counts **committed** orders: **placed**, **partially received**, **received**, and **closed short**. **Draft** orders (nothing has actually been ordered yet) and **cancelled** orders (never fulfilled) are always excluded — they are not real spend.
+
+Currencies are **never blended or converted**. If this supplier has been ordered from in more than one currency, each currency gets its own row with its own totals; there is no single combined number. "Committed POs" in each row counts the distinct orders contributing to *that currency's* totals — since a single order can (rarely) contain lines in more than one currency, it is possible for one order to be counted once in more than one row; these counts are never meant to be added together across rows into a supplier-wide order count.
+
+A supplier with no committed orders yet (only drafts, only cancelled orders, or genuinely no orders at all) shows "No committed purchase orders yet for this supplier." instead of a table.
+
+Like Order History, this is a read-only report computed from your purchasing history — it cannot be edited, and it never includes landed costs or the weighted-average inventory-value figure Goods Receipt posting maintains. It answers "how much have we spent with this supplier" per currency; it is not a cross-supplier "top suppliers by spend" report, which remains a distinct, not-yet-built capability.
+
 ### Best Practice
 
 Set the **Default lead time** to a conservative middle value:
@@ -231,12 +256,13 @@ the purchasing platform built on top of Suppliers is fully shipped:
 ✓ **Expected-Date Suggestion** (M10): new Purchase Orders pre-fill Expected Date/Confidence from observed (or configured) lead time — always editable, never authoritative
 ✓ **On-Time Delivery Rate** (M11): read-only percentage of rated completed orders received on or before their expected date, alongside Observed Lead Time
 ✓ **Supplier list performance columns** (M12): Observed Lead Time and On-Time Rate on the Suppliers list for at-a-glance comparison
+✓ **Order History** (M14): every Purchase Order for a supplier, every status included, with per-order Ordered/Received Value in that order's own currency — implemented on the unreleased post-v1.29.0 feature train (development version `1.31.0`), not yet merged, tagged, or released.
+✓ **Spend Summary** (M15): per-currency totals of Ordered/Received Value across a supplier's committed Purchase Orders — implemented on the same unreleased post-v1.29.0 feature train (development version `1.32.0`), not yet merged, tagged, or released.
 
 ### Not Yet Available
 
 The following remain deferred to a future milestone:
 
-- **Supplier analytics**: Spend analysis and order history reporting. (Reliability scoring and list comparison are available — see On-Time Delivery Rate / M12 list columns.)
 - **Supplier merge tool**: Consolidating duplicate suppliers into one record is a manual process for now; a dedicated merge tool is planned.
 
 ---

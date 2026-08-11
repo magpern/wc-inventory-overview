@@ -357,8 +357,173 @@ class WC_Inventory_Overview_Purchasing_Page {
 				?>
 			</p>
 			<?php
+			$this->render_spend_summary_section( $supplier_id );
 			$this->render_observed_lead_time( $supplier_id, $supplier );
+			$this->render_order_history_section( $supplier_id );
 		}
+	}
+
+	/**
+	 * Read-only "Spend Summary" section (M15). Shows one row per currency
+	 * of total ordered/received value across this supplier's *committed*
+	 * Purchase Orders (BR-M15-1) -- placed, partially received, received,
+	 * or closed short only; draft and cancelled orders never contribute
+	 * (INV-M15-1). Currencies are never blended or converted (INV-M15-2)
+	 * -- via WC_Inventory_Overview_Supplier_Spend_Service, never a second
+	 * source of truth, never a mutation surface.
+	 *
+	 * @param int $supplier_id Supplier id.
+	 */
+	private function render_spend_summary_section( int $supplier_id ) {
+		$summary = WC_Inventory_Overview_Supplier_Spend_Service::get_summary( $supplier_id );
+		?>
+		<h3><?php esc_html_e( 'Spend Summary', 'wc-inventory-overview' ); ?></h3>
+		<?php
+		if ( empty( $summary ) ) {
+			echo '<p class="description">' . esc_html__( 'No committed purchase orders yet for this supplier.', 'wc-inventory-overview' ) . '</p>';
+			return;
+		}
+		?>
+		<table class="widefat striped wc-io-mini-table">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Currency', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Ordered Value', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Received Value (PO Cost)', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Committed POs', 'wc-inventory-overview' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $summary as $row ) : ?>
+					<tr>
+						<td><?php echo esc_html( $row['currency'] ); ?></td>
+						<td><?php echo esc_html( self::format_po_cost_value( $row['ordered_total'], $row['currency'] ) ); ?></td>
+						<td><?php echo esc_html( self::format_po_cost_value( $row['received_total'], $row['currency'] ) ); ?></td>
+						<td><?php echo esc_html( (string) $row['po_count'] ); ?></td>
+					</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<p class="description">
+			<?php esc_html_e( 'Totals include placed, partially received, received, and closed-short orders only; drafts and cancelled orders are excluded. Currencies are shown separately and never combined.', 'wc-inventory-overview' ); ?>
+			<br>
+			<?php esc_html_e( '"Committed POs" counts distinct orders contributing to that currency row; a PO with lines in more than one currency may be counted in more than one row.', 'wc-inventory-overview' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Read-only "Order History" section (M14). Lists every Purchase Order
+	 * for this supplier, every status included (INV-M14-4 — draft and
+	 * terminal statuses appear too, unlike M13's print feature), newest
+	 * order_date first, via WC_Inventory_Overview_Supplier_Order_History_Service
+	 * — never a second source of truth, never a mutation surface.
+	 *
+	 * @param int $supplier_id Supplier id.
+	 */
+	private function render_order_history_section( int $supplier_id ) {
+		$raw_page = isset( $_GET['wc_io_supplier_order_history_page'] ) ? absint( $_GET['wc_io_supplier_order_history_page'] ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$page     = max( 1, $raw_page );
+
+		$history = WC_Inventory_Overview_Supplier_Order_History_Service::get_page( $supplier_id, $page );
+		?>
+		<h3><?php esc_html_e( 'Order History', 'wc-inventory-overview' ); ?></h3>
+		<?php
+		if ( 0 === $history['count'] ) {
+			echo '<p class="description">' . esc_html__( 'No purchase orders yet for this supplier.', 'wc-inventory-overview' ) . '</p>';
+			return;
+		}
+
+		if ( empty( $history['rows'] ) ) {
+			echo '<p class="description">' . esc_html__( 'No results on this page.', 'wc-inventory-overview' ) . '</p>';
+			return;
+		}
+		?>
+		<table class="widefat striped wc-io-mini-table">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'PO Number', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Order Date', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Expected Date', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Ordered Value', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Received Value (PO Cost)', 'wc-inventory-overview' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $history['rows'] as $row ) : ?>
+					<tr>
+						<td><a href="<?php echo esc_url( WC_Inventory_Overview_PO_Admin::detail_url( $row['po_id'] ) ); ?>"><?php echo esc_html( $row['po_number'] ); ?></a></td>
+						<td><?php echo esc_html( ! empty( $row['order_date'] ) ? (string) $row['order_date'] : '—' ); ?></td>
+						<td><?php echo esc_html( WC_Inventory_Overview_PO_Statuses::label( $row['status'] ) ); ?></td>
+						<td><?php echo esc_html( ! empty( $row['expected_date'] ) ? (string) $row['expected_date'] : '—' ); ?></td>
+						<td><?php echo esc_html( self::format_po_cost_value( $row['ordered_value'], $row['currency'] ) ); ?></td>
+						<td><?php echo esc_html( self::format_po_cost_value( $row['received_value'], $row['currency'] ) ); ?></td>
+					</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php
+		$this->render_order_history_pagination( $history );
+	}
+
+	/**
+	 * Previous/Next pagination for the Order History section, using its own
+	 * dedicated wc_io_supplier_order_history_page query arg (never the
+	 * generic "paged", which other current/future paginated sections on
+	 * this page may independently use) and preserving the rest of the
+	 * current Supplier detail URL/context via add_query_arg().
+	 *
+	 * @param array{rows:array,count:int,page:int,per_page:int} $history Result of get_page().
+	 */
+	private function render_order_history_pagination( array $history ) {
+		$total_pages = (int) max( 1, ceil( $history['count'] / $history['per_page'] ) );
+		if ( $total_pages <= 1 ) {
+			return;
+		}
+
+		$current_url = remove_query_arg( 'wc_io_supplier_order_history_page' );
+		?>
+		<p class="wc-io-order-history-pagination">
+			<?php
+			if ( $history['page'] > 1 ) {
+				$prev_url = add_query_arg( 'wc_io_supplier_order_history_page', $history['page'] - 1, $current_url );
+				echo '<a href="' . esc_url( $prev_url ) . '">&laquo; ' . esc_html__( 'Previous', 'wc-inventory-overview' ) . '</a> ';
+			}
+			echo esc_html(
+				sprintf(
+					/* translators: 1: current page number, 2: total number of pages. */
+					__( 'Page %1$d of %2$d', 'wc-inventory-overview' ),
+					$history['page'],
+					$total_pages
+				)
+			);
+			if ( $history['page'] < $total_pages ) {
+				$next_url = add_query_arg( 'wc_io_supplier_order_history_page', $history['page'] + 1, $current_url );
+				echo ' <a href="' . esc_url( $next_url ) . '">' . esc_html__( 'Next', 'wc-inventory-overview' ) . ' &raquo;</a>';
+			}
+			?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * PO-cost-only money formatting for the Order History section: plain
+	 * number_format(..., 2) plus the PO's own bare currency code — never
+	 * wc_price() (store-currency-only) and never any landed-cost/weighted-
+	 * average figure (INV-M14-2). Same formatting convention as
+	 * WC_Inventory_Overview_PO_Print_Renderer's private money() helper,
+	 * duplicated here as a one-line display formatter (not a business
+	 * computation) because that method is private to its own class.
+	 *
+	 * @param float  $amount   Ordered or received PO-cost value.
+	 * @param string $currency PO's own currency code.
+	 * @return string
+	 */
+	private static function format_po_cost_value( float $amount, string $currency ): string {
+		$formatted = number_format( $amount, 2 );
+		$currency  = trim( $currency );
+		return '' === $currency ? $formatted : $formatted . ' ' . $currency;
 	}
 
 	/**

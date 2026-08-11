@@ -293,6 +293,45 @@ No additional steps. The release is a pure-tooling change with no functional or 
 6. **Prior surfaces unaffected:** supplier detail (M9/M11), PO expected-date suggestion (M10), and `PO_Delay` behavior unchanged.
 7. **Rollback awareness:** code rollback 1.29.0 → 1.28.0 is unconditionally safe (see `docs/rollback-plan.md`'s M12 note).
 
+### M13: Printable Purchase Order
+
+**M13 opens a new unreleased feature train** (the M9–M12 train closed and released as `v1.29.0`) — the steps below apply once this new train is tagged and released; they are not performed at M13's own implementation completion. After M13 freeze, the next authorized process step is planning M14, or closing this new train, only with explicit approval.
+
+0. **Release notes file:** no standalone `docs/GITHUB_RELEASE_NOTES_1.30.0.md` at this stage — produced at the future WP6 batched release for whichever version tags this train.
+1. **No schema change:** confirm `DB_VERSION` is still `'10'`. M13 adds no table, column, or index.
+2. **Print feature verified:** "Print" link present for `placed`/`partially_received`/`received`/`cancelled`/`closed_short`, absent for `draft`; printed document contains all approved header/supplier/line/total fields; a deleted-product line and an unresolvable-supplier PO both still print correctly.
+3. **Security verified:** capability + PO-scoped nonce both required before any data renders; missing/invalid/wrongly-scoped nonce, unauthorized user, nonexistent PO, and draft PO are all denied server-side.
+4. **Architecture guards pass:** filter includes `Test_WC_IO_PO_Print_` — 0 failures.
+5. **Full test suite green:** unit, M1–M13-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+6. **Prior surfaces unaffected:** existing PO Admin save/place/cancel/close-short/duplicate/receiving-history/timeline behavior unchanged (pre-existing `Test_WC_IO_PO_Admin` suite green unmodified).
+7. **Rollback awareness:** M13 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (renderer is pure, guard-enforced). A code rollback is unconditionally safe (see `docs/rollback-plan.md`'s M13 note).
+
+### M14: Supplier Order History
+
+**M14 is the second milestone of the same unreleased feature train M13 opened** — the steps below apply once this train is tagged and released; they are not performed at M14's own implementation completion. After M14 freeze, the next authorized process step is planning M15, or closing this train, only with explicit approval.
+
+0. **Release notes file:** no standalone `docs/GITHUB_RELEASE_NOTES_1.31.0.md` at this stage — produced at the future WP6 batched release for whichever version tags this train.
+1. **No schema change:** confirm `DB_VERSION` is still `'10'`. M14 adds no table, column, or index.
+2. **Order History verified:** "Order History" section on the Supplier detail screen lists every Purchase Order for that supplier — every status included — newest `order_date` first, paginated via `wc_io_supplier_order_history_page`; each row's Ordered/Received Value matches the PO's own line data in that PO's own currency.
+3. **Currency isolation verified:** a multi-currency supplier's rows never blend or sum values across currencies.
+4. **Architecture guards pass:** filter includes `Test_WC_IO_Supplier_Order_History_Architecture` — 0 failures.
+5. **Full test suite green:** unit, M1–M14-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+6. **Prior surfaces unaffected:** Observed Lead Time, On-Time Rate, PO Print (M13), and PO Admin behavior unchanged.
+7. **Rollback awareness:** M14 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (service is read-only, guard-enforced). A code rollback is unconditionally safe (see `docs/rollback-plan.md`'s M14 note).
+
+### M15: Supplier Spend Summary
+
+**M15 is the third milestone of the same unreleased feature train M13 opened** — the steps below apply once this train is tagged and released; they are not performed at M15's own implementation completion. After M15 freeze, the next authorized process step is **feature-train closure (WP6)**, or planning M16, only with explicit approval.
+
+0. **Release notes file:** no standalone `docs/GITHUB_RELEASE_NOTES_1.32.0.md` at this stage — produced at the future WP6 batched release for whichever version tags this train (expected: `v1.32.0`, bundling M13+M14+M15).
+1. **No schema change:** confirm `DB_VERSION` is still `'10'`. M15 adds no table, column, or index.
+2. **Spend Summary verified:** "Spend Summary" section on the Supplier detail screen, above Observed Lead Time, shows one row per currency (Ordered Value / Received Value (PO Cost) / Committed POs) for a supplier's committed (`placed`/`partially_received`/`received`/`closed_short`) Purchase Orders; `draft`/`cancelled` POs never contribute; a supplier with zero committed POs shows the empty-state message.
+3. **Currency isolation and `po_count` semantics verified:** a multi-currency supplier's rows never blend or sum values across currencies; `po_count` is `COUNT(DISTINCT po.id)` scoped to each currency row.
+4. **Architecture guards pass:** filter includes `Test_WC_IO_Supplier_Spend_Architecture` — 0 failures.
+5. **Full test suite green:** unit, M1–M15-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+6. **Prior surfaces unaffected:** Observed Lead Time, Order History (M14), PO Print (M13), and PO Admin behavior unchanged.
+7. **Rollback awareness:** M15 is code/test-only — no data written, no schema changed, no mutation anywhere in its surface (aggregate query is read-only, guard-enforced). A code rollback is unconditionally safe (see `docs/rollback-plan.md`'s M15 note).
+
 ## Post-release communication
 
 After a successful release:
