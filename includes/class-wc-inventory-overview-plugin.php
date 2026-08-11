@@ -719,6 +719,7 @@ class WC_Inventory_Overview_Plugin {
 		$neg_hi      = WC_Inventory_Overview_Settings::highlight_negative_profit();
 		$def_cur     = WC_Inventory_Overview_Settings::get_default_purchase_currency();
 		$exp_deliv   = WC_Inventory_Overview_Settings::expected_delivery_renderer_enabled();
+		$grace_days  = WC_Inventory_Overview_Settings::get_po_delay_grace_days();
 
 		echo '<h2 class="wp-heading-inline wc-io-tab-panel-title">' . esc_html__( 'Settings', 'wc-inventory-overview' ) . '</h2>';
 		echo '<p class="description">' . esc_html__( 'Configure how snapshots, costs, shipping, reporting ranges, and low-stock thresholds behave across Inventory & Profit.', 'wc-inventory-overview' ) . '</p>';
@@ -806,6 +807,15 @@ class WC_Inventory_Overview_Plugin {
 		echo '<tr><th scope="row"><label for="wc-io-low-threshold">' . esc_html__( 'Default low stock threshold', 'wc-inventory-overview' ) . '</label></th><td>';
 		echo '<input type="number" class="small-text" min="0" step="1" name="wc_io_default_low_stock_threshold" id="wc-io-low-threshold" value="' . esc_attr( (string) $low_def ) . '" />';
 		echo '<p class="description">' . esc_html__( 'Used for low-stock counts and badges when a product has no explicit low stock amount set.', 'wc-inventory-overview' ) . '</p></td></tr>';
+
+		echo '</tbody></table>';
+
+		echo '<h3>' . esc_html__( 'Purchasing', 'wc-inventory-overview' ) . '</h3>';
+		echo '<table class="form-table" role="presentation"><tbody>';
+
+		echo '<tr><th scope="row"><label for="wc-io-po-delay-grace-days">' . esc_html__( 'PO delay grace period (days)', 'wc-inventory-overview' ) . '</label></th><td>';
+		echo '<input type="number" class="small-text" min="0" max="365" step="1" name="wc_io_po_delay_grace_days" id="wc-io-po-delay-grace-days" value="' . esc_attr( (string) $grace_days ) . '" />';
+		echo '<p class="description">' . esc_html__( 'A Purchase Order line is only flagged "delayed" this many days after its expected date. Accepts 0-365. Invalid input is ignored and the previous value is kept.', 'wc-inventory-overview' ) . '</p></td></tr>';
 
 		echo '</tbody></table>';
 

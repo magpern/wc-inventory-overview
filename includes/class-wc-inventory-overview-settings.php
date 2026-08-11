@@ -405,6 +405,18 @@ class WC_Inventory_Overview_Settings {
 	}
 
 	/**
+	 * PO delay grace-days (M16, BR-M16-4/BR-M16-5). Reads the existing
+	 * WC_Inventory_Overview_PO_Delay::OPTION_GRACE_DAYS option directly --
+	 * this is a UI/persistence surface for that option, not a duplicate
+	 * of it.
+	 *
+	 * @return int 0-365
+	 */
+	public static function get_po_delay_grace_days() {
+		return WC_Inventory_Overview_PO_Delay::grace_days_from_option();
+	}
+
+	/**
 	 * @return string[]
 	 */
 	public static function allowed_purchase_currencies() {
@@ -474,7 +486,46 @@ class WC_Inventory_Overview_Settings {
 
 		update_option( self::OPTION_EXPECTED_DELIVERY_RENDERER_ENABLED, self::normalize_yes_no( $post, 'wc_io_expected_delivery_renderer_enabled' ), false );
 
+		self::maybe_save_po_delay_grace_days( $post );
+
 		return true;
+	}
+
+	/**
+	 * M16 (BR-M16-4): explicit validate-or-preserve contract for
+	 * WC_Inventory_Overview_PO_Delay::OPTION_GRACE_DAYS. Deliberately not
+	 * absint()-style coercion (which would silently turn e.g. -5 into 5) --
+	 * any invalid or missing submission leaves the previously stored value
+	 * completely untouched (no update_option() call at all), never
+	 * clamped/coerced into range. 0 is a valid, saveable value.
+	 *
+	 * @param array<string, mixed> $post POST data.
+	 */
+	private static function maybe_save_po_delay_grace_days( array $post ) {
+		if ( ! isset( $post['wc_io_po_delay_grace_days'] ) ) {
+			return;
+		}
+
+		$raw = $post['wc_io_po_delay_grace_days'];
+
+		if ( is_array( $raw ) || ! is_numeric( $raw ) ) {
+			return;
+		}
+
+		// Reject non-clean integers (decimals, scientific notation, stray
+		// characters) -- a value only round-trips through (int) casting
+		// without loss if it was already a clean integer string.
+		if ( (string) (int) $raw !== trim( (string) $raw ) ) {
+			return;
+		}
+
+		$value = (int) $raw;
+
+		if ( $value < 0 || $value > 365 ) {
+			return;
+		}
+
+		update_option( WC_Inventory_Overview_PO_Delay::OPTION_GRACE_DAYS, $value, false );
 	}
 
 	/**
