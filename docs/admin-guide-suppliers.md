@@ -54,7 +54,8 @@ Archiving hides a supplier from the active list and from autocomplete suggestion
 **When to archive:**
 - The supplier is no longer used (no new orders expected).
 - The business relationship has ended.
-- Duplicate or merged suppliers (consolidate into one, archive the old one).
+
+For duplicate suppliers, use **Merge a Supplier** below instead of archiving — a merge reassigns all historical purchase orders and receipts to the surviving supplier, which a plain archive does not do.
 
 Archived suppliers remain fully searchable and accessible in historical reports; they simply don't appear in active purchasing workflows.
 
@@ -66,6 +67,31 @@ If you archive a supplier by mistake, or if you later restart a relationship:
 2. Click **Reactivate** on the supplier.
 
 The supplier returns to the Active list and is available for new purchase orders immediately.
+
+**Note:** A supplier that has been *merged* into another supplier (see below) can never be reactivated — this is different from an ordinary archive, and is permanent.
+
+### Merge a Supplier
+
+If you have two supplier records for the same real-world supplier (e.g., created twice by mistake, or a rename that should have been an edit instead), merging consolidates them: every Purchase Order and Goods Receipt that currently references the duplicate ("source") supplier is reassigned to the ("target") supplier you choose, in a single all-or-nothing operation.
+
+**This is irreversible.** Before merging, confirm you have the right source and target — there is no "undo merge."
+
+1. Open the **source** supplier (the duplicate you want to consolidate away) — it can be either Active or Archived.
+2. Scroll to the **Merge into another supplier** section.
+3. Search for and select the **target** supplier (the one that should survive). Only active, not-already-merged suppliers appear in this list.
+4. Type the source supplier's exact name into the confirmation field. The **Merge Supplier** button stays disabled until the typed text matches exactly.
+5. Click **Merge Supplier**.
+
+**What happens:**
+- Every Purchase Order and Goods Receipt currently pointing at the source supplier — regardless of status (draft, placed, received, posted, voided, etc.) — now points at the target supplier.
+- The source supplier is archived and permanently marked as merged. It can never be reactivated, never appears in supplier search again, and can never be used as a source or target in another merge.
+- The target supplier's own details (name, currency, contact info, notes) are **never changed** by the merge.
+- **Historical documents are not rewritten.** A Purchase Order or Goods Receipt that already displayed "Nature Supply AB" before the merge continues to display "Nature Supply AB" on its own printed/historical view — only the *live* supplier link moves. This preserves an accurate record of who you were dealing with at the time.
+- Observed Lead Time, On-Time Rate, Order History, and Spend Summary for the target supplier immediately include everything that used to belong to the source — no separate recalculation step is needed.
+
+**Who can merge:** requires the same purchasing permission level as other supplier actions (typically Shop Manager or Administrator).
+
+**Before merging in production**, we recommend taking a database backup — see `docs/deployment-checklist.md` for the standard `wp db export` step already used before every release.
 
 ---
 
@@ -269,12 +295,7 @@ the purchasing platform built on top of Suppliers is fully shipped:
 ✓ **Order History** (M14): every Purchase Order for a supplier, every status included, with per-order Ordered/Received Value in that order's own currency.
 ✓ **Spend Summary** (M15): per-currency totals of Ordered/Received Value across a supplier's committed Purchase Orders.
 ✓ **Expected-Date & Delay Transparency** (M16): a provenance hint explaining where each Expected-Date suggestion came from, a Settings field to configure the "Delayed" grace period, and Supplier/Status columns on the Inventory Position drilldown.
-
-### Not Yet Available
-
-The following remain deferred to a future milestone:
-
-- **Supplier merge tool**: Consolidating duplicate suppliers into one record is a manual process for now; a dedicated merge tool is planned.
+✓ **Supplier Merge** (M17): consolidate a duplicate supplier into another with a dedicated, guarded merge tool — see [Merge a Supplier](#merge-a-supplier) below.
 
 ---
 

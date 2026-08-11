@@ -46,7 +46,7 @@ docker compose -f docker-compose.phpunit.yml up -d db
 docker compose -f docker-compose.phpunit.yml run --rm phpunit
 ```
 
-The default run filters the M1–M16-focused blocking suite (PO, schema, suppliers, DB-transaction, Inventory Position, Goods Receipt, batch migration, expected delivery, supplier lead time, expected-date suggestion, expected deadline, on-time rate, supplier order history, supplier spend, settings, plus architecture/conformance guards). Pass explicit PHPUnit args to override:
+The default run filters the M1–M17-focused blocking suite (PO, schema, suppliers, DB-transaction, Inventory Position, Goods Receipt, batch migration, expected delivery, supplier lead time, expected-date suggestion, expected deadline, on-time rate, supplier order history, supplier spend, settings, supplier merge, plus architecture/conformance guards). Pass explicit PHPUnit args to override:
 
 ```bash
 docker compose -f docker-compose.phpunit.yml run --rm phpunit --testsuite=unit
@@ -185,7 +185,7 @@ GitHub Actions workflows:
 | Workflow | Trigger | Gates |
 |----------|---------|-------|
 | `.github/workflows/ci.yml` | push/PR to `main` | PHP syntax lint on all `.php` files; release ZIP build via `scripts/build-zip.sh`; `scripts/release-audit.sh --development` (feature-train compatible — does **not** require per-version GitHub release notes) |
-| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | `lint`: PHP Parallel Lint (blocking). `phpunit`: unit suite (blocking) + M1–M16-focused suite (blocking) + cumulative integration suite (blocking). |
+| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | `lint`: PHP Parallel Lint (blocking). `phpunit`: unit suite (blocking) + M1–M17-focused suite (blocking) + cumulative integration suite (blocking). |
 
 **PHPCS is not CI-gated today** — run locally before merge:
 `./vendor/bin/phpcs --standard=phpcs.xml.dist` after `composer install` (or
@@ -197,7 +197,7 @@ The `phpunit` CI job runs three PHPUnit invocations against the same
 so CI and local results are identical by construction:
 
 1. **Unit suite** (`--testsuite unit`) — must pass. Counts rise with each milestone's own unit coverage (most recently M15's `spend_summary_for_supplier()`/`Supplier_Spend_Service` tests); require 0 failures / 0 risky.
-2. **M1–M16-focused suite** (default `run-phpunit.sh` filter — see that script for the exact class-name regex and the trailing-underscore trap notes) — must pass; this is the suite that gates milestone changes specifically. Each milestone with a distinct class-name prefix is listed explicitly in that filter (e.g. M13's `Test_WC_IO_PO_Print_`, M14's `Test_WC_IO_Supplier_Order_History_`, M15's `Test_WC_IO_Supplier_Spend_`, M16's `Test_WC_IO_Settings_`) so a future rename can't silently drop coverage; confirmed via `--list-tests` that all such classes are actually discovered, not merely assumed from the regex. Require 0 failures / 0 risky.
+2. **M1–M17-focused suite** (default `run-phpunit.sh` filter — see that script for the exact class-name regex and the trailing-underscore trap notes) — must pass; this is the suite that gates milestone changes specifically. Each milestone with a distinct class-name prefix is listed explicitly in that filter (e.g. M13's `Test_WC_IO_PO_Print_`, M14's `Test_WC_IO_Supplier_Order_History_`, M15's `Test_WC_IO_Supplier_Spend_`, M16's `Test_WC_IO_Settings_`, M17's `Test_WC_IO_Supplier_Merge_`/`Test_WC_IO_Schema_V11_Upgrade`) so a future rename can't silently drop coverage; confirmed via `--list-tests` that all such classes are actually discovered, not merely assumed from the regex. Require 0 failures / 0 risky.
 3. **Cumulative integration suite** (`--testsuite integration`) — must pass with 0 errors / 0 failures / 0 skips / 0 risky. Includes the M0-era golden characterization tests plus all milestone integration coverage (some milestones' handler-simulation tests live under `tests/unit/<feature>/` alongside their class rather than in `tests/integration/`, which is reserved for larger multi-fixture "observation"/performance suites — see each milestone's own test-plan notes in `docs/milestones/`).
 
 Each PHPUnit invocation resets the MariaDB test database (`DROP DATABASE` / `CREATE DATABASE`) before WordPress's own install, so repeated local runs against a long-lived db container stay deterministic (see `tests/docker/run-phpunit.sh`).

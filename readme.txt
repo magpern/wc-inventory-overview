@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.33.0
+Stable tag: 1.34.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,15 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.34.0 =
+* Milestone M17 — Supplier Merge. Schema change (v10 -> v11): new `merged_into_supplier_id` column on `wc_io_suppliers`, new append-only `wc_io_supplier_merges` audit table.
+* New admin capability: merge a source supplier into a target supplier. All of the source's Purchase Orders and Goods Receipts (every status) are reassigned to the target in one atomic transaction; the source is archived and permanently marked as merged.
+* Merged suppliers can never be reactivated, never appear in supplier selection, and can never participate in another merge (as source or target).
+* Server-enforced typed confirmation: the admin must type the exact source supplier name; validated inside the locked transaction, independent of any client-side JS.
+* Historical documents (Purchase Order / Goods Receipt supplier name snapshots, inventory movement records) are never rewritten by a merge.
+* This is a schema-change / ownership-boundary-change milestone and releases standalone, not via a feature train.
+* Not individually released -- implemented and frozen on a feature branch; release timing decided separately.
 
 = 1.33.0 =
 * Milestone M16 — PO Expected-Date & Delay Transparency (first milestone of a new, unreleased post-1.32.0 train). Zero schema change (v10 unchanged), zero domain/operational mutation, zero new public API, zero new capability.

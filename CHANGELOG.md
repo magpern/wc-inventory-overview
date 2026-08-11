@@ -1,5 +1,32 @@
 # Changelog — WC Inventory Overview
 
+## [1.34.0] - 2026-08-11
+
+**Milestone M17 — Supplier Merge.** Administrative capability to irreversibly merge a source supplier into a target supplier, reassigning all associated Purchase Orders and Goods Receipts. Closes the "Not Yet Available: Supplier merge tool" backlog line carried in `docs/admin-guide-suppliers.md` since before M9. **Schema change: `DB_VERSION` 10 → 11** (new `merged_into_supplier_id` column on `wc_io_suppliers`, new append-only `wc_io_supplier_merges` audit table). This is a schema-change / ownership-boundary-change milestone and releases standalone, not via a feature train. Not individually released — implemented and frozen on a feature branch; release timing decided separately.
+
+### Added
+
+- **`WC_Inventory_Overview_Supplier_Merge_Service::merge()`** — the sole orchestrator of a supplier merge. Atomic, exception-safe (`try`/`catch(\Throwable)` guarantees rollback on every exit path), row-locks both suppliers in a fixed low-ID-first order (deadlock-prevention against a concurrent reverse-direction merge), bulk-reassigns `supplier_id` on every Purchase Order and Goods Receipt (all statuses, single `UPDATE` statement each), records one append-only audit row, and archives + permanently marks the source supplier as merged.
+- **Server-enforced typed confirmation** (BR-M17-16): the admin must type the exact source supplier name; compared with exact string equality against the freshly row-locked source's current name, inside the transaction — never trusts client-side JS.
+- **Permanent dissolution** (BR-M17-15): a merged supplier can never be reactivated (`Suppliers::reactivate()` hardened, its admin handler, and the Suppliers list-table row action all independently reject it), never appears in supplier selection, and can never participate in another merge as either source or target.
+- **Concurrent-create race closure** (BR-M17-18): `PO_Service::create_draft()` and `Goods_Receipt_Service::create_draft_from_post()` now lock and re-validate the chosen supplier's row (active, not merged) inside their own transaction before inserting — closes the window where a new draft could be created against a supplier that a concurrently-running merge has just dissolved.
+- New admin capability `WC_Inventory_Overview_Purchasing_Caps::MERGE_SUPPLIER`, default-mapped to `manage_woocommerce`, filterable like every other purchasing capability.
+- New "Merge into another supplier" section on the Supplier detail admin screen: Select2 AJAX target picker (excludes the source itself, archived suppliers, and already-merged suppliers), typed-confirmation field with a client-side submit gate (UX only — the server-side check is authoritative), and explicit irreversibility warning copy.
+- Already-merged suppliers render a static "merged into {target}" notice on their detail screen and a plain non-actionable "Merged into {target}" label in the Suppliers list table, in place of any Reactivate control.
+
+### Notes
+
+- **Historical fidelity preserved**: `supplier_name_snapshot` on both Purchase Orders and Goods Receipts is never rewritten by a merge; `wc_io_inventory_movements` is never touched. Merge-chain history (`A` merged into `B`, later `B` merged into `C`) records only the direct successor at each step — `A.merged_into_supplier_id` continues to read `B`, not `C` — since all of `A`'s operational records were already carried forward to `B`, and then to `C` by the second merge's own bulk `UPDATE`. No runtime code ever resolves a multi-hop chain.
+- **All derived-statistics services require zero code changes** to correctly reflect a merge (Observed Lead Time, On-Time Rate, Supplier Order History, Supplier Spend Summary, Inventory Position drilldown) — every one of them filters by `purchase_orders.supplier_id` at query time, which the merge's own bulk `UPDATE` already moves.
+- **No new WordPress hook of any kind.** The only new extension-adjacent surface is a private, test-bootstrap-gated static method (`set_test_fail_after_step()`) used to prove exception-safety at each of the three post-lock mutation steps — structurally inert in production (gated by a constant defined only in `tests/bootstrap.php`), not documented as or usable as an extension point.
+- **Query-count contract**: the mutation phase is a fixed, itemizable 4-statement set (bulk PO `UPDATE`, bulk GR `UPDATE`, audit `INSERT`, source `UPDATE`) regardless of history size. The complete `merge()` call's total query count was measured empirically at 500/2,000/5,000 related Purchase Orders and confirmed constant at all three scales (11 queries), proving no per-record loop anywhere in the merge path.
+
+### Testing
+
+- New unit suites: `Test_WC_IO_Supplier_Merge_Primitives` (repository-layer read/write contracts), `Test_WC_IO_Supplier_Merge_Service` (full business-rule/threat matrix, exception-safety at all three failure-injection seams, server-side confirmation-mismatch independent of any JS), `Test_WC_IO_Supplier_Merge_Architecture` (sole-mutator guards, no-SQL-in-admin-page guard, no-new-hooks guard), `Test_WC_IO_Supplier_Merge_Performance` (measured-constant query count across three fixture scales, failure-injection rollback proof).
+- New integration suites: `Test_WC_IO_Schema_V11_Upgrade` (fresh-install/upgrade schema parity, dispatcher-routing proof), `Test_WC_IO_Supplier_Merge_Concurrency` (concurrent-create race closure, zero regression for ordinary active-supplier creation), `Test_WC_IO_Supplier_Merge_Derived_Stats` (empirical zero-code-change proof across four derived-statistics services), `Test_WC_IO_Supplier_Merge_Admin` (capability/nonce/token/crafted-POST HTTP-level coverage), `Test_WC_IO_Supplier_Merge_Admin_Render` (automated UI-rendering assertions).
+- Zero regression in existing `Test_WC_IO_PO_Service`, `Test_WC_IO_Goods_Receipt_Service`, and `Test_WC_IO_Suppliers_Admin_PRG` suites.
+
 ## [1.33.0] - 2026-08-11
 
 **Milestone M16 — PO Expected-Date & Delay Transparency.** Three small, read-mostly surfaces that make already-computed-but-hidden facts visible/configurable in the Purchase Order workflow: why an Expected-Date suggestion was made, how many grace days a PO gets before being flagged "delayed," and which supplier/status is behind each contributing line in the Inventory Position drilldown. **Zero schema change (`DB_VERSION` stays 10), zero domain/operational mutation, zero new public API, zero new capability, zero new hook.** First milestone of a new, unreleased post-v1.32.0 train — not individually released.

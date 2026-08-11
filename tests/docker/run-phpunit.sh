@@ -151,7 +151,15 @@ if [[ ${#FILTER_ARGS[@]} -eq 0 ]]; then
 	#   existing Test_WC_IO_Expected_Date_Suggestion_/Test_WC_IO_PO_/
 	#   Test_WC_IO_Inventory_Position_ entries (verified via --list-tests
 	#   before adding this).
-	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_PO_Print_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received|Test_WC_IO_Supplier_Lead_Time_|Test_WC_IO_Expected_Date_Suggestion_|Test_WC_IO_Expected_Deadline|Test_WC_IO_Supplier_On_Time_Rate_|Test_WC_IO_Supplier_Order_History_|Test_WC_IO_Supplier_Spend_|Test_WC_IO_Settings_' )
+	# - M17 (Test_WC_IO_Supplier_Merge_*) is a new, distinct prefix -- added
+	#   explicitly below (same reasoning as M14/M15's Supplier_*_ entries;
+	#   distinct from Test_WC_IO_Supplier_Lead_Time_/Order_History_/Spend_,
+	#   no collision). Test_WC_IO_Schema_V11_Upgrade is a separate class
+	#   (mirrors M6's Test_WC_IO_Batch_Migration_Schema_V10_Upgrade naming
+	#   pattern but is deliberately NOT prefixed Test_WC_IO_Batch_Migration_,
+	#   since v11 has no batch-migration relationship per the M17 plan's
+	#   Part B) -- added explicitly below.
+	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_PO_Print_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received|Test_WC_IO_Supplier_Lead_Time_|Test_WC_IO_Expected_Date_Suggestion_|Test_WC_IO_Expected_Deadline|Test_WC_IO_Supplier_On_Time_Rate_|Test_WC_IO_Supplier_Order_History_|Test_WC_IO_Supplier_Spend_|Test_WC_IO_Settings_|Test_WC_IO_Supplier_Merge_|Test_WC_IO_Schema_V11_Upgrade' )
 fi
 
 echo "Running PHPUnit ${FILTER_ARGS[*]}..."

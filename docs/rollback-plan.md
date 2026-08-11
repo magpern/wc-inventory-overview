@@ -2,6 +2,27 @@
 
 ---
 
+## ⚠ M17 (v1.34.0, frozen/unreleased): code rollback does not undo completed merges
+
+**Starting with M17 (v1.34.0), a plugin-code rollback to a pre-M17 version does NOT reverse the effects of any supplier merges already completed under M17.** This is a schema-change milestone (`DB_VERSION` 10 → 11: new `wc_io_suppliers.merged_into_supplier_id` column, new `wc_io_supplier_merges` table) as well as a "code rollback doesn't undo the operation" risk class, joining M4/M5's precedent below for a different domain (supplier identity/PO-GR ownership, not stock/cost).
+
+If a merge has been **completed** after upgrading to v1.34.0+, its effects are real, committed state:
+- The source supplier's `status = 'archived'` and `merged_into_supplier_id = {target}` are real column values. A pre-M17 version's code has no concept of `merged_into_supplier_id` at all — it simply won't read or display it, but the column and its value remain in the database (schema additions are always left in place harmlessly on a code rollback, per this document's general M6 precedent, never dropped).
+- Every Purchase Order and Goods Receipt that was reassigned from the source to the target during the merge **stays reassigned** — a pre-M17 version has no merge concept and no way to walk that reassignment back; it simply sees those records as always having belonged to the target supplier.
+- The one `wc_io_supplier_merges` audit row for that merge remains in the database, inert to pre-M17 code (which doesn't know the table exists).
+
+**This is genuinely irreversible at the product level — there is no "undo merge" feature in M17, by design** (Business Rule BR-M17-9's "operation is irreversible at the product level" is a deliberate scope decision, not a gap). A plugin-code rollback does not create an undo path that didn't already not exist.
+
+**If a rollback is needed after M17 merges have been completed:**
+
+1. **There is no in-app undo.** Do not attempt to manually re-point `supplier_id` values back via direct database edits without fully understanding the consequence — any Purchase Orders/Goods Receipts placed or received *after* the merge, against what the operator believed was the (dissolved) source supplier, will actually have been created against the target (BR-M17-18's concurrent-create closure guarantees this), so a naive "move them back" edit can misattribute genuinely-new records.
+2. If a genuine code-level rollback is required for an unrelated reason, the merge's effects (reassigned POs/receipts, archived+merged source, audit row) **remain in effect** — the older code simply won't have any UI surface for them (no merge form, no "Merged into X" notice), but nothing is lost or corrupted.
+3. A full DB restore to a pre-M17 backup **does** reverse a merge, but also reverses every other interim change (new orders, receipts, other supplier edits) — treat this as the "Full restore (catastrophic)" path below, not a targeted undo. **Recommendation: take a database backup before the first production merge post-release** (see `docs/deployment-checklist.md`'s standard `wp db export` step, and `docs/release-runbook.md`'s M17 appendix).
+
+**Schema rollback is optional and never required for a safe code rollback**, matching this document's general M6 precedent — the `merged_into_supplier_id` column and `wc_io_supplier_merges` table are purely additive and inert to older code.
+
+---
+
 ## ✓ M16 (v1.33.0, frozen/unreleased): code-only, plus one pre-existing settings option — safe to roll back
 
 **M16 changed no schema and mutated no domain/operational data.** It adds a provenance hint on the New PO screen, Supplier/Status columns on the Inventory Position drilldown (both purely additive read/presentation), and one Settings-tab field for a **pre-existing** option (`WC_Inventory_Overview_PO_Delay::OPTION_GRACE_DAYS`) that already existed and was already read throughout the codebase before this milestone — M16 only adds a UI to edit it, via the exact same `Settings::save_from_post()` mutation path every other Settings field already uses.

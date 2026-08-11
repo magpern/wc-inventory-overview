@@ -2,14 +2,17 @@
 
 **Status: FROZEN.** This document freezes the *architectural boundaries* of
 WC Inventory Overview established by the completion of Milestones M0–M7 —
-kept as the document's name and identity, since M8–M16 (below)
+kept as the document's name and identity, since M8–M17 (below)
 each closed gaps or added an Internal-only sole-owner (or narrow internal
 value/policy) boundary, or presentation surface, within this same frozen shape
 without changing any boundary recorded here (per §12 rule 7's update-in-place
 instruction, no
-`ARCHITECTURE_BASELINE_v1.25.0.md`/`v1.26.0.md`/`v1.27.0.md`/`v1.28.0.md`/`v1.29.0.md`/`v1.30.0.md`/`v1.31.0.md`/`v1.32.0.md`/`v1.33.0.md`
-was created). It is the official architectural baseline for every future
-milestone (M17 onward).
+`ARCHITECTURE_BASELINE_v1.25.0.md`/`v1.26.0.md`/`v1.27.0.md`/`v1.28.0.md`/`v1.29.0.md`/`v1.30.0.md`/`v1.31.0.md`/`v1.32.0.md`/`v1.33.0.md`/`v1.34.0.md`
+was created — M17's schema bump (v10 → v11) adds a new sole-owner boundary
+and two new tables/columns within the existing entity model; it does not
+change any *architectural boundary* recorded in this document, so the same
+update-in-place policy applies). It is the official architectural baseline
+for every future milestone (M18 onward).
 
 **Documentation-currency note (recorded during M15 discovery):** this
 document was not updated in place for M14 at the time of M14's own freeze —
@@ -19,12 +22,12 @@ recorded for M13 or earlier changed as part of this correction.
 
 | | |
 |---|---|
-| **Plugin version** | 1.33.0 (feature-branch-only, unreleased — M16 implemented and frozen on `feature/m16-po-expected-date-delay-transparency`, `main` remains at `v1.32.0`; architectural boundaries themselves were frozen at 1.24.0/M7, M8–M16 each stayed inside that shape) |
-| **Schema version (`DB_VERSION`)** | 10 |
-| **Milestones complete** | M0 – M16 (M16 frozen but unreleased, first milestone of a new, not-yet-named post-v1.32.0 train) |
-| **Baseline date** | 2026-08-08 (M7 freeze); updated in place through M16 2026-08-11 |
-| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M16 status snapshot** of that same architecture, plus the M1–M16 rules layered on top of it. |
-| **Governs** | All milestones from M17 onward; next process step is the release-timing/train decision for M16, then planning M17+ |
+| **Plugin version** | 1.34.0 (feature-branch-only, unreleased — M17 implemented and frozen on `feature/m17-supplier-merge`, `main` remains at `v1.33.0`; architectural boundaries themselves were frozen at 1.24.0/M7, M8–M17 each stayed inside that shape) |
+| **Schema version (`DB_VERSION`)** | 11 |
+| **Milestones complete** | M0 – M17 (M17 frozen but unreleased; schema-change/ownership-boundary-change milestone, releases standalone per this repo's own Release Triggers rule, not via a feature train) |
+| **Baseline date** | 2026-08-08 (M7 freeze); updated in place through M17 2026-08-11 |
+| **Supersedes** | Nothing — this document is additive. `CLAUDE.md` Part I (Architecture v1.0) remains the architectural authority for domain decisions (D1–D19) and invariants (INV-1–INV-8); this document is the **consolidated, post-M17 status snapshot** of that same architecture, plus the M1–M17 rules layered on top of it. |
+| **Governs** | All milestones from M18 onward |
 
 This is a **documentation-only** artifact. It changes no code, no schema, no
 public API, and no `DB_VERSION`.
@@ -148,6 +151,7 @@ contract.
 | M14 | Supplier Order History | 1.31.0 | v10 (unchanged) | Presentation + new Internal sole-owner boundary: new `Supplier_Order_History_Service` (Internal, INV-M14-3) composes a paginated, status-inclusive (INV-M14-4) list of a supplier's Purchase Orders exclusively through `Purchase_Orders::count()`/`list()`/`values_bulk()` (new additive method on the existing read owner) — no new domain owner. Rendered as an "Order History" section on the Supplier detail screen, reusing the existing `manage_woocommerce` gate; dedicated `wc_io_supplier_order_history_page` pagination parameter. Each row's Ordered/Received Value is PO-line cost only, in that PO's own currency, never summed across POs or currencies (INV-M14-2). Zero mutation (INV-M14-1), zero schema change, zero new public API, zero new capability, zero new hook. Second milestone of the M13–M15 feature train. |
 | M15 | Supplier Spend Summary | 1.32.0 | v10 (unchanged) | Presentation + new Internal sole-owner boundary: new `Supplier_Spend_Service` (Internal, INV-M15-3) owns the "committed spend" status rule (BR-M15-1 — `placed`/`partially_received`/`received`/`closed_short` only, `draft`/`cancelled` always excluded, INV-M15-1) and composes a per-currency spend summary exclusively through the new, self-contained `Purchase_Orders::spend_summary_for_supplier()` (does not compose through `list()`) — no new domain owner. Rendered as a "Spend Summary" section on the Supplier detail screen, before Observed Lead Time / Order History, reusing the existing `manage_woocommerce` gate. Currencies never blended or converted (INV-M15-2); `po_count` is `COUNT(DISTINCT po.id)` scoped per currency row (BR-M15-5). A true database-level aggregate — exactly 1 query regardless of history size, unlike M14's page-scoped 3-query contract. Zero mutation, zero schema change, zero new public API, zero new capability, zero new hook. Completes the M13–M15 feature train; released as v1.32.0. |
 | M16 | PO Expected-Date & Delay Transparency | 1.33.0 | v10 (unchanged) | Presentation-only, no new domain owner. Three additive surfaces: (1) `Expected_Date_Suggestion_Service`'s return shape gains `sample_count`/`average_days` (BR-M16-2), sourced from the same already-fetched `Supplier_Lead_Time_Service` stats — no additional query, no duplicated computation — so the New PO screen can display suggestion provenance (BR-M16-1). (2) A Settings-tab field exposes the pre-existing `PO_Delay::OPTION_GRACE_DAYS` option through an explicit validate-or-preserve contract in `Settings::save_from_post()` (BR-M16-4) — invalid/missing input always preserves the stored value, deliberately not `absint()`-style coercion; `PO_Delay` remains the sole authority on how `grace_days` affects delay computation, unchanged. (3) The Inventory Position drilldown (M3) gains Supplier/Status columns via two additional `SELECT` columns on the already-whitelisted `query_open_lines()` query — the M3 sole-caller architecture guard needed zero changes. Zero domain/operational mutation (one pre-existing settings-option write only), zero schema change, zero new public API, zero new capability, zero new hook. First milestone of a new, not-yet-named post-v1.32.0 train; frozen but unreleased. |
+| M17 | Supplier Merge | 1.34.0 | v11 | New `Supplier_Merge_Service` (new sole-owner boundary, Internal not Public, D16) is the sole class permitted to write `wc_io_suppliers.merged_into_supplier_id` or bulk-reassign `supplier_id` across more than one Purchase Order/Goods Receipt row at once (INV-M17-2). Atomic, exception-safe (`try`/`catch(\Throwable)` guarantees rollback), fixed-lock-order row locking on both suppliers, server-enforced typed confirmation validated inside the transaction (BR-M17-16). New `Suppliers::get_for_update()`/`mark_merged()`/`get_names_bulk()` and `Purchase_Orders`/`Goods_Receipts::reassign_supplier_bulk()` primitives; new append-only `Supplier_Merges` repository (`wc_io_supplier_merges`, mirrors `PO_Events`). `Suppliers::reactivate()` hardened to permanently reject a merged supplier (INV-M17-11), enforced independently at the repository, admin-handler, and list-table layers. `PO_Service::create_draft()`/`Goods_Receipt_Service::create_draft_from_post()` extended to lock and re-validate the chosen supplier's row before inserting, closing a concurrent-create race against an in-flight merge (BR-M17-18, INV-M17-12). Schema change: `merged_into_supplier_id` column on `wc_io_suppliers`, new `wc_io_supplier_merges` table (`DB_VERSION` 10 → 11). Zero new public API, zero new WordPress hook (INV-M17-10) — the only new extension-adjacent surface is a private, test-bootstrap-gated failure-injection seam, structurally inert in production. Schema-change / ownership-boundary-change milestone; releases standalone. |
 
 Full detail for each milestone: `docs/milestones/m{N}-implementation-plan.md`
 and the corresponding section of `docs/architecture-audit.md`.
@@ -207,6 +211,8 @@ just prose — a violation fails CI, not just code review.
 | **Printable Purchase Order presentation (M13)** | Only `PO_Print_Renderer` renders the printable PO document, and it is presentation-only (INV-M13-2): zero `$wpdb`, zero calls into `Purchase_Orders`/`Purchase_Order_Lines`/`Suppliers`/any repository class, zero product lookup (`wc_get_product`), zero authorization/lifecycle logic — it only formats an already-composed plain array. Sole caller: `WC_Inventory_Overview_PO_Admin::handle_print()`. That handler sources data only through the three approved read owners plus `PO_Statuses::label()` (INV-M13-3), and its own source requires the `VIEW_PO` capability check and a PO-and-action-scoped nonce (`wc_io_po_print_<id>`) to both textually precede the first repository read (INV-M13-4) — verified by source position, not just presence. Product/variation identity always comes from the PO line's own historical `name_snapshot`/`sku_snapshot`, never a live product lookup; supplier name always falls back to the PO header's own `supplier_name_snapshot` when the live `Suppliers` row does not resolve. Printable for `placed`/`partially_received`/`received`/`cancelled`/`closed_short`; never `draft` (INV-M13-1). | `tests/unit/po-print/test-po-print-architecture.php` |
 | **Supplier Order History presentation (M14)** | Only `Supplier_Order_History_Service` composes the paginated, status-inclusive Order History projection (INV-M14-4), and it sources data exclusively through `Purchase_Orders::count()`/`list()`/`values_bulk()` (INV-M14-3) — zero `$wpdb`, zero calls into `Purchase_Order_Lines`/`Goods_Receipts`/`Receipt_Lines`/`Receipt_Costs`/`Suppliers` directly. Zero mutation (INV-M14-1), guard-verified absence of write tokens in both the service and `values_bulk()`'s own method body. Each row's Ordered/Received Value is PO-line cost only, in that PO's own currency, never summed across POs or currencies and never conflated with landed cost or inventory valuation (INV-M14-2). Sole caller: `class-wc-inventory-overview-purchasing-page.php` (guard-enforced allowlist). | `tests/unit/supplier-order-history/test-supplier-order-history-architecture.php` |
 | **Supplier Spend Summary presentation (M15)** | Only `Supplier_Spend_Service` owns the "committed spend" status rule (BR-M15-1, INV-M15-1) and composes the per-currency spend summary exclusively through the new, self-contained `Purchase_Orders::spend_summary_for_supplier()` (INV-M15-3) — zero `$wpdb`, zero calls into `Purchase_Order_Lines`/`Goods_Receipts`/`Receipt_Lines`/`Receipt_Costs`/`Suppliers` directly, and (unlike M14) does not compose through `Purchase_Orders::list()` either — the aggregate is a bounded, standalone grouped query. Zero mutation, guard-verified absence of write tokens in both the service and `spend_summary_for_supplier()`'s own method body; guard-verified absence of FX/currency-blending tokens (INV-M15-2). `po_count` is `COUNT(DISTINCT po.id)` scoped per currency row (BR-M15-5) — a PO with lines in more than one currency may contribute to more than one row. Sole caller: `class-wc-inventory-overview-purchasing-page.php` (guard-enforced allowlist, INV-M15-4). | `tests/unit/supplier-spend/test-supplier-spend-architecture.php` |
+| **Supplier merge mutation (M17)** | Only `Supplier_Merge_Service::merge()` may write `wc_io_suppliers.merged_into_supplier_id` or bulk-UPDATE `supplier_id` across more than one row of `wc_io_purchase_orders`/`wc_io_goods_receipts` at once (INV-M17-2). Guard-verified: only `Suppliers::mark_merged()` writes the column; only `Purchase_Orders`/`Goods_Receipts::reassign_supplier_bulk()` issue the bulk `UPDATE`; `Supplier_Merge_Service` is confirmed to be the sole caller of all four mutation primitives. `Purchasing_Page::handle_supplier_merge()` contains zero direct SQL (INV-M17-7) — it only calls the service. Zero new `do_action()`/`apply_filters()` anywhere in the new files (INV-M17-10). | `tests/unit/supplier-merge/test-supplier-merge-architecture.php` |
+| **Merged-supplier reactivation prevention (M17)** | No supported code path — `Suppliers::reactivate()`, the `wc_io_supplier_reactivate` admin-post handler, or the Suppliers list-table row action — can return a supplier with `merged_into_supplier_id IS NOT NULL` to `status = 'active'` (INV-M17-11). Enforced independently at all three layers, each with its own test coverage. | `tests/unit/supplier-merge/test-supplier-merge-primitives.php`; `tests/integration/suppliers/test-suppliers-admin-prg.php`; `tests/integration/supplier-merge/test-supplier-merge-admin-render.php` |
 
 **The pattern, stated once:** every domain fact in this system has exactly
 one class that is allowed to compute it or write it, and every other class
@@ -259,6 +265,18 @@ force. Restated briefly, with their current enforcement points:
 | **INV-M15-2** | M15 | Spend totals are grouped by the PO line's own currency and never summed or converted across currencies — one row per currency actually present in the supplier's committed lines; `po_count` is `COUNT(DISTINCT po.id)` scoped to that currency row only (BR-M15-5), never a supplier-wide count, never meant to be summed across rows. |
 | **INV-M15-3** | M15 | `Supplier_Spend_Service` and `Purchase_Orders::spend_summary_for_supplier()` perform zero mutation and source data with no unapproved read access — guard-verified absence of write tokens and forbidden-read tokens in both. |
 | **INV-M15-4** | M15 | Only `class-wc-inventory-overview-purchasing-page.php` may call `Supplier_Spend_Service::` — sole-consumer discipline, guard-enforced allowlist (same mechanism as INV-M14-3's sole-consumer test). |
+| **INV-M17-1** | M17 | A merge is all-or-nothing — one atomic transaction, exception-safe (`try`/`catch(\Throwable)`), zero partial state on any exit path. |
+| **INV-M17-2** | M17 | `Supplier_Merge_Service::merge()` is the sole class permitted to write `wc_io_suppliers.merged_into_supplier_id` or bulk-UPDATE `supplier_id` across more than one row of `wc_io_purchase_orders`/`wc_io_goods_receipts` at once. |
+| **INV-M17-3** | M17 | Zero stock/cost mutation — a merge never calls `set_stock_quantity()`, never writes cost meta, never touches `wc_io_inventory_movements`. |
+| **INV-M17-4** | M17 | `supplier_name_snapshot` on both `wc_io_purchase_orders` and `wc_io_goods_receipts` is byte-for-byte unchanged by a merge. |
+| **INV-M17-5** | M17 | The mutation phase is a fixed, itemizable 4-statement set regardless of history size — no per-record loop. The complete `merge()` call's measured query count is likewise constant across fixture sizes (proven empirically at 500/2,000/5,000 related POs: 11 queries at every scale). |
+| **INV-M17-6** | M17 | All derived-statistics services (Observed Lead Time, On-Time Rate, Order History, Spend Summary, Inventory Position drilldown) require zero code changes to correctly reflect a merge — every one filters by `supplier_id` at query time. |
+| **INV-M17-7** | M17 | `Purchasing_Page::handle_supplier_merge()` contains no direct SQL for the merge — it only calls `Supplier_Merge_Service::merge()`. |
+| **INV-M17-8** | M17 | No merge chain ever requires multi-hop resolution at operational-record read time — a direct-successor `merged_into_supplier_id` pointer is never walked recursively by any runtime code. |
+| **INV-M17-9** | M17 | The `MERGE_SUPPLIER` capability gate is checked before any other work in the admin-post handler. |
+| **INV-M17-10** | M17 | M17 introduces no new WordPress action, no new WordPress filter, and no new public API — the only new extension-adjacent surface is a private, test-bootstrap-gated failure-injection seam, structurally inert in production. |
+| **INV-M17-11** | M17 | No supported code path — `Suppliers::reactivate()`, its admin-post handler, or the Suppliers list-table row action — can return a supplier with `merged_into_supplier_id IS NOT NULL` to `status = 'active'`. |
+| **INV-M17-12** | M17 | After a merge commits, no Purchase Order or Goods Receipt draft that references the now-dissolved source as its `supplier_id` can be successfully created by any subsequent request — proven by dedicated concurrency tests, not merely asserted. |
 
 ---
 
@@ -437,14 +455,17 @@ services rather than around them:
 
 ## 8. Frozen schema
 
-**`DB_VERSION = 10`. No pending migrations.** The schema has not changed
-since M6 (v1.23.0); M7 shipped zero schema change.
+**`DB_VERSION = 11`. No pending migrations.** The schema was unchanged from
+M6 (v1.23.0) through M16 (v1.33.0); M17 bumped it to v11, adding
+`wc_io_suppliers.merged_into_supplier_id` and the new `wc_io_supplier_merges`
+table.
 
 ### 8.1 Tables
 
 | Table | Introduced | Owner (write) | Purpose |
 |---|---|---|---|
-| `wc_io_suppliers` | v6 (M1) | `Suppliers` | Supplier entity |
+| `wc_io_suppliers` | v6 (M1); `merged_into_supplier_id` column added v11 (M17) | `Suppliers` (all columns) / `Suppliers::mark_merged()` only (`merged_into_supplier_id`) | Supplier entity |
+| `wc_io_supplier_merges` | v11 (M17) | `Supplier_Merges` (append-only), via `Supplier_Merge_Service` | Merge audit history — source/target IDs and name snapshots, reassigned counts, performer, timestamp |
 | `wc_io_purchase_orders` | v7 (M2) | `Purchase_Orders`, via `PO_Service` | PO header |
 | `wc_io_purchase_order_lines` | v7 (M2); `qty_received` column added v9 (M5) | `Purchase_Order_Lines`, via `PO_Service` (most columns) / `PO_Receiving_Sync` (`qty_received` only) | PO lines — the incoming supply record |
 | `wc_io_po_events` | v7 (M2) | `PO_Events` (append-only) | PO audit history |
