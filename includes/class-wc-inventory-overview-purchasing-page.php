@@ -43,8 +43,10 @@ class WC_Inventory_Overview_Purchasing_Page {
 		add_action( 'admin_post_wc_io_supplier_save', array( $this, 'handle_supplier_save' ) );
 		add_action( 'admin_post_wc_io_supplier_archive', array( $this, 'handle_supplier_archive' ) );
 		add_action( 'admin_post_wc_io_supplier_reactivate', array( $this, 'handle_supplier_reactivate' ) );
+		add_action( 'admin_post_wc_io_supplier_merge', array( $this, 'handle_supplier_merge' ) );
 		add_action( 'wp_ajax_wc_io_search_suppliers', array( $this, 'ajax_search_suppliers' ) );
 		add_action( 'wp_ajax_wc_io_quick_create_supplier', array( $this, 'ajax_quick_create_supplier' ) );
+		add_action( 'wp_ajax_wc_io_search_merge_targets', array( $this, 'ajax_search_merge_targets' ) );
 		WC_Inventory_Overview_PO_Admin::init();
 		WC_Inventory_Overview_Goods_Receipt_Admin::init();
 	}
@@ -187,6 +189,32 @@ class WC_Inventory_Overview_Purchasing_Page {
 					break;
 				case 'reactivated':
 					echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Supplier reactivated.', 'wc-inventory-overview' ) . '</p></div>';
+					break;
+				case 'reactivate_failed':
+					echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'This supplier could not be reactivated.', 'wc-inventory-overview' ) . '</p></div>';
+					break;
+				case 'merged':
+					$success = get_transient( 'wc_io_supplier_merge_success_' . get_current_user_id() );
+					if ( $success ) {
+						echo '<div class="notice notice-success is-dismissible"><p>' . esc_html(
+							sprintf(
+								/* translators: 1: purchase orders reassigned, 2: goods receipts reassigned */
+								__( 'Supplier merged. %1$d purchase orders and %2$d goods receipts were reassigned.', 'wc-inventory-overview' ),
+								$success['purchase_orders_reassigned'],
+								$success['goods_receipts_reassigned']
+							)
+						) . '</p></div>';
+						delete_transient( 'wc_io_supplier_merge_success_' . get_current_user_id() );
+					} else {
+						echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Supplier merged.', 'wc-inventory-overview' ) . '</p></div>';
+					}
+					break;
+				case 'merge_err':
+					$error = get_transient( 'wc_io_supplier_merge_err_' . get_current_user_id() );
+					if ( $error ) {
+						echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $error ) . '</p></div>';
+						delete_transient( 'wc_io_supplier_merge_err_' . get_current_user_id() );
+					}
 					break;
 				case 'err':
 					$error = get_transient( 'wc_io_supplier_save_err_' . get_current_user_id() );
@@ -745,7 +773,20 @@ class WC_Inventory_Overview_Purchasing_Page {
 
 		check_admin_referer( 'wc_io_supplier_reactivate_' . $supplier_id, 'wc_io_supplier_reactivate_nonce' );
 
-		WC_Inventory_Overview_Suppliers::reactivate( $supplier_id );
+		$reactivated = WC_Inventory_Overview_Suppliers::reactivate( $supplier_id );
+		if ( ! $reactivated ) {
+			wp_safe_redirect(
+				admin_url(
+					'admin.php?page=' . self::PAGE_SLUG
+					. '&tab=' . self::TAB_SUPPLIERS
+					. '&action=edit'
+					. '&supplier_id=' . $supplier_id
+					. '&wc_io_supplier=reactivate_failed'
+				)
+			);
+			exit;
+		}
+
 		wp_safe_redirect(
 			admin_url(
 				'admin.php?page=' . self::PAGE_SLUG
@@ -756,6 +797,115 @@ class WC_Inventory_Overview_Purchasing_Page {
 			)
 		);
 		exit;
+	}
+
+	/**
+	 * Handle supplier merge via admin-post (POST form only).
+	 * M17: capability -> nonce -> token consume -> sanitize -> service -> PRG redirect.
+	 */
+	public function handle_supplier_merge() {
+		if ( ! WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::MERGE_SUPPLIER ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'wc-inventory-overview' ), 403 );
+		}
+
+		$source_id = isset( $_POST['source_supplier_id'] ) ? absint( $_POST['source_supplier_id'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified below.
+		if ( ! $source_id ) {
+			wp_die( esc_html__( 'Invalid source supplier ID.', 'wc-inventory-overview' ) );
+		}
+
+		check_admin_referer( 'wc_io_supplier_merge_' . $source_id, 'wc_io_supplier_merge_nonce' );
+
+		$token = isset( $_POST['wc_io_supplier_merge_request_token'] ) ? sanitize_text_field( wp_unslash( $_POST['wc_io_supplier_merge_request_token'] ) ) : '';
+		if ( ! WC_Inventory_Overview_PO_Request_Token::consume( $token, 'supplier_merge' ) ) {
+			set_transient( 'wc_io_supplier_merge_err_' . get_current_user_id(), __( 'This merge request has already been used or has expired. Please try again.', 'wc-inventory-overview' ), 120 );
+			wp_safe_redirect(
+				admin_url(
+					'admin.php?page=' . self::PAGE_SLUG
+					. '&tab=' . self::TAB_SUPPLIERS
+					. '&action=edit'
+					. '&supplier_id=' . $source_id
+					. '&wc_io_supplier=merge_err'
+				)
+			);
+			exit;
+		}
+
+		$target_id    = isset( $_POST['target_supplier_id'] ) ? absint( $_POST['target_supplier_id'] ) : 0;
+		$confirmation = isset( $_POST['supplier_merge_confirmation'] ) ? sanitize_text_field( wp_unslash( $_POST['supplier_merge_confirmation'] ) ) : '';
+
+		$result = WC_Inventory_Overview_Supplier_Merge_Service::merge( $source_id, $target_id, get_current_user_id(), $confirmation );
+
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'wc_io_supplier_merge_err_' . get_current_user_id(), $result->get_error_message(), 120 );
+			wp_safe_redirect(
+				admin_url(
+					'admin.php?page=' . self::PAGE_SLUG
+					. '&tab=' . self::TAB_SUPPLIERS
+					. '&action=edit'
+					. '&supplier_id=' . $source_id
+					. '&wc_io_supplier=merge_err'
+				)
+			);
+			exit;
+		}
+
+		set_transient(
+			'wc_io_supplier_merge_success_' . get_current_user_id(),
+			array(
+				'purchase_orders_reassigned' => $result['purchase_orders_reassigned'],
+				'goods_receipts_reassigned'  => $result['goods_receipts_reassigned'],
+			),
+			120
+		);
+		wp_safe_redirect(
+			admin_url(
+				'admin.php?page=' . self::PAGE_SLUG
+				. '&tab=' . self::TAB_SUPPLIERS
+				. '&action=edit'
+				. '&supplier_id=' . $target_id
+				. '&wc_io_supplier=merged'
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * AJAX: Search merge target suppliers (M17). Excludes archived, merged,
+	 * and the source supplier itself.
+	 */
+	public function ajax_search_merge_targets() {
+		check_ajax_referer( 'wc_io_search_merge_targets', 'security' );
+
+		if ( ! WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::MERGE_SUPPLIER ) ) {
+			wp_send_json_error( 'Insufficient permissions.' );
+		}
+
+		$term      = isset( $_POST['term'] ) ? sanitize_text_field( wp_unslash( $_POST['term'] ) ) : '';
+		$exclude_id = isset( $_POST['exclude_supplier_id'] ) ? absint( $_POST['exclude_supplier_id'] ) : 0;
+
+		$suppliers = WC_Inventory_Overview_Suppliers::list(
+			array(
+				'status'   => 'active',
+				'search'   => $term,
+				'per_page' => 20,
+			)
+		);
+
+		$data = array();
+		foreach ( $suppliers as $supplier ) {
+			if ( $exclude_id && (int) $supplier['id'] === $exclude_id ) {
+				continue;
+			}
+			if ( ! empty( $supplier['merged_into_supplier_id'] ) ) {
+				continue;
+			}
+			$data[] = array(
+				'id'   => $supplier['id'],
+				'text' => $supplier['name'],
+			);
+		}
+
+		wp_send_json_success( array( 'results' => $data ) );
 	}
 
 	/**
