@@ -65,6 +65,7 @@
 		var $orderDate  = $( '#wc_io_po_order_date' );
 		var $expected   = $( '#wc_io_po_expected_date' );
 		var $confidence = $( '#wc_io_po_expected_confidence' );
+		var $hint       = $( '#wc_io_po_suggestion_hint' );
 
 		if ( ! $supplier.length || ! $expected.length || ! $confidence.length ) {
 			return;
@@ -111,6 +112,33 @@
 			return y + '-' + m + '-' + day;
 		}
 
+		/**
+		 * Builds the M16 provenance message for a suggestion -- advisory
+		 * display text only (BR-M16-1/BR-M16-3), never submitted as form
+		 * data and never influencing which value is saved. Uses
+		 * suggestion.sample_count/average_days as the observed-history
+		 * evidence, never the bare suggestion.days value (BR-M16-2), and
+		 * suggestion.days only for the configured-default message.
+		 *
+		 * @param {Object} suggestion Suggestion entry from wcIoPoAdmin.leadTimeSuggestions.
+		 * @return {string}
+		 */
+		function buildSuggestionMessage( suggestion ) {
+			var i18n = ( window.wcIoPoAdmin && wcIoPoAdmin.i18n ) || {};
+
+			if ( 'observed' === suggestion.source && suggestion.sample_count && null !== suggestion.average_days && undefined !== suggestion.average_days ) {
+				return ( i18n.suggestionObserved || '' )
+					.replace( '%1$s', suggestion.sample_count )
+					.replace( '%2$s', suggestion.average_days );
+			}
+
+			if ( 'configured' === suggestion.source ) {
+				return ( i18n.suggestionConfigured || '' ).replace( '%1$s', suggestion.days );
+			}
+
+			return '';
+		}
+
 		function applySuggestionForSelectedSupplier() {
 			if ( manuallyEdited ) {
 				return;
@@ -127,18 +155,23 @@
 				// above otherwise.
 				$expected.val( '' );
 				$confidence.val( 'unknown' );
+				$hint.text( '' );
 				return;
 			}
 
 			var basisDate = $orderDate.val() || todayLocal();
 			$expected.val( addCalendarDays( basisDate, suggestion.days ) );
 			$confidence.val( suggestion.confidence );
+			$hint.text( buildSuggestionMessage( suggestion ) );
 		}
 
 		// Programmatic fills above use .val() only (no change/input event),
 		// so this listener only ever observes genuine operator edits.
 		$expected.add( $confidence ).on( 'input change', function() {
 			manuallyEdited = true;
+			// A manual edit invalidates the provenance message: it no longer
+			// describes what is actually about to be saved.
+			$hint.text( '' );
 		} );
 
 		$supplier.on( 'change', applySuggestionForSelectedSupplier );

@@ -360,4 +360,166 @@ class Test_WC_IO_PO_Admin extends WC_Inventory_Overview_Test_Case {
 		$this->assertNotContains( 'receive', $actions );
 		$this->assertFalse( method_exists( 'WC_Inventory_Overview_PO_Admin', 'handle_receive' ) );
 	}
+
+	// -----------------------------------------------------------------
+	// M16: New PO screen suggestion-provenance localization (BR-M16-1/BR-M16-2)
+	// -----------------------------------------------------------------
+
+	/**
+	 * Simulates the New PO screen request context and returns the
+	 * `wcIoPoAdmin` data localized to the `wc-io-po-admin` script -- the
+	 * only public surface through which the private
+	 * lead_time_suggestions_for_localize() can be observed.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function localize_new_po_screen(): array {
+		// WP_Scripts::localize() appends to any prior 'data' extra for the
+		// same handle rather than replacing it, so a fresh registry avoids
+		// cross-test accumulation regardless of method execution order.
+		$GLOBALS['wp_scripts'] = null;
+
+		$_GET['tab']    = WC_Inventory_Overview_Purchasing_Page::TAB_ORDERS;
+		$_GET['action'] = 'new';
+		WC_Inventory_Overview_PO_Admin::enqueue_assets( 'woocommerce_page_' . WC_Inventory_Overview_Purchasing_Page::PAGE_SLUG );
+		unset( $_GET['tab'], $_GET['action'] );
+
+		$data = wp_scripts()->get_data( 'wc-io-po-admin', 'data' );
+		$this->assertIsString( $data, 'wc-io-po-admin must have localized data.' );
+
+		$prefix = 'var wcIoPoAdmin = ';
+		$this->assertStringStartsWith( $prefix, $data );
+		$json = substr( $data, strlen( $prefix ), -1 ); // Strip the trailing ';'.
+		return json_decode( $json, true );
+	}
+
+	/**
+	 * A supplier resolved via the 'configured' source must localize
+	 * source/days unchanged, and sample_count/average_days explicitly null
+	 * (BR-M16-2) -- never omitted, never a fabricated evidence value.
+	 */
+	public function test_suggestion_localize_data_includes_configured_provenance() {
+		$supplier = $this->create_supplier( array( 'default_lead_time_days' => 12 ) );
+
+		$localized = $this->localize_new_po_screen();
+
+		$entry = $localized['leadTimeSuggestions'][ (string) $supplier['id'] ];
+		$this->assertSame( 12, $entry['days'] );
+		$this->assertSame( 'configured', $entry['source'] );
+		$this->assertNull( $entry['sample_count'] );
+		$this->assertNull( $entry['average_days'] );
+	}
+
+	/**
+	 * A supplier with neither observed history nor a configured default
+	 * (source 'none') must not appear in the localized map at all --
+	 * unchanged pre-M16 behavior, and the reason no provenance message can
+	 * ever render for it client-side.
+	 */
+	public function test_suggestion_localize_data_omits_supplier_with_no_suggestion() {
+		$supplier = $this->create_supplier( array( 'default_lead_time_days' => 0 ) );
+
+		$localized = $this->localize_new_po_screen();
+
+		$this->assertArrayNotHasKey( (string) $supplier['id'], $localized['leadTimeSuggestions'] );
+	}
+
+	/**
+	 * The M16 i18n provenance message templates are localized alongside the
+	 * pre-existing strings, with their placeholder tokens intact for the
+	 * client-side .replace() substitution.
+	 */
+	public function test_suggestion_i18n_templates_are_localized() {
+		$localized = $this->localize_new_po_screen();
+
+		$this->assertStringContainsString( '%1$s', $localized['i18n']['suggestionObserved'] );
+		$this->assertStringContainsString( '%2$s', $localized['i18n']['suggestionObserved'] );
+		$this->assertStringContainsString( '%1$s', $localized['i18n']['suggestionConfigured'] );
+	}
+
+	/**
+	 * Editing an existing PO must never localize suggestion data at all
+	 * (pre-existing M10 invariant, unaffected by M16's additive fields).
+	 */
+	public function test_suggestion_data_empty_when_editing_existing_po() {
+		$GLOBALS['wp_scripts'] = null;
+
+		$_GET['tab']    = WC_Inventory_Overview_Purchasing_Page::TAB_ORDERS;
+		$_GET['action'] = 'edit';
+		WC_Inventory_Overview_PO_Admin::enqueue_assets( 'woocommerce_page_' . WC_Inventory_Overview_Purchasing_Page::PAGE_SLUG );
+		unset( $_GET['tab'], $_GET['action'] );
+
+		$data   = wp_scripts()->get_data( 'wc-io-po-admin', 'data' );
+		$prefix = 'var wcIoPoAdmin = ';
+		$json   = substr( (string) $data, strlen( $prefix ), -1 );
+		$parsed = json_decode( $json, true );
+
+		$this->assertSame( array(), $parsed['leadTimeSuggestions'] );
+	}
+
+	/**
+	 * An 'observed' suggestion must localize sample_count/average_days as
+	 * real evidence (never null), computed from the same underlying
+	 * Supplier_Lead_Time_Service stats already proven correct at the
+	 * service layer (tests/integration/expected-date-suggestion/) -- this
+	 * test only proves the PO_Admin wiring passes them through unaltered.
+	 */
+	public function test_suggestion_localize_data_includes_observed_provenance() {
+		global $wpdb;
+		$supplier    = $this->create_supplier( array( 'default_lead_time_days' => 99 ) );
+		$supplier_id = (int) $supplier['id'];
+		$product     = $this->create_simple_product( array( 'stock_qty' => 0 ) );
+
+		foreach ( array( 5, 9 ) as $i => $lead_days ) {
+			$wpdb->insert(
+				WC_Inventory_Overview_Purchase_Orders::table_name(),
+				array(
+					'po_number'   => 'M16-' . $supplier_id . '-' . $i,
+					'supplier_id' => $supplier_id,
+					'currency'    => 'EUR',
+					'status'      => WC_Inventory_Overview_PO_Statuses::RECEIVED,
+					'placed_at'   => '2026-01-01 00:00:00',
+					'created_by'  => 0,
+					'updated_by'  => 0,
+				)
+			);
+			$po_id = (int) $wpdb->insert_id;
+
+			$wpdb->insert(
+				WC_Inventory_Overview_Purchase_Order_Lines::table_name(),
+				array(
+					'po_id'        => $po_id,
+					'line_index'   => 0,
+					'product_id'   => $product->get_id(),
+					'qty_ordered'  => 1,
+					'qty_received' => 1,
+					'unit_cost'    => 1,
+					'currency'     => 'EUR',
+					'status'       => 'received',
+				)
+			);
+
+			$wpdb->insert(
+				WC_Inventory_Overview_Goods_Receipts::table_name(),
+				array(
+					'receipt_number' => 'M16-GR-' . $po_id,
+					'status'         => WC_Inventory_Overview_Goods_Receipt_Lifecycle::STATUS_POSTED,
+					'source'         => WC_Inventory_Overview_Goods_Receipts::SOURCE_PO,
+					'supplier_id'    => $supplier_id,
+					'currency'       => 'EUR',
+					'posted_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '2026-01-01 00:00:00 +' . $lead_days . ' days' ) ),
+					'created_by'     => 0,
+					'updated_by'     => 0,
+				)
+			);
+		}
+
+		$localized = $this->localize_new_po_screen();
+
+		$entry = $localized['leadTimeSuggestions'][ (string) $supplier_id ];
+		$this->assertSame( 'observed', $entry['source'] );
+		$this->assertSame( 2, $entry['sample_count'] );
+		$this->assertSame( 7, $entry['average_days'], 'Average of 5 and 9 is 7.' );
+		$this->assertSame( 7, $entry['days'], 'days and average_days agree for the observed source.' );
+	}
 }
