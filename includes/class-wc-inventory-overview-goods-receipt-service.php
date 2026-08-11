@@ -70,20 +70,24 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 		}
 
 		$supplier_id = (int) $preview['header']['supplier_id'];
-		$supplier    = null;
-		if ( $supplier_id > 0 ) {
-			$supplier = WC_Inventory_Overview_Suppliers::get( $supplier_id );
-			if ( is_wp_error( $supplier ) ) {
-				return new WP_Error( 'wc_io_gr_supplier', __( 'Selected supplier could not be found.', 'wc-inventory-overview' ) );
-			}
-		}
 
 		global $wpdb;
 		$txn = new WC_Inventory_Overview_DB_Transaction( $wpdb );
 
 		try {
 			$receipt_id = $txn->run(
-				function () use ( $preview, $supplier_id, $supplier ) {
+				function () use ( $preview, $supplier_id ) {
+					// M17: Resolve and lock supplier inside transaction (BR-M17-18).
+					$supplier = null;
+					if ( $supplier_id > 0 ) {
+						$supplier = WC_Inventory_Overview_Suppliers::get_for_update( $supplier_id );
+						if ( is_wp_error( $supplier ) ) {
+							self::throw_if_error( new WP_Error( 'wc_io_gr_supplier', __( 'Selected supplier could not be found.', 'wc-inventory-overview' ) ) );
+						}
+						if ( WC_Inventory_Overview_Suppliers::STATUS_ACTIVE !== $supplier['status'] || ! empty( $supplier['merged_into_supplier_id'] ) ) {
+							self::throw_if_error( new WP_Error( 'wc_io_gr_supplier_inactive', __( 'Supplier must be active and not merged.', 'wc-inventory-overview' ) ) );
+						}
+					}
 					$header_row = array(
 						'supplier_id'              => $supplier_id > 0 ? $supplier_id : null,
 						'supplier_name_snapshot'   => $supplier ? (string) $supplier['name'] : null,

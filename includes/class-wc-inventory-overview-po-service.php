@@ -83,9 +83,25 @@ class WC_Inventory_Overview_PO_Service {
 		global $wpdb;
 
 		$supplier_id = isset( $header['supplier_id'] ) ? absint( $header['supplier_id'] ) : 0;
-		$supplier    = $supplier_id > 0 ? WC_Inventory_Overview_Suppliers::get( $supplier_id ) : null;
-		if ( is_wp_error( $supplier ) || ! is_array( $supplier ) ) {
+		if ( ! $supplier_id ) {
 			return new WP_Error( 'wc_io_po_supplier', 'A resolvable supplier is required' );
+		}
+
+		// M17: Start transaction early to lock supplier row.
+		$txn = new WC_Inventory_Overview_DB_Transaction( $wpdb );
+		if ( ! $txn->begin() ) {
+			return new WP_Error( 'wc_io_po_txn', 'Failed to begin transaction' );
+		}
+
+		// M17: Lock supplier row and validate eligibility (BR-M17-18).
+		$supplier = WC_Inventory_Overview_Suppliers::get_for_update( $supplier_id );
+		if ( is_wp_error( $supplier ) ) {
+			$txn->rollback();
+			return $supplier;
+		}
+		if ( WC_Inventory_Overview_Suppliers::STATUS_ACTIVE !== $supplier['status'] || ! empty( $supplier['merged_into_supplier_id'] ) ) {
+			$txn->rollback();
+			return new WP_Error( 'wc_io_po_supplier_inactive', 'Supplier must be active and not merged' );
 		}
 
 		$header['status']                 = WC_Inventory_Overview_PO_Statuses::DRAFT;
@@ -98,6 +114,7 @@ class WC_Inventory_Overview_PO_Service {
 
 		$header_ok = WC_Inventory_Overview_PO_Validation::validate_header( $header );
 		if ( is_wp_error( $header_ok ) ) {
+			$txn->rollback();
 			return $header_ok;
 		}
 
@@ -105,17 +122,13 @@ class WC_Inventory_Overview_PO_Service {
 		foreach ( $lines as $index => $line_input ) {
 			$prepared = self::prepare_line_input( $line_input, (string) $header['currency'], true );
 			if ( is_wp_error( $prepared ) ) {
+				$txn->rollback();
 				return new WP_Error(
 					$prepared->get_error_code(),
 					sprintf( 'Line %d: %s', $index + 1, $prepared->get_error_message() )
 				);
 			}
 			$prepared_lines[] = $prepared;
-		}
-
-		$txn = new WC_Inventory_Overview_DB_Transaction( $wpdb );
-		if ( ! $txn->begin() ) {
-			return new WP_Error( 'wc_io_po_txn', 'Failed to begin transaction' );
 		}
 
 		$po_id = WC_Inventory_Overview_Purchase_Orders::create_draft( $header );
