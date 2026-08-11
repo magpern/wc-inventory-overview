@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Install {
 
-	const DB_VERSION = '10';
+	const DB_VERSION = '11';
 
 	/**
 	 * Register activation hook target.
@@ -191,11 +191,13 @@ class WC_Inventory_Overview_Install {
 			supplier_reference varchar(100) NULL,
 			note text NULL,
 			status varchar(20) NOT NULL DEFAULT 'active',
+			merged_into_supplier_id bigint(20) unsigned NULL DEFAULT NULL,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			UNIQUE KEY normalized_name (normalized_name),
-			KEY status (status)
+			KEY status (status),
+			KEY merged_into_supplier_id (merged_into_supplier_id)
 		) {$collate};";
 		dbDelta( $sql6 );
 
@@ -364,6 +366,24 @@ class WC_Inventory_Overview_Install {
 			KEY cost_type (cost_type)
 		) {$collate};";
 		dbDelta( $sql12 );
+
+		// M17: Supplier Merges (schema v11). Append-only audit log.
+		$supplier_merges = $wpdb->prefix . 'wc_io_supplier_merges';
+		$sql13           = "CREATE TABLE {$supplier_merges} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			source_supplier_id bigint(20) unsigned NOT NULL,
+			source_supplier_name_snapshot varchar(190) NOT NULL DEFAULT '',
+			target_supplier_id bigint(20) unsigned NOT NULL,
+			target_supplier_name_snapshot varchar(190) NOT NULL DEFAULT '',
+			purchase_orders_reassigned int(10) unsigned NOT NULL DEFAULT 0,
+			goods_receipts_reassigned int(10) unsigned NOT NULL DEFAULT 0,
+			performed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY source_supplier_id (source_supplier_id),
+			KEY target_supplier_id (target_supplier_id)
+		) {$collate};";
+		dbDelta( $sql13 );
 	}
 
 	/**
@@ -480,6 +500,9 @@ class WC_Inventory_Overview_Install {
 	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns?:array<string,array<int,string>>}
 	 */
 	private static function expected_schema( $version ) {
+		if ( version_compare( (string) $version, '11', '>=' ) ) {
+			return self::expected_schema_v11();
+		}
 		if ( version_compare( (string) $version, '10', '>=' ) ) {
 			return self::expected_schema_v10();
 		}
@@ -745,6 +768,25 @@ class WC_Inventory_Overview_Install {
 			'migrated_receipt_id',
 			'migrated_at',
 		);
+
+		return $base;
+	}
+
+	/**
+	 * Expected schema shape for DB version 11 (Supplier Merge, M17).
+	 *
+	 * Adds merged_into_supplier_id column to wc_io_suppliers and creates
+	 * the new wc_io_supplier_merges append-only audit table. See the M17
+	 * implementation plan's Schema change section for full details.
+	 *
+	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns:array<string,array<int,string>>}
+	 */
+	private static function expected_schema_v11() {
+		$base = self::expected_schema_v10();
+
+		$base['tables'][] = 'wc_io_supplier_merges';
+
+		$base['columns']['suppliers'][] = 'merged_into_supplier_id';
 
 		return $base;
 	}
