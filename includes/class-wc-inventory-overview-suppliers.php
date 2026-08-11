@@ -273,7 +273,7 @@ class WC_Inventory_Overview_Suppliers {
 		global $wpdb;
 		$table = self::table_name();
 		$row   = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d FOR UPDATE", $id ),
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d FOR UPDATE", $id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			ARRAY_A
 		);
 		if ( ! $row ) {
@@ -326,14 +326,14 @@ class WC_Inventory_Overview_Suppliers {
 		}
 
 		global $wpdb;
-		$table = self::table_name();
-		$ids   = array_map( 'absint', $ids );
-		$ids   = array_unique( $ids );
+		$table        = self::table_name();
+		$ids          = array_map( 'absint', $ids );
+		$ids          = array_unique( $ids );
 		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, name FROM {$table} WHERE id IN ({$placeholders})",
+				"SELECT id, name FROM {$table} WHERE id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- {$table} is a trusted internal constant; {$placeholders} is a fixed count of literal '%d' tokens, one per element of $ids, which supplies exactly that many replacement values below.
 				$ids
 			),
 			ARRAY_A

@@ -139,22 +139,30 @@ class WC_Inventory_Overview_Goods_Receipt_Service {
 		}
 
 		$supplier_id = (int) $preview['header']['supplier_id'];
-		$supplier    = null;
-		if ( $supplier_id > 0 ) {
-			$supplier = WC_Inventory_Overview_Suppliers::get( $supplier_id );
-			if ( is_wp_error( $supplier ) ) {
-				return new WP_Error( 'wc_io_gr_supplier', __( 'Selected supplier could not be found.', 'wc-inventory-overview' ) );
-			}
-		}
 
 		global $wpdb;
 		$txn = new WC_Inventory_Overview_DB_Transaction( $wpdb );
 
 		try {
 			$txn->run(
-				function () use ( $id, $preview, $supplier_id, $supplier ) {
+				function () use ( $id, $preview, $supplier_id ) {
 					$receipt = self::throw_if_error( WC_Inventory_Overview_Goods_Receipts::get( $id ) );
 					self::throw_if_error( WC_Inventory_Overview_Goods_Receipt_Lifecycle::assert_editable( $receipt['status'] ) );
+
+					// M17: lock and validate eligibility -- a merged (permanently
+					// dissolved) supplier must never become newly associated with
+					// an existing Goods Receipt, matching the same check already
+					// applied at draft creation time (BR-M17-18/INV-M17-11).
+					$supplier = null;
+					if ( $supplier_id > 0 ) {
+						$supplier = WC_Inventory_Overview_Suppliers::get_for_update( $supplier_id );
+						if ( is_wp_error( $supplier ) ) {
+							self::throw_if_error( new WP_Error( 'wc_io_gr_supplier', __( 'Selected supplier could not be found.', 'wc-inventory-overview' ) ) );
+						}
+						if ( WC_Inventory_Overview_Suppliers::STATUS_ACTIVE !== $supplier['status'] || ! empty( $supplier['merged_into_supplier_id'] ) ) {
+							self::throw_if_error( new WP_Error( 'wc_io_gr_supplier_inactive', __( 'Supplier must be active and not merged.', 'wc-inventory-overview' ) ) );
+						}
+					}
 
 					$header_row = array(
 						'supplier_id'              => $supplier_id > 0 ? $supplier_id : null,

@@ -9,6 +9,26 @@
  * behavior at draft-creation time is preserved exactly as before this
  * milestone.
  *
+ * Scope of what this suite proves (corrected during WP3 remediation, per
+ * the WP2 audit's M17-F2 finding): every test below is strictly sequential
+ * -- a merge is run fully to commit, and only THEN is a creation attempt
+ * made against the now-dissolved source. This empirically proves
+ * post-commit rejection. It does NOT exercise, and cannot exercise under
+ * this harness, true in-flight concurrency: a genuinely parallel creation
+ * attempt racing a merge's own row lock via two independent, simultaneous
+ * database connections. This PHPUnit suite runs against a single $wpdb
+ * connection, so no dual-connection/threaded/multi-process test exists
+ * here or anywhere else in this codebase's M17 coverage.
+ *
+ * The claim that in-flight blocking and lock-order deadlock-avoidance hold
+ * is supported by code inspection (both create_draft() and
+ * create_draft_from_post() call Suppliers::get_for_update() as the first
+ * act inside their own transaction, before any insert, and
+ * Supplier_Merge_Service::merge() locks both supplier rows in a fixed
+ * low-ID-first order) plus reasoned InnoDB/MariaDB row-locking semantics --
+ * not by an executable test. This is a documentation/reporting correction,
+ * not a design change: the lock-order design itself is sound by inspection.
+ *
  * @package WC_Inventory_Overview_Tests
  */
 

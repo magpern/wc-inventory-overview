@@ -1075,10 +1075,18 @@ class WC_Inventory_Overview_PO_Service {
 		}
 
 		if ( isset( $update['supplier_id'] ) ) {
-			$supplier = WC_Inventory_Overview_Suppliers::get( absint( $update['supplier_id'] ) );
-			if ( is_wp_error( $supplier ) || ! is_array( $supplier ) ) {
+			// M17: lock and validate eligibility -- a merged (permanently
+			// dissolved) supplier must never become newly associated with an
+			// existing PO, matching the same check already applied at draft
+			// creation time (BR-M17-18/INV-M17-11).
+			$supplier = WC_Inventory_Overview_Suppliers::get_for_update( absint( $update['supplier_id'] ) );
+			if ( is_wp_error( $supplier ) ) {
 				$txn->rollback();
 				return new WP_Error( 'wc_io_po_supplier', 'A resolvable supplier is required' );
+			}
+			if ( WC_Inventory_Overview_Suppliers::STATUS_ACTIVE !== $supplier['status'] || ! empty( $supplier['merged_into_supplier_id'] ) ) {
+				$txn->rollback();
+				return new WP_Error( 'wc_io_po_supplier_inactive', 'Supplier must be active and not merged' );
 			}
 			$update['supplier_name_snapshot'] = (string) $supplier['name'];
 		}
