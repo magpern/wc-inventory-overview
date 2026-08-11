@@ -405,7 +405,18 @@ class Test_WC_IO_Inventory_Position_List_Table extends WC_Inventory_Overview_Tes
 	public function test_drilldown_supplier_column_shows_snapshot_and_survives_archive() {
 		$supplier = $this->create_supplier( array( 'name' => 'M16 Snapshot Supplier' ) );
 		$product  = $this->create_simple_product();
-		$po       = $this->create_purchase_order( array( 'supplier_id' => (int) $supplier['id'] ) );
+		// create_purchase_order() calls the raw repository create_draft(),
+		// which (unlike WC_Inventory_Overview_PO_Service::create_draft())
+		// does not auto-populate supplier_name_snapshot from the supplier
+		// row -- pass it explicitly, matching the same pattern used by
+		// tests/unit/purchase-orders/test-po-numbering.php and
+		// test-po-architecture.php.
+		$po = $this->create_purchase_order(
+			array(
+				'supplier_id'             => (int) $supplier['id'],
+				'supplier_name_snapshot'  => 'M16 Snapshot Supplier',
+			)
+		);
 		$this->add_po_line( $po['id'], array( 'product_id' => $product->get_id(), 'qty_ordered' => 1 ) );
 		$this->place_po( $po['id'] );
 

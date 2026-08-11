@@ -498,6 +498,7 @@ class Test_WC_IO_PO_Admin extends WC_Inventory_Overview_Test_Case {
 					'status'       => 'received',
 				)
 			);
+			$po_line_id = (int) $wpdb->insert_id;
 
 			$wpdb->insert(
 				WC_Inventory_Overview_Goods_Receipts::table_name(),
@@ -510,6 +511,23 @@ class Test_WC_IO_PO_Admin extends WC_Inventory_Overview_Test_Case {
 					'posted_at'      => gmdate( 'Y-m-d H:i:s', strtotime( '2026-01-01 00:00:00 +' . $lead_days . ' days' ) ),
 					'created_by'     => 0,
 					'updated_by'     => 0,
+				)
+			);
+			$receipt_id = (int) $wpdb->insert_id;
+
+			// Supplier_Lead_Time_Service's query joins through receipt_lines
+			// (not just the receipt header) -- without this row the fixture
+			// has zero qualifying observations for this supplier.
+			$wpdb->insert(
+				WC_Inventory_Overview_Receipt_Lines::table_name(),
+				array(
+					'receipt_id'        => $receipt_id,
+					'line_index'        => 0,
+					'po_line_id'        => $po_line_id,
+					'product_id'        => $product->get_id(),
+					'qty'               => 1,
+					'entered_currency'  => 'EUR',
+					'entered_unit_cost' => 1,
 				)
 			);
 		}
