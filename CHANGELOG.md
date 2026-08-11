@@ -1,5 +1,27 @@
 # Changelog — WC Inventory Overview
 
+## [1.33.0] - 2026-08-11
+
+**Milestone M16 — PO Expected-Date & Delay Transparency.** Three small, read-mostly surfaces that make already-computed-but-hidden facts visible/configurable in the Purchase Order workflow: why an Expected-Date suggestion was made, how many grace days a PO gets before being flagged "delayed," and which supplier/status is behind each contributing line in the Inventory Position drilldown. **Zero schema change (`DB_VERSION` stays 10), zero domain/operational mutation, zero new public API, zero new capability, zero new hook.** First milestone of a new, unreleased post-v1.32.0 train — not individually released.
+
+### Added
+
+- **Expected-Date suggestion provenance** on the New PO screen: an advisory hint beneath the Expected Date/Confidence fields, reading "Suggested from this supplier's delivery history (N orders, avg D days)." for an observed-history suggestion, or "Suggested from supplier's configured default (D days)." for a configured-default suggestion. Presentation only — never submitted, never influences persistence (BR-M16-1/BR-M16-3).
+- **`WC_Inventory_Overview_Expected_Date_Suggestion_Service`** return shape gains `sample_count`/`average_days` (both `null` unless `source === 'observed'`), sourced from the same already-fetched `Supplier_Lead_Time_Service::get_stats_bulk()` stats the service already used — no additional query (BR-M16-2).
+- **PO delay grace-days Settings field** — new "PO delay grace period (days)" field under a new "Purchasing" section on the Settings tab, exposing the existing `WC_Inventory_Overview_PO_Delay::OPTION_GRACE_DAYS` option (previously editable only via raw `update_option()`). Accepts an integer 0–365; any missing, non-numeric, non-integer, or out-of-range submission leaves the stored value completely untouched — never `absint()`-style coerced into range (BR-M16-4).
+- **Supplier + Status columns** on the Inventory Position drilldown mini-table (M3), inserted between PO number and Outstanding: **PO number, Supplier, Status, Outstanding, Expected date, Confidence, Delayed** (BR-M16-8). Supplier uses the PO's own denormalized `supplier_name_snapshot` (survives supplier archive, BR-M16-6); Status reuses the existing `WC_Inventory_Overview_PO_Statuses::label()` map (BR-M16-7). Sourced from two additional `SELECT` columns on the already-executing `query_open_lines()` query — zero new query, zero new join.
+- Architecture guards INV-M16-2 (sole mutator of the grace-days option) and confirmation that INV-M16-3 (Inventory Position sole-caller guard) needed zero changes.
+
+### Notes
+
+- `days` (the resolved suggestion value used to prefill the form) is never repurposed as display evidence; the provenance message reads `sample_count`/`average_days` for an observed suggestion, never `days` — keeping "the value we suggest" and "the evidence we show" independently sourced (BR-M16-2).
+- Grace-days validation is a deliberate deviation from this codebase's `absint()`-based numeric-Settings-field convention (e.g. `OPTION_DEFAULT_LOW_STOCK_THRESHOLD`): `absint()` would silently turn `-5` into `5`, whereas any invalid input here must preserve the prior stored value untouched. `0` is a valid, saveable value.
+- The Inventory Position drilldown extension (M3, shipped in v1.20.0) was found during discovery to already cover PO number/outstanding/expected date/confidence/delayed — only Supplier and Status were actually missing; this milestone folds that trivial, zero-new-query addition in alongside the two related, previously-deferred Settings/provenance items rather than shipping it as an unrelated bolt-on to a different milestone.
+
+### Testing
+
+- New/extended unit coverage for `Expected_Date_Suggestion_Service` (evidence-field presence/nullability, `days` unaffected); new `Test_WC_IO_Settings_PO_Delay_Grace_Days` suite (table-driven validate-or-preserve contract: missing, negative, `>365`, non-numeric, decimal, scientific-notation, trailing-character, `0`, `365`, mid-range valid; sole-mutator architecture guard); new/extended integration coverage for `PO_Admin`'s localized suggestion data (configured/observed/none provenance, i18n templates, edit-screen no-op) and the Inventory Position drilldown (fixed column order, supplier-snapshot-survives-archive, shared status label). Existing `test_position_query_count_bounded_for_twenty_plus_rows` re-run unmodified and still green. Full unit/integration suites green, 0 failures/errors/risky.
+
 ## [1.32.0] - 2026-08-11
 
 **Milestone M15 — Supplier Spend Summary.** Read-only, per-currency total of Ordered/Received Value across a supplier's *committed* Purchase Orders, on the existing Supplier detail admin screen, above the Observed Lead Time panel. Closes the one remaining named gap in `docs/admin-guide-suppliers.md`'s "Not Yet Available" list (supplier spend analysis), resolving M14's stated currency-normalization blocker by choosing to never blend or convert currencies. **Zero schema change (`DB_VERSION` stays 10), zero mutation, zero new public API, zero new capability, zero new hook.** **Prerequisite:** `1.31.0` (M14, frozen, unreleased). Third milestone of the same still-unreleased post-v1.29.0 feature train — not individually released.

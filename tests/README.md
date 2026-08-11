@@ -45,12 +45,13 @@ docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --fil
 ```
 
 The **default** run (no arguments) uses `run-phpunit.sh`'s built-in filter —
-the M1–M11 focused blocking suite (PO, schema, suppliers, DB-transaction,
+the M1–M16 focused blocking suite (PO, schema, suppliers, DB-transaction,
 Inventory Position, Goods Receipt, batch migration, expected delivery, supplier
-lead time, expected-date suggestion, expected deadline, on-time rate, plus
-architecture/conformance guards). This is the suite expected to pass cleanly
-at all times. Each invocation also `DROP`/`CREATE`s the test database so
-repeated runs against a long-lived MariaDB container stay isolated.
+lead time, expected-date suggestion, expected deadline, on-time rate, supplier
+order history, supplier spend, settings, plus architecture/conformance
+guards). This is the suite expected to pass cleanly at all times. Each
+invocation also `DROP`/`CREATE`s the test database so repeated runs against a
+long-lived MariaDB container stay isolated.
 
 ### PHPCS
 

@@ -2,6 +2,17 @@
 
 ---
 
+## ✓ M16 (v1.33.0, frozen/unreleased): code-only, plus one pre-existing settings option — safe to roll back
+
+**M16 changed no schema and mutated no domain/operational data.** It adds a provenance hint on the New PO screen, Supplier/Status columns on the Inventory Position drilldown (both purely additive read/presentation), and one Settings-tab field for a **pre-existing** option (`WC_Inventory_Overview_PO_Delay::OPTION_GRACE_DAYS`) that already existed and was already read throughout the codebase before this milestone — M16 only adds a UI to edit it, via the exact same `Settings::save_from_post()` mutation path every other Settings field already uses.
+
+- **Code rollback is unconditionally safe.** The provenance hint, the Settings field, and the two drilldown columns simply disappear; every existing New PO / Settings / Inventory Position behavior is untouched, proven by the pre-existing M3/M9/M10 test suites passing unmodified alongside the new M16 tests.
+- **No new `wp_options` row, no new table, no new column** — the one option this milestone can write (`wc_io_po_delay_grace_days`) already existed pre-M16 (read by `PO_Delay::grace_days_from_option()` since M8) and defaults to `0`; rolling back the code leaves that option unreachable via UI again, exactly as it was before M16, and safe to leave at whatever value it holds.
+- **Historical Purchase Order / Purchase Order Line data is untouched** — the drilldown extension only adds `SELECT` columns to the already-existing `query_open_lines()` query; the suggestion provenance hint only reads already-computed `Supplier_Lead_Time_Service` stats. Neither ever writes.
+- Like M7–M15, **M16 leaves nothing behind** beyond the absence of its three UI additions after rollback.
+
+---
+
 ## ✓ M15 (v1.32.0, frozen/unreleased): code-only, read-only spend aggregate — as clean as M7–M14, nothing to reverse
 
 **M15 wrote no data, changed no schema, and mutated nothing.** It only adds one new, self-contained aggregate read method (`Purchase_Orders::spend_summary_for_supplier()`), one new Internal service (`Supplier_Spend_Service`), and one new "Spend Summary" render section on the existing Supplier detail screen. No new option, table, column, setting, capability, or public API/hook.
