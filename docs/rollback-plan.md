@@ -2,6 +2,28 @@
 
 ---
 
+## ✓ M15 (v1.32.0, frozen/unreleased): code-only, read-only spend aggregate — as clean as M7–M14, nothing to reverse
+
+**M15 wrote no data, changed no schema, and mutated nothing.** It only adds one new, self-contained aggregate read method (`Purchase_Orders::spend_summary_for_supplier()`), one new Internal service (`Supplier_Spend_Service`), and one new "Spend Summary" render section on the existing Supplier detail screen. No new option, table, column, setting, capability, or public API/hook.
+
+- **Code rollback is unconditionally safe.** The "Spend Summary" section and its supporting method/service simply disappear; every existing Observed Lead Time / Order History / Purchase Order behavior is untouched, proven by the pre-existing M9/M11/M13/M14 test suites passing unmodified alongside the new M15 tests (isolated `--filter` regression spot-check, 57/57 green).
+- **No `wp_options` row, no new table, no new column, no new setting** — nothing for a rollback to leave behind.
+- **Historical Purchase Order / Purchase Order Line data is untouched** — M15 only reads via `spend_summary_for_supplier()`'s own `SELECT`, never writes.
+- Like M7–M14, **M15 leaves nothing behind** beyond the absence of the Spend Summary section after rollback.
+
+---
+
+## ✓ M14 (v1.31.0, frozen/unreleased): code-only, read-only order-history list — as clean as M7–M13, nothing to reverse
+
+**M14 wrote no data, changed no schema, and mutated nothing.** It only adds a standalone, read-only, paginated "Order History" section on the existing Supplier detail screen (`Supplier_Order_History_Service`, composed exclusively through `Purchase_Orders::count()`/`list()`/`values_bulk()`). No new option, table, column, setting, capability, or public API/hook.
+
+- **Code rollback is unconditionally safe.** The "Order History" section and its supporting service/method simply disappear; every existing Supplier admin behavior (Observed Lead Time, On-Time Rate, PO Admin) is untouched, proven by the pre-existing test suites passing unmodified alongside the new M14 tests.
+- **No `wp_options` row, no new table, no new column, no new setting** — nothing for a rollback to leave behind.
+- **Historical Purchase Order / Purchase Order Line data is untouched** — M14 only reads via the existing `Purchase_Orders` read owner, never writes.
+- Like M7–M13, **M14 leaves nothing behind** beyond the absence of the Order History section after rollback.
+
+---
+
 ## ✓ M13 (v1.30.0, frozen/unreleased): code-only, read-only print view — as clean as M7–M12, nothing to reverse
 
 **M13 wrote no data, changed no schema, and mutated nothing.** It only adds a standalone, read-only printable HTML view of a Purchase Order (`PO_Print_Renderer`, composed by `PO_Admin::handle_print()`) reachable via one new `admin_post_wc_io_po_print` action. No new option, table, column, setting, capability, or public API/hook.

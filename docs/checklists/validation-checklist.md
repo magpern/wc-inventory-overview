@@ -368,6 +368,48 @@ Inverted from M3's checklist above: M4 positively verifies receiving now works c
 
 - [ ] **Existing PO Admin behavior unaffected** — save/place/cancel/close-short/duplicate/receiving-history/timeline all unchanged (pre-existing `Test_WC_IO_PO_Admin` suite passes unmodified).
 
+### For M14 (Supplier Order History, v1.31.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`.
+
+- [ ] **Order History renders correctly**: "Order History" section on the Supplier detail screen lists every Purchase Order for that supplier — every status included (draft, placed, partially received, received, cancelled, closed short) — newest `order_date` first, paginated via `wc_io_supplier_order_history_page`.
+
+- [ ] **Per-row values correct**: each row's Ordered Value / Received Value (PO Cost) matches that PO's own line data (`qty × unit_cost`), in that PO's own currency, never summed across POs or currencies.
+
+- [ ] **`values_bulk()` bounded**: one grouped query per page, scoped to that page's PO ids only — never a supplier-wide sum.
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Supplier_Order_History_Architecture'
+  ```
+
+- [ ] **Full test suite green** — unit, M1–M14-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+
+- [ ] **M9/M11/M13 surfaces unaffected** — Observed Lead Time, On-Time Rate, and PO Print behavior unchanged.
+
+### For M15 (Supplier Spend Summary, v1.32.0)
+
+- [ ] **No schema change**: `DB_VERSION` is unchanged at `10`.
+
+- [ ] **Spend Summary renders correctly**: "Spend Summary" section on the Supplier detail screen, above Observed Lead Time, shows one row per currency (Currency / Ordered Value / Received Value (PO Cost) / Committed POs) for the supplier's committed Purchase Orders.
+
+- [ ] **Committed-status filtering correct**: only `placed`/`partially_received`/`received`/`closed_short` POs contribute; `draft` and `cancelled` are always excluded.
+
+- [ ] **Currency isolation and `po_count` semantics correct**: currencies are never blended or converted; `po_count` is `COUNT(DISTINCT po.id)` scoped to each currency row (a PO with lines in more than one currency may be counted once in more than one row).
+
+- [ ] **Empty state correct**: a supplier with zero committed POs shows the "No committed purchase orders yet for this supplier." message, no zero-value row.
+
+- [ ] **Single-query contract**: `spend_summary_for_supplier()` issues exactly one query regardless of history size (proven at 200-PO/3-currency scale).
+
+- [ ] **Architecture guards pass**:
+  ```bash
+  docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite=unit --filter='Test_WC_IO_Supplier_Spend_Architecture'
+  ```
+
+- [ ] **Full test suite green** — unit, M1–M15-focused, and full integration suites pass with 0 failures / 0 errors / 0 risky.
+
+- [ ] **M9/M11/M13/M14 surfaces unaffected** — Observed Lead Time, On-Time Rate, PO Print, and Order History behavior unchanged.
+
 ## Sign-off
 
 Once all checks pass:

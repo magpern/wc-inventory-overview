@@ -185,7 +185,7 @@ GitHub Actions workflows:
 | Workflow | Trigger | Gates |
 |----------|---------|-------|
 | `.github/workflows/ci.yml` | push/PR to `main` | PHP syntax lint on all `.php` files; release ZIP build via `scripts/build-zip.sh`; `scripts/release-audit.sh --development` (feature-train compatible — does **not** require per-version GitHub release notes) |
-| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | `lint`: PHP Parallel Lint (blocking). `phpunit`: unit suite (blocking) + M1–M13-focused suite (blocking) + cumulative integration suite (blocking). |
+| `.github/workflows/tests.yml` | push/PR to `main`, `develop` | `lint`: PHP Parallel Lint (blocking). `phpunit`: unit suite (blocking) + M1–M15-focused suite (blocking) + cumulative integration suite (blocking). |
 
 **PHPCS is not CI-gated today** — run locally before merge:
 `./vendor/bin/phpcs --standard=phpcs.xml.dist` after `composer install` (or
@@ -196,9 +196,9 @@ The `phpunit` CI job runs three PHPUnit invocations against the same
 `tests/docker/docker-compose.phpunit.yml` stack a developer runs locally,
 so CI and local results are identical by construction:
 
-1. **Unit suite** (`--testsuite unit`) — must pass. Counts rise with M13 print-renderer/handler coverage; require 0 failures / 0 risky.
-2. **M1–M13-focused suite** (default `run-phpunit.sh` filter — see that script for the exact class-name regex and the trailing-underscore trap notes) — must pass; this is the suite that gates milestone changes specifically. M13 classes match `Test_WC_IO_PO_` and are also listed explicitly as `Test_WC_IO_PO_Print_` for future-proofing (no filter *fix* was required — verified via `--list-tests` that the existing `Test_WC_IO_PO_` entry already matched). Require 0 failures / 0 risky.
-3. **Cumulative integration suite** (`--testsuite integration`) — must pass with 0 errors / 0 failures / 0 skips / 0 risky. Includes the M0-era golden characterization tests plus all milestone integration coverage (M13's print-handler tests live in `tests/unit/po-print/`, matching the existing convention that handler-simulation tests sit alongside their class rather than in `tests/integration/`, which is reserved for larger multi-fixture "observation"/performance suites).
+1. **Unit suite** (`--testsuite unit`) — must pass. Counts rise with each milestone's own unit coverage (most recently M15's `spend_summary_for_supplier()`/`Supplier_Spend_Service` tests); require 0 failures / 0 risky.
+2. **M1–M15-focused suite** (default `run-phpunit.sh` filter — see that script for the exact class-name regex and the trailing-underscore trap notes) — must pass; this is the suite that gates milestone changes specifically. Each milestone with a distinct class-name prefix is listed explicitly in that filter (e.g. M13's `Test_WC_IO_PO_Print_`, M14's `Test_WC_IO_Supplier_Order_History_`, M15's `Test_WC_IO_Supplier_Spend_`) so a future rename can't silently drop coverage; confirmed via `--list-tests` that all such classes are actually discovered, not merely assumed from the regex. Require 0 failures / 0 risky.
+3. **Cumulative integration suite** (`--testsuite integration`) — must pass with 0 errors / 0 failures / 0 skips / 0 risky. Includes the M0-era golden characterization tests plus all milestone integration coverage (some milestones' handler-simulation tests live under `tests/unit/<feature>/` alongside their class rather than in `tests/integration/`, which is reserved for larger multi-fixture "observation"/performance suites — see each milestone's own test-plan notes in `docs/milestones/`).
 
 Each PHPUnit invocation resets the MariaDB test database (`DROP DATABASE` / `CREATE DATABASE`) before WordPress's own install, so repeated local runs against a long-lived db container stay deterministic (see `tests/docker/run-phpunit.sh`).
 
