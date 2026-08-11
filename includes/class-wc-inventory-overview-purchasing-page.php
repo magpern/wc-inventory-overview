@@ -357,9 +357,59 @@ class WC_Inventory_Overview_Purchasing_Page {
 				?>
 			</p>
 			<?php
+			$this->render_spend_summary_section( $supplier_id );
 			$this->render_observed_lead_time( $supplier_id, $supplier );
 			$this->render_order_history_section( $supplier_id );
 		}
+	}
+
+	/**
+	 * Read-only "Spend Summary" section (M15). Shows one row per currency
+	 * of total ordered/received value across this supplier's *committed*
+	 * Purchase Orders (BR-M15-1) -- placed, partially received, received,
+	 * or closed short only; draft and cancelled orders never contribute
+	 * (INV-M15-1). Currencies are never blended or converted (INV-M15-2)
+	 * -- via WC_Inventory_Overview_Supplier_Spend_Service, never a second
+	 * source of truth, never a mutation surface.
+	 *
+	 * @param int $supplier_id Supplier id.
+	 */
+	private function render_spend_summary_section( int $supplier_id ) {
+		$summary = WC_Inventory_Overview_Supplier_Spend_Service::get_summary( $supplier_id );
+		?>
+		<h3><?php esc_html_e( 'Spend Summary', 'wc-inventory-overview' ); ?></h3>
+		<?php
+		if ( empty( $summary ) ) {
+			echo '<p class="description">' . esc_html__( 'No committed purchase orders yet for this supplier.', 'wc-inventory-overview' ) . '</p>';
+			return;
+		}
+		?>
+		<table class="widefat striped wc-io-mini-table">
+			<thead>
+				<tr>
+					<th><?php esc_html_e( 'Currency', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Ordered Value', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Received Value (PO Cost)', 'wc-inventory-overview' ); ?></th>
+					<th><?php esc_html_e( 'Committed POs', 'wc-inventory-overview' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $summary as $row ) : ?>
+					<tr>
+						<td><?php echo esc_html( $row['currency'] ); ?></td>
+						<td><?php echo esc_html( self::format_po_cost_value( $row['ordered_total'], $row['currency'] ) ); ?></td>
+						<td><?php echo esc_html( self::format_po_cost_value( $row['received_total'], $row['currency'] ) ); ?></td>
+						<td><?php echo esc_html( (string) $row['po_count'] ); ?></td>
+					</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<p class="description">
+			<?php esc_html_e( 'Totals include placed, partially received, received, and closed-short orders only; drafts and cancelled orders are excluded. Currencies are shown separately and never combined.', 'wc-inventory-overview' ); ?>
+			<br>
+			<?php esc_html_e( "\"Committed POs\" counts distinct orders contributing to that currency row; a PO with lines in more than one currency may be counted in more than one row.", 'wc-inventory-overview' ); ?>
+		</p>
+		<?php
 	}
 
 	/**
