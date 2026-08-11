@@ -380,7 +380,19 @@ class Test_WC_IO_Inventory_Position_List_Table extends WC_Inventory_Overview_Tes
 		$table = $this->new_table();
 		$html  = $this->render_table_html( $table );
 
-		$header_start = strpos( $html, '<thead><tr>' );
+		// prepare_items() is not scoped to this test's own fixture -- other
+		// products may still be present from earlier tests in this file
+		// (dbDelta()'s implicit commit breaks per-test transaction
+		// rollback, a pre-existing quirk of this suite, not introduced by
+		// M16). A bare strpos() for the first "<thead><tr>" in the whole
+		// page can false-match an unrelated "Variations on this page"
+		// mini-table from a leftover variable-parent product. Scope the
+		// search to this test's own detail panel instead.
+		$panel_marker = 'wc-io-detail-panel-' . $product->get_id() . '"';
+		$panel_start  = strpos( $html, $panel_marker );
+		$this->assertNotFalse( $panel_start, 'This product\'s own detail panel must be present.' );
+
+		$header_start = strpos( $html, '<thead><tr>', $panel_start );
 		$header_end   = strpos( $html, '</tr></thead>', $header_start );
 		$this->assertNotFalse( $header_start );
 		$this->assertNotFalse( $header_end );
