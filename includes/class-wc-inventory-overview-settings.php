@@ -515,7 +515,8 @@ class WC_Inventory_Overview_Settings {
 		// Reject non-clean integers (decimals, scientific notation, stray
 		// characters) -- a value only round-trips through (int) casting
 		// without loss if it was already a clean integer string.
-		if ( (string) (int) $raw !== trim( (string) $raw ) ) {
+		$trimmed = trim( (string) $raw );
+		if ( (string) (int) $raw !== $trimmed ) {
 			return;
 		}
 
