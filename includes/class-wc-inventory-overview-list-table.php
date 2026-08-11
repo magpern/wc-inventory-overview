@@ -774,6 +774,8 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 
 		echo '<table class="widefat striped wc-io-mini-table wc-io-position-drilldown"><thead><tr>';
 		echo '<th>' . esc_html__( 'PO number', 'wc-inventory-overview' ) . '</th>';
+		echo '<th>' . esc_html__( 'Supplier', 'wc-inventory-overview' ) . '</th>';
+		echo '<th>' . esc_html__( 'Status', 'wc-inventory-overview' ) . '</th>';
 		echo '<th>' . esc_html__( 'Outstanding', 'wc-inventory-overview' ) . '</th>';
 		echo '<th>' . esc_html__( 'Expected date', 'wc-inventory-overview' ) . '</th>';
 		echo '<th>' . esc_html__( 'Confidence', 'wc-inventory-overview' ) . '</th>';
@@ -784,6 +786,8 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			$po_url = WC_Inventory_Overview_PO_Admin::detail_url( (int) ( $line['po_id'] ?? 0 ) );
 			echo '<tr>';
 			echo '<td><a href="' . esc_url( $po_url ) . '">' . esc_html( (string) ( $line['po_number'] ?? '' ) ) . '</a></td>';
+			echo '<td>' . esc_html( (string) ( $line['supplier_name'] ?? '' ) ) . '</td>';
+			echo '<td>' . esc_html( WC_Inventory_Overview_PO_Statuses::label( (string) ( $line['po_status'] ?? '' ) ) ) . '</td>';
 			echo '<td>' . esc_html( self::format_position_qty( (float) ( $line['outstanding'] ?? 0 ) ) ) . '</td>';
 			echo '<td>' . esc_html( ! empty( $line['expected_date'] ) ? (string) $line['expected_date'] : '—' ) . '</td>';
 			echo '<td>' . esc_html( ! empty( $line['expected_confidence'] ) ? (string) $line['expected_confidence'] : '—' ) . '</td>';
