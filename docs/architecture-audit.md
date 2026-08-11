@@ -1,7 +1,7 @@
 # Architecture audit — WC Inventory Overview 1.29.0
 
 **Date:** 2026-08-08 (updated through Milestone M8); updated through M9–M12 2026-08-09/10; updated through M13–M15 2026-08-11 (M14 was not brought current at the time of its own freeze — a documentation-currency gap closed retroactively together with M15, per `docs/milestones/m15-implementation-plan.md` Part A; no fact about M9–M13 changed in this pass).
-**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M15 complete on the feature train (schema `DB_VERSION` 10) — Version 1.0 / GA ready since M8 (`v1.25.0` published); M9–M12 released as `v1.29.0`; M13–M15 are the current post-GA feature train (`docs/process/milestone-lifecycle.md`), all implemented and frozen but intentionally not yet released (M9 received a full independent audit and remediation; M10–M15 each froze after a lightweight Level A completion review — see `docs/checklists/m9-release-readiness.md` … `m15-release-readiness.md`). For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place through M15, filename unchanged since none of M8–M15 changed a frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
+**Scope:** Standalone repo `magpern/wc-inventory-overview`, Milestones M0–M15 complete and published (schema `DB_VERSION` 10) — Version 1.0 / GA ready since M8 (`v1.25.0` published); M9–M12 released as `v1.29.0`; M13–M15 released as `v1.32.0` (M9 received a full independent audit and remediation; M10–M15 each froze after a lightweight Level A completion review — see `docs/checklists/m9-release-readiness.md` … `m15-release-readiness.md`). For the consolidated architecture snapshot, see [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](ARCHITECTURE_BASELINE_v1.24.0.md) (updated in place through M15, filename unchanged since none of M8–M15 changed a frozen boundary); this document remains the per-milestone code/schema audit trail, section-by-section below.
 
 ---
 
@@ -486,9 +486,9 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ---
 
-## Milestone M13 — Printable Purchase Order (1.30.0, frozen, unreleased)
+## Milestone M13 — Printable Purchase Order (1.30.0, released as v1.32.0)
 
-**Status:** Complete, development version `1.30.0`. **Schema unchanged (v10), zero new tables, zero new columns.** First milestone of a new feature train opened after the M9–M12 train released as `v1.29.0`. Frozen with a Level A completion review (see `docs/checklists/m13-release-readiness.md`); not yet merged, tagged, or released. Zero new public API surface (Internal, D16); zero new capability; zero new public hook.
+**Status:** Complete, development version `1.30.0`. **Schema unchanged (v10), zero new tables, zero new columns.** First milestone of the feature train opened after the M9–M12 train released as `v1.29.0`. Frozen with a Level A completion review (see `docs/checklists/m13-release-readiness.md`); released bundled with M14/M15 as tag `v1.32.0`. Zero new public API surface (Internal, D16); zero new capability; zero new public hook.
 
 **Scope:** a read-only, standalone HTML printable view of a single Purchase Order, reachable from the existing PO detail screen for any PO in a printable status. Architecturally reserved since Architecture v1.0 (`CLAUDE.md` D17, §11.2 — "printable-PO reserved capability") but never built until now.
 
@@ -512,9 +512,9 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ---
 
-## Milestone M14 — Supplier Order History (1.31.0, frozen, unreleased)
+## Milestone M14 — Supplier Order History (1.31.0, released as v1.32.0)
 
-**Status:** Complete, development version `1.31.0`. **Schema unchanged (v10), zero new tables, zero new columns.** Second milestone of the same feature train M13 opened after the M9–M12 train released as `v1.29.0`. Frozen with a Level A completion review (see `docs/checklists/m14-release-readiness.md`); not yet merged, tagged, or released. Zero new public API surface (Internal, D16); zero new capability; zero new public hook.
+**Status:** Complete, development version `1.31.0`. **Schema unchanged (v10), zero new tables, zero new columns.** Second milestone of the same feature train M13 opened after the M9–M12 train released as `v1.29.0`. Frozen with a Level A completion review (see `docs/checklists/m14-release-readiness.md`); released bundled with M13/M15 as tag `v1.32.0`. Zero new public API surface (Internal, D16); zero new capability; zero new public hook.
 
 **Scope:** a read-only, paginated list of every Purchase Order for a supplier — every status included — on the existing Supplier detail admin screen, below the Observed Lead Time panel. Closes the longest-standing named gap in `docs/admin-guide-suppliers.md`'s "Not Yet Available" list (order-history reporting, named since M9).
 
@@ -536,9 +536,9 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ---
 
-## Milestone M15 — Supplier Spend Summary (1.32.0, frozen, unreleased)
+## Milestone M15 — Supplier Spend Summary (1.32.0, released as v1.32.0)
 
-**Status:** Complete, development version `1.32.0`. **Schema unchanged (v10), zero new tables, zero new columns.** Third milestone of the same feature train M13 opened. Frozen with a Level A completion review (see `docs/checklists/m15-release-readiness.md`); not yet merged, tagged, or released. Zero new public API surface (Internal, D16); zero new capability; zero new public hook.
+**Status:** Complete, development version `1.32.0`. **Schema unchanged (v10), zero new tables, zero new columns.** Third milestone of the same feature train M13 opened. Frozen with a Level A completion review (see `docs/checklists/m15-release-readiness.md`); released bundled with M13/M14 as tag `v1.32.0`. Zero new public API surface (Internal, D16); zero new capability; zero new public hook.
 
 **Scope:** a read-only, per-currency total of Ordered Value and Received Value (PO Cost) across a supplier's *committed* Purchase Orders, on the existing Supplier detail admin screen, rendered before the Observed Lead Time / Order History sections. Closes the one remaining named gap in `docs/admin-guide-suppliers.md`'s "Not Yet Available" list (supplier spend analysis) by resolving M14's stated currency-normalization blocker: the policy is "never blend or convert," not "normalize later."
 

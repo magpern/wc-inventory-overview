@@ -256,8 +256,8 @@ the purchasing platform built on top of Suppliers is fully shipped:
 ✓ **Expected-Date Suggestion** (M10): new Purchase Orders pre-fill Expected Date/Confidence from observed (or configured) lead time — always editable, never authoritative
 ✓ **On-Time Delivery Rate** (M11): read-only percentage of rated completed orders received on or before their expected date, alongside Observed Lead Time
 ✓ **Supplier list performance columns** (M12): Observed Lead Time and On-Time Rate on the Suppliers list for at-a-glance comparison
-✓ **Order History** (M14): every Purchase Order for a supplier, every status included, with per-order Ordered/Received Value in that order's own currency — implemented on the unreleased post-v1.29.0 feature train (development version `1.31.0`), not yet merged, tagged, or released.
-✓ **Spend Summary** (M15): per-currency totals of Ordered/Received Value across a supplier's committed Purchase Orders — implemented on the same unreleased post-v1.29.0 feature train (development version `1.32.0`), not yet merged, tagged, or released.
+✓ **Order History** (M14): every Purchase Order for a supplier, every status included, with per-order Ordered/Received Value in that order's own currency.
+✓ **Spend Summary** (M15): per-currency totals of Ordered/Received Value across a supplier's committed Purchase Orders.
 
 ### Not Yet Available
 

@@ -23,23 +23,23 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 == Changelog ==
 
 = 1.32.0 =
-* Milestone M15 — Supplier Spend Summary (same unreleased feature train as M13/M14). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
+* Milestone M15 — Supplier Spend Summary (feature train). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
 * New "Spend Summary" section on the Supplier detail screen (Purchasing -> Suppliers), above Observed Lead Time: one row per currency totaling Ordered Value and Received Value (PO Cost) across this supplier's committed purchase orders (placed, partially received, received, closed short -- draft and cancelled orders are always excluded).
 * Currencies are never blended or converted; each currency gets its own row. "Committed POs" counts distinct orders per currency row -- a PO with lines in more than one currency may be counted in more than one row.
-* Not individually released -- continues the unreleased feature train M13 opened.
+* Released as part of the bundled M13–M15 feature train (this version).
 
 = 1.31.0 =
-* Milestone M14 — Supplier Order History (same unreleased feature train as M13). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
+* Milestone M14 — Supplier Order History (same feature train as M13, released as v1.32.0). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
 * New "Order History" section on the Supplier detail screen (Purchasing -> Suppliers): every Purchase Order for that supplier, every status included (draft, placed, partially received, received, cancelled, closed short), newest first, paginated.
 * Each row shows Ordered Value and Received Value (PO Cost) -- the price committed to on that specific purchase order, in its own currency; never summed or converted across orders, and never a landed-cost or inventory-valuation figure.
-* Not individually released -- continues the unreleased feature train M13 opened.
+* Not individually released -- part of the bundled M13–M15 feature train, released as v1.32.0.
 
 = 1.30.0 =
-* Milestone M13 — Printable Purchase Order (new feature train). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
+* Milestone M13 — Printable Purchase Order (feature train, released as v1.32.0). Zero schema change (v10 unchanged), zero mutation, zero new public API, zero new capability.
 * New "Print" entry point on the Purchase Order detail screen (Purchasing -> Purchase Orders): a standalone, read-only, printable HTML document -- store name, PO details, supplier, line items, and total. Browser print / Save as PDF is the supported PDF mechanism; no PDF library is bundled.
 * Available for placed, partially received, received, cancelled, and closed-short purchase orders; never for drafts.
 * Product/supplier identity on the printed document always comes from the purchase order's own historical record, never a live lookup, so a since-deleted product or supplier cannot break printing.
-* Not individually released -- opens a new unreleased feature train.
+* Not individually released -- part of the bundled M13–M15 feature train, released as v1.32.0.
 
 = 1.29.0 =
 * Milestone M12 — Supplier List Performance Surface (feature train). Zero schema change (v10 unchanged), zero mutation, zero new public API.

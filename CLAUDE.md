@@ -6,29 +6,31 @@
 
 **Process:** [`docs/process/milestone-lifecycle.md`](docs/process/milestone-lifecycle.md) — the Standard Milestone Lifecycle (v2, effective M10 onward) governing plan → implement → audit → remediate → freeze → next-milestone sequencing and feature-train release batching. Read it before starting any milestone from M10 forward.
 
-**Canonical published baseline:** `main` / tag **`v1.29.0`**
-([`docs/GITHUB_RELEASE_NOTES_1.29.0.md`](docs/GITHUB_RELEASE_NOTES_1.29.0.md);
-train closure: [`docs/checklists/feature-train-m9-m12-release-readiness.md`](docs/checklists/feature-train-m9-m12-release-readiness.md)).
-Contains M0–M8 GA plus the bundled M9–M12 Supplier Performance feature train
-(and CI recovery). **M13 (Printable Purchase Order), M14 (Supplier Order
-History), and M15 (Supplier Spend Summary) are implemented and frozen on the
-same unreleased feature train (`feature/m13-printable-purchase-order` →
-`feature/m14-supplier-order-history` → `feature/m15-supplier-spend-summary`),
-development version `1.32.0` — not yet merged, tagged, or published; see
+**Canonical published baseline:** `main` / tag **`v1.32.0`**
+([`docs/GITHUB_RELEASE_NOTES_1.32.0.md`](docs/GITHUB_RELEASE_NOTES_1.32.0.md);
+train closure: [`docs/checklists/feature-train-m13-m15-release-readiness.md`](docs/checklists/feature-train-m13-m15-release-readiness.md)).
+Contains M0–M8 GA, the bundled M9–M12 Supplier Performance feature train
+(and CI recovery), and the bundled M13–M15 Purchasing & Supplier Insights
+feature train. **M13 (Printable Purchase Order), M14 (Supplier Order
+History), and M15 (Supplier Spend Summary) are tagged and published**; see
 [`docs/milestones/m13-implementation-plan.md`](docs/milestones/m13-implementation-plan.md)/[`docs/checklists/m13-release-readiness.md`](docs/checklists/m13-release-readiness.md),
 [`docs/milestones/m14-implementation-plan.md`](docs/milestones/m14-implementation-plan.md)/[`docs/checklists/m14-release-readiness.md`](docs/checklists/m14-release-readiness.md),
 and
 [`docs/milestones/m15-implementation-plan.md`](docs/milestones/m15-implementation-plan.md)/[`docs/checklists/m15-release-readiness.md`](docs/checklists/m15-release-readiness.md).**
+**Next authorized process step is planning the next milestone (M16+) if/when
+approved — do not invent scope here.**
 
-## Platform status: M0–M12 published (v1.29.0); M13–M15 frozen, unreleased
+## Platform status: M0–M15 published (v1.32.0)
 
-**Current baseline: plugin 1.29.0, `DB_VERSION` 10.** All nine foundational
-milestones (M0 Delivery Foundations through M8 Hardening & GA) plus the first
-post-GA feature train (M9–M12) are **tagged and published** as `v1.29.0`.
+**Current baseline: plugin 1.32.0, `DB_VERSION` 10.** All nine foundational
+milestones (M0 Delivery Foundations through M8 Hardening & GA), the first
+post-GA feature train (M9–M12), and the second post-GA feature train
+(M13–M15) are **tagged and published** as `v1.32.0`.
 M9–M12 were each frozen on feature branches (M9 with a full independent audit;
 M10–M12 with Level A completion reviews) and released together per
-`docs/process/milestone-lifecycle.md` WP6 — not as separate `v1.26`–`v1.28`
-tags. CI recovery is included in the same release. M8 added zero new domain
+`docs/process/milestone-lifecycle.md` WP6 as `v1.29.0` — not as separate
+`v1.26`–`v1.28` tags. CI recovery is included in that same release. M8 added
+zero new domain
 concepts, zero schema change, and zero
 public API change — it physically removed the M6-deprecated Batch Intake
 code, closed the `partially_received` delay-detection gap, added a
@@ -48,10 +50,21 @@ figures as read-only columns on the Suppliers list (one bulk
 four milestones, zero new public API (all new/extended services are Internal,
 not Public — D16), zero change to any existing business behavior beyond each
 milestone's own one addition.
+M13–M15 were each frozen on feature branches with Level A completion reviews
+and released together per WP6 as `v1.32.0`. M13 added one read-only
+presentation feature (a standalone printable HTML view of a Purchase Order,
+resilient to deleted product/supplier references via stored snapshots). M14
+added one read-only reporting feature (a paginated, status-inclusive Order
+History section per supplier, with per-PO Ordered/Received Value). M15 added
+one read-only reporting feature (a per-currency Spend Summary across a
+supplier's committed Purchase Orders, never blending currencies) — zero
+schema change across any of the three milestones, zero new public API (all
+new services are Internal, not Public — D16), zero change to any existing
+business behavior beyond each milestone's own one addition.
 **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)**
 remains the consolidated architecture snapshot — completed milestones, frozen
 ownership boundaries, public APIs, schema, invariants, and future-governance
-rules (updated in place for M8–M12, not superseded — see its own
+rules (updated in place for M8–M15, not superseded — see its own
 §12 rule and the milestone table). The Implementation Status
 table at the end of this file remains the authoritative per-milestone release
 ledger.
@@ -229,11 +242,11 @@ This table is updated as each milestone is implemented. Each milestone links to 
 | M10 | Purchase Order Expected-Date Suggestion | ✅ Complete | 1.27.0 | [docs/milestones/m10-implementation-plan.md](docs/milestones/m10-implementation-plan.md) | Schema unchanged (v10); second milestone of the post-GA feature train. `Expected_Date_Suggestion_Service` (new Internal, not Public, sole-owner boundary — D16) combines M9's observed statistics with the supplier's configured `default_lead_time_days` into an advisory expected-date suggestion (observed → configured → none; calendar days only), pre-filling the new-PO creation form via the existing `wp_localize_script`/`po-admin.js` plumbing — no AJAX, no new endpoint. Always overridable, permanently so once edited (INV-M10-1); never runs on the edit-PO screen. `Supplier_Lead_Time_Service` gains one small additive predicate, `is_observed_value_usable()`. Corrects a previously-false documentation claim that this suggestion already existed. Zero new domain concepts, zero public API, zero schema change. |
 | M11 | Supplier On-Time Delivery Rate | ✅ Complete | 1.28.0 | [docs/milestones/m11-implementation-plan.md](docs/milestones/m11-implementation-plan.md) | Schema unchanged (v10); third milestone of the post-GA feature train. New `Expected_Deadline` (Internal, narrow pure value/policy class — four methods, guard-closed) owns the "expected_date + grace_days → deadline" formula and known-date eligibility rule (INV-M11-2), consumed by both `PO_Delay` (internally refactored, public contract unchanged) and the further-extended `Supplier_Lead_Time_Service`, which now also returns `on_time_count`/`rated_order_count` per supplier from the same single query M9 already runs — zero additional queries. Unknown-confidence completed orders excluded from both numerator and denominator (INV-M11-1). Displayed read-only alongside Observed Lead Time on the Supplier admin screen. Zero new domain concepts, zero public API, zero schema change. |
 | M12 | Supplier List Performance Surface | ✅ Complete | 1.29.0 | [docs/milestones/m12-implementation-plan.md](docs/milestones/m12-implementation-plan.md) | Schema unchanged (v10); fourth milestone of the post-GA feature train. Read-only Observed Lead Time and On-Time Rate columns on the Suppliers list table, populated by one `Supplier_Lead_Time_Service::get_stats_bulk()` call per page (INV-M12-1/2). No new statistics engine, no mutation, no public API. Completes the supplier performance comparison decision point; released as part of the M9–M12 train, v1.29.0. |
-| M13 | Printable Purchase Order | ✅ Complete (frozen, unreleased) | 1.30.0 | [docs/milestones/m13-implementation-plan.md](docs/milestones/m13-implementation-plan.md) | Schema unchanged (v10); first milestone of a new post-v1.29.0 feature train. New `WC_Inventory_Overview_PO_Print_Renderer` (presentation-only, INV-M13-2) renders a standalone, read-only, printable HTML view of a Purchase Order, composed by `PO_Admin::handle_print()` (new `admin_post_wc_io_po_print` action) from the three existing read owners (`Purchase_Orders`, `Purchase_Order_Lines`, `Suppliers`) plus `PO_Statuses::label()` — no new domain owner. Requires `VIEW_PO` capability and a PO-and-action-scoped nonce before any data is read (INV-M13-4). Printable for every status except `draft`. Product/supplier identity always sourced from existing historical snapshot columns, never a live lookup, so deleted products/suppliers cannot break printing. Zero mutation, zero new public API, zero new capability, zero new hook. Level A completion review passed; see `docs/checklists/m13-release-readiness.md`. Not yet merged, tagged, or released. |
-| M14 | Supplier Order History | ✅ Complete (frozen, unreleased) | 1.31.0 | [docs/milestones/m14-implementation-plan.md](docs/milestones/m14-implementation-plan.md) | Schema unchanged (v10); second milestone of the same still-unreleased post-v1.29.0 feature train M13 opened. New `WC_Inventory_Overview_Supplier_Order_History_Service` (Internal, not Public — D16, INV-M14-3) composes a paginated, status-inclusive (INV-M14-4) list of a supplier's Purchase Orders exclusively through `Purchase_Orders::count()`/`list()`/`values_bulk()` (new additive method) — no new domain owner. Rendered as a new "Order History" section on the existing Supplier detail screen, reusing the existing `manage_woocommerce` gate; dedicated `wc_io_supplier_order_history_page` pagination parameter. Each row's Ordered/Received Value is PO-line cost only, in that PO's own currency, never summed across POs or currencies and never conflated with landed cost or inventory valuation (INV-M14-2). Zero mutation (INV-M14-1), zero new public API, zero new capability, zero new hook. Level A completion review passed; see `docs/checklists/m14-release-readiness.md`. Not yet merged, tagged, or released. |
-| M15 | Supplier Spend Summary | ✅ Complete (frozen, unreleased) | 1.32.0 | [docs/milestones/m15-implementation-plan.md](docs/milestones/m15-implementation-plan.md) | Schema unchanged (v10); third milestone of the same still-unreleased post-v1.29.0 feature train M13 opened. New `WC_Inventory_Overview_Supplier_Spend_Service` (Internal, not Public — D16, INV-M15-3) owns the "committed spend" status rule (BR-M15-1: `placed`/`partially_received`/`received`/`closed_short` only — `draft` and `cancelled` always excluded, INV-M15-1, a genuinely new business decision not reused verbatim from M13/M14) and composes the summary exclusively through the new `Purchase_Orders::spend_summary_for_supplier()` (self-contained aggregate; does not compose through `list()`) — no new domain owner. Rendered as a new "Spend Summary" section on the existing Supplier detail screen, before Observed Lead Time / Order History, reusing the existing `manage_woocommerce` gate. One row per currency; never blended or converted (INV-M15-2) — `po_count` is `COUNT(DISTINCT po.id)` scoped per currency row (BR-M15-5), so a PO with lines in more than one currency may count once in more than one row. A true database-level aggregate: exactly 1 query regardless of history size (proven at 200-PO/3-currency scale), unlike M14's page-scoped 3-query contract. Zero mutation, zero new public API, zero new capability, zero new hook. Level A completion review passed; see `docs/checklists/m15-release-readiness.md`. Not yet merged, tagged, or released. |
+| M13 | Printable Purchase Order | ✅ Complete | 1.30.0 | [docs/milestones/m13-implementation-plan.md](docs/milestones/m13-implementation-plan.md) | Schema unchanged (v10); first milestone of the M13–M15 feature train. New `WC_Inventory_Overview_PO_Print_Renderer` (presentation-only, INV-M13-2) renders a standalone, read-only, printable HTML view of a Purchase Order, composed by `PO_Admin::handle_print()` (new `admin_post_wc_io_po_print` action) from the three existing read owners (`Purchase_Orders`, `Purchase_Order_Lines`, `Suppliers`) plus `PO_Statuses::label()` — no new domain owner. Requires `VIEW_PO` capability and a PO-and-action-scoped nonce before any data is read (INV-M13-4). Printable for every status except `draft`. Product/supplier identity always sourced from existing historical snapshot columns, never a live lookup, so deleted products/suppliers cannot break printing. Zero mutation, zero new public API, zero new capability, zero new hook. Level A completion review passed; see `docs/checklists/m13-release-readiness.md`. Released as part of the M13–M15 train, v1.32.0. |
+| M14 | Supplier Order History | ✅ Complete | 1.31.0 | [docs/milestones/m14-implementation-plan.md](docs/milestones/m14-implementation-plan.md) | Schema unchanged (v10); second milestone of the M13–M15 feature train. New `WC_Inventory_Overview_Supplier_Order_History_Service` (Internal, not Public — D16, INV-M14-3) composes a paginated, status-inclusive (INV-M14-4) list of a supplier's Purchase Orders exclusively through `Purchase_Orders::count()`/`list()`/`values_bulk()` (new additive method) — no new domain owner. Rendered as a new "Order History" section on the existing Supplier detail screen, reusing the existing `manage_woocommerce` gate; dedicated `wc_io_supplier_order_history_page` pagination parameter. Each row's Ordered/Received Value is PO-line cost only, in that PO's own currency, never summed across POs or currencies and never conflated with landed cost or inventory valuation (INV-M14-2). Zero mutation (INV-M14-1), zero new public API, zero new capability, zero new hook. Level A completion review passed; see `docs/checklists/m14-release-readiness.md`. Released as part of the M13–M15 train, v1.32.0. |
+| M15 | Supplier Spend Summary | ✅ Complete | 1.32.0 | [docs/milestones/m15-implementation-plan.md](docs/milestones/m15-implementation-plan.md) | Schema unchanged (v10); third milestone of the M13–M15 feature train. New `WC_Inventory_Overview_Supplier_Spend_Service` (Internal, not Public — D16, INV-M15-3) owns the "committed spend" status rule (BR-M15-1: `placed`/`partially_received`/`received`/`closed_short` only — `draft` and `cancelled` always excluded, INV-M15-1, a genuinely new business decision not reused verbatim from M13/M14) and composes the summary exclusively through the new `Purchase_Orders::spend_summary_for_supplier()` (self-contained aggregate; does not compose through `list()`) — no new domain owner. Rendered as a new "Spend Summary" section on the existing Supplier detail screen, before Observed Lead Time / Order History, reusing the existing `manage_woocommerce` gate. One row per currency; never blended or converted (INV-M15-2) — `po_count` is `COUNT(DISTINCT po.id)` scoped per currency row (BR-M15-5), so a PO with lines in more than one currency may count once in more than one row. A true database-level aggregate: exactly 1 query regardless of history size (proven at 200-PO/3-currency scale), unlike M14's page-scoped 3-query contract. Zero mutation, zero new public API, zero new capability, zero new hook. Level A completion review passed; see `docs/checklists/m15-release-readiness.md`. Completes the M13–M15 train, v1.32.0. |
 
-**Release note:** **`v1.29.0` is tagged and published** — bundled M9–M12 feature train (+ CI recovery); see [`docs/GITHUB_RELEASE_NOTES_1.29.0.md`](docs/GITHUB_RELEASE_NOTES_1.29.0.md). Intermediate development versions `1.26.0`/`1.27.0`/`1.28.0` were never tagged. Prior releases through `v1.25.0` remain tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`. **`1.30.0` (M13), `1.31.0` (M14), and `1.32.0` (M15) are implemented and frozen but not released** — they form one still-unreleased feature train (`feature/m13-printable-purchase-order` → `feature/m14-supplier-order-history` → `feature/m15-supplier-spend-summary`); do not treat any of them as published until a future WP6 bundled release actually tags and deploys them. The next explicit decision point is to close and release M13+M14+M15 together (see `docs/milestones/m15-implementation-plan.md` Part G).
+**Release note:** **`v1.32.0` is tagged and published** — bundled M13–M15 Purchasing & Supplier Insights feature train; see [`docs/GITHUB_RELEASE_NOTES_1.32.0.md`](docs/GITHUB_RELEASE_NOTES_1.32.0.md). Intermediate development versions `1.30.0`/`1.31.0` were never tagged. **`v1.29.0` is tagged and published** — bundled M9–M12 feature train (+ CI recovery); see [`docs/GITHUB_RELEASE_NOTES_1.29.0.md`](docs/GITHUB_RELEASE_NOTES_1.29.0.md). Intermediate development versions `1.26.0`/`1.27.0`/`1.28.0` were never tagged. Prior releases through `v1.25.0` remain tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
 
 ---
 

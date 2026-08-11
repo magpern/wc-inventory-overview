@@ -60,7 +60,7 @@ Create `docs/checklists/mXX-release-readiness.md` recording:
 
 Unless this milestone changed architecture (see Release Triggers below), **stop here** and begin the next milestone's WP0. No release, no deployment, no tag, no GitHub Release yet.
 
-**Current published baseline:** `main` / **`v1.29.0`** (M9–M12 feature train released). Historical train tip branch: `feature/m12-supplier-list-performance`. See `docs/checklists/feature-train-development-head.md` and `docs/checklists/feature-train-m9-m12-release-readiness.md`.
+**Current published baseline:** `main` / **`v1.32.0`** (M9–M12 feature train released as `v1.29.0`; M13–M15 feature train released as `v1.32.0`). Historical train tip branches: `feature/m12-supplier-list-performance`, `feature/m15-supplier-spend-summary`. See `docs/checklists/feature-train-development-head.md`, `docs/checklists/feature-train-m9-m12-release-readiness.md`, and `docs/checklists/feature-train-m13-m15-release-readiness.md`.
 
 ## WP6 — Feature Train Release
 

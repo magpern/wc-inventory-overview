@@ -2,10 +2,10 @@
 
 Purchasing, receiving, inventory-position, and storefront expected-delivery platform for WooCommerce (HPOS-compatible).
 
-**Version:** 1.29.0 (published — tag `v1.29.0`)  
+**Version:** 1.32.0 (published — tag `v1.32.0`)  
 **Releases:** https://github.com/magpern/wc-inventory-overview/releases (tag `v*`)  
 **Requires:** WordPress 6.0+, PHP 7.4+, WooCommerce with HPOS supported  
-**Platform status:** Milestones M0–M12 complete and published (`v1.29.0`, schema `DB_VERSION` 10). M9–M12 shipped as one bundled feature-train release — see [`docs/GITHUB_RELEASE_NOTES_1.29.0.md`](docs/GITHUB_RELEASE_NOTES_1.29.0.md) and [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md).
+**Platform status:** Milestones M0–M15 complete and published (`v1.32.0`, schema `DB_VERSION` 10). M9–M12 shipped as one bundled feature-train release (`v1.29.0`); M13–M15 shipped as a second bundled feature-train release — see [`docs/GITHUB_RELEASE_NOTES_1.32.0.md`](docs/GITHUB_RELEASE_NOTES_1.32.0.md) and [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md).
 
 ## Features
 
@@ -26,6 +26,9 @@ Purchasing, receiving, inventory-position, and storefront expected-delivery plat
 - **PO Expected-Date Suggestion (M10):** advisory Expected Date/Confidence pre-fill on new Purchase Orders
 - **Supplier On-Time Delivery Rate (M11):** read-only on-time percentage against known expected dates + grace days
 - **Supplier List Performance (M12):** Observed Lead Time and On-Time Rate columns on the Suppliers list
+- **Printable Purchase Order (M13):** standalone, read-only printable HTML view of a Purchase Order, resilient to deleted product/supplier references
+- **Supplier Order History (M14):** paginated, status-inclusive list of every Purchase Order for a supplier, with per-order Ordered/Received Value
+- **Supplier Spend Summary (M15):** per-currency total of Ordered/Received Value across a supplier's committed Purchase Orders (currencies never blended)
 
 ## Installation
 

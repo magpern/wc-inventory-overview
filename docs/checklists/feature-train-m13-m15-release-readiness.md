@@ -1,11 +1,28 @@
 # Feature Train M13–M15 — Release Readiness (Pre-Release Review)
 
-**Status:** Readiness review complete — **APPROVED for bundled release, NOT YET executed.**
-**Date:** 2026-08-11
+**Status:** Readiness review complete — **bundled WP6 release executed.**
+**Date:** 2026-08-11 (review); 2026-08-11 (WP6 release execution)
 **Review type:** Comprehensive train-level review (not a repeat of three milestone audits — each milestone already passed its own Level A completion review; see `docs/checklists/m13-release-readiness.md` / `m14-release-readiness.md` / `m15-release-readiness.md`).
-**Last released baseline:** `main` / tag **`v1.29.0`** (`67321bb`) — unchanged throughout this train.
-**Canonical train branch / SHA:** `feature/m15-supplier-spend-summary` @ `7006235`.
-**No merge, tag, GitHub Release, or deployment has occurred as part of this review.**
+**Last released baseline (at review time):** `main` / tag **`v1.29.0`** (`67321bb`).
+**Canonical train branch / SHA (at review time):** `feature/m15-supplier-spend-summary` @ `7006235`.
+
+## WP6 execution record
+
+| Step | Result |
+|------|--------|
+| Release notes | `docs/GITHUB_RELEASE_NOTES_1.32.0.md` |
+| Release-prep tip | `b6aa3c3` on `feature/m15-supplier-spend-summary` |
+| Release PR | https://github.com/magpern/wc-inventory-overview/pull/17 (merge commit) |
+| Draft CI-only PRs | #14, #15, #16 closed without merging (superseded) |
+| Release merge commit | `33dee1d` on `main` |
+| Tag | `v1.32.0` → `33dee1d` (annotated, verified via `^{}` dereference) |
+| GitHub Release | https://github.com/magpern/wc-inventory-overview/releases/tag/v1.32.0 (not draft, not prerelease) |
+| ZIP | `wc-inventory-overview-1.32.0.zip` (99 entries incl. directory entries, 326253 bytes, SHA256 `cbc0473f585b0f76e8f89ddd0506a63901426fe6ca1c1ad10dcaa79974af3e15`) |
+| Deploy | Bind-mounted checkout `/opt/biopentra/dev/wc-inventory-overview` on `main`/`v1.32.0`; `wordpress` service restarted (opcache `validate_timestamps=On`, no restart strictly required) |
+| Live validation | M13/M14/M15 confirmed against real production-like data (supplier id 3: cancelled PO with identical value to a committed PO correctly excluded from Spend Summary); regression clean across POs/Suppliers/Goods Receipts/Inventory Position/Expected Delivery; no wc-inventory-overview related fatals in logs |
+| Rollback rehearsal | `v1.29.0` → restore `v1.32.0`; `DB_VERSION` stayed 10 throughout; no business data altered |
+
+**Post-release verdict:** No CRITICAL or MAJOR findings surfaced during release execution. Train released cleanly.
 
 ## Train composition
 
@@ -192,4 +209,4 @@ Single dedicated commit (docs-only, no executable code changed): fixes to `docs/
 
 ## Exact next operation
 
-**Awaiting explicit approval to execute the WP6 bundled release** (Release-topology recommendation above, steps 1–11). No further action is authorized in this pass — do not merge, tag, publish a Release, deploy, or start M16 without a separate, explicit instruction to do so.
+**WP6 bundled release executed** (Release-topology recommendation above, steps 1–11, all completed — see WP6 execution record). `main` is now at `33dee1d`, tagged `v1.32.0`, published as a GitHub Release, and deployed to `dev.biopentra.eu`. No further release action is authorized — do not start M16 without a separate, explicit instruction to do so.
