@@ -62,6 +62,8 @@ class Test_WC_IO_Expected_Date_Suggestion_Service extends WP_UnitTestCase {
 		$this->assertSame( 9, $suggestion['days'] );
 		$this->assertSame( WC_Inventory_Overview_PO_Confidence::ESTIMATED, $suggestion['confidence'] );
 		$this->assertSame( 'configured', $suggestion['source'] );
+		$this->assertNull( $suggestion['sample_count'], 'M16: configured-source suggestions carry no observed-history evidence.' );
+		$this->assertNull( $suggestion['average_days'], 'M16: configured-source suggestions carry no observed-history evidence.' );
 	}
 
 	/**
@@ -80,6 +82,8 @@ class Test_WC_IO_Expected_Date_Suggestion_Service extends WP_UnitTestCase {
 		$this->assertNull( $suggestion['days'] );
 		$this->assertNull( $suggestion['confidence'] );
 		$this->assertSame( 'none', $suggestion['source'] );
+		$this->assertNull( $suggestion['sample_count'], 'M16: no-suggestion results carry no observed-history evidence.' );
+		$this->assertNull( $suggestion['average_days'], 'M16: no-suggestion results carry no observed-history evidence.' );
 	}
 
 	/**
@@ -96,6 +100,8 @@ class Test_WC_IO_Expected_Date_Suggestion_Service extends WP_UnitTestCase {
 		$this->assertNull( $suggestion['confidence'] );
 		$this->assertSame( 'none', $suggestion['source'] );
 		$this->assertNotSame( WC_Inventory_Overview_PO_Confidence::EXACT, $suggestion['confidence'] );
+		$this->assertNull( $suggestion['sample_count'] );
+		$this->assertNull( $suggestion['average_days'] );
 	}
 
 	/**
@@ -204,5 +210,31 @@ class Test_WC_IO_Expected_Date_Suggestion_Service extends WP_UnitTestCase {
 				)
 			)
 		);
+	}
+
+	/**
+	 * M16: the result shape must always carry the sample_count/average_days
+	 * evidence keys (never omitted), and on the configured/none paths the
+	 * pre-existing `days` field must be completely unaffected by their
+	 * addition -- the resolved suggestion value and the display evidence
+	 * are independent fields, never coupled to one another.
+	 */
+	public function test_m16_evidence_keys_always_present_and_days_unaffected() {
+		$configured = WC_Inventory_Overview_Expected_Date_Suggestion_Service::get_suggestion_for_supplier(
+			array(
+				'id'                     => self::NONEXISTENT_SUPPLIER_ID,
+				'default_lead_time_days' => 21,
+			)
+		);
+		$this->assertArrayHasKey( 'sample_count', $configured );
+		$this->assertArrayHasKey( 'average_days', $configured );
+		$this->assertSame( 21, $configured['days'], 'M16 evidence fields must not alter the pre-existing days resolution.' );
+
+		$none = WC_Inventory_Overview_Expected_Date_Suggestion_Service::get_suggestion_for_supplier(
+			array( 'id' => self::NONEXISTENT_SUPPLIER_ID )
+		);
+		$this->assertArrayHasKey( 'sample_count', $none );
+		$this->assertArrayHasKey( 'average_days', $none );
+		$this->assertNull( $none['days'] );
 	}
 }

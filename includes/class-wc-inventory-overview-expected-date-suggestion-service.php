@@ -39,7 +39,7 @@ class WC_Inventory_Overview_Expected_Date_Suggestion_Service {
 	 * Lead Time / Inventory Position / Expected Delivery).
 	 *
 	 * @param array<string,mixed> $supplier Supplier row (must include `id`; `default_lead_time_days` used if present).
-	 * @return array{days:?int,confidence:?string,source:string}
+	 * @return array{days:?int,confidence:?string,source:string,sample_count:?int,average_days:?int}
 	 */
 	public static function get_suggestion_for_supplier( array $supplier ): array {
 		$id      = isset( $supplier['id'] ) ? (int) $supplier['id'] : 0;
@@ -58,7 +58,7 @@ class WC_Inventory_Overview_Expected_Date_Suggestion_Service {
 	 * rather than bare IDs, so no redundant Suppliers lookup is issued.
 	 *
 	 * @param array<int,array<string,mixed>> $suppliers Supplier rows (each must include `id`).
-	 * @return array<int,array{days:?int,confidence:?string,source:string}> Keyed by supplier ID.
+	 * @return array<int,array{days:?int,confidence:?string,source:string,sample_count:?int,average_days:?int}> Keyed by supplier ID.
 	 */
 	public static function get_suggestions_bulk( array $suppliers ): array {
 		$by_id = array();
@@ -94,23 +94,27 @@ class WC_Inventory_Overview_Expected_Date_Suggestion_Service {
 	 *
 	 * @param array<string,mixed>                                                                                $supplier Supplier row.
 	 * @param array{has_data:bool,average_days:?float,fastest_days:?int,slowest_days:?int,sample_count:int}|null $stats This supplier's Supplier_Lead_Time_Service result, if any.
-	 * @return array{days:?int,confidence:?string,source:string}
+	 * @return array{days:?int,confidence:?string,source:string,sample_count:?int,average_days:?int}
 	 */
 	private static function resolve_one( array $supplier, ?array $stats ): array {
 		if ( null !== $stats && WC_Inventory_Overview_Supplier_Lead_Time_Service::is_observed_value_usable( $stats ) ) {
 			return array(
-				'days'       => (int) round( $stats['average_days'] ),
-				'confidence' => WC_Inventory_Overview_PO_Confidence::ESTIMATED,
-				'source'     => 'observed',
+				'days'         => (int) round( $stats['average_days'] ),
+				'confidence'   => WC_Inventory_Overview_PO_Confidence::ESTIMATED,
+				'source'       => 'observed',
+				'sample_count' => (int) $stats['sample_count'],
+				'average_days' => (int) round( $stats['average_days'] ),
 			);
 		}
 
 		$configured = $supplier['default_lead_time_days'] ?? null;
 		if ( null !== $configured && '' !== $configured && (int) $configured > 0 ) {
 			return array(
-				'days'       => (int) $configured,
-				'confidence' => WC_Inventory_Overview_PO_Confidence::ESTIMATED,
-				'source'     => 'configured',
+				'days'         => (int) $configured,
+				'confidence'   => WC_Inventory_Overview_PO_Confidence::ESTIMATED,
+				'source'       => 'configured',
+				'sample_count' => null,
+				'average_days' => null,
 			);
 		}
 
@@ -121,13 +125,15 @@ class WC_Inventory_Overview_Expected_Date_Suggestion_Service {
 	 * The "no suggestion" result shape -- never authoritative, never a
 	 * fabricated 0-day guess (INV-M10-1).
 	 *
-	 * @return array{days:?int,confidence:?string,source:string}
+	 * @return array{days:?int,confidence:?string,source:string,sample_count:?int,average_days:?int}
 	 */
 	private static function empty_suggestion(): array {
 		return array(
-			'days'       => null,
-			'confidence' => null,
-			'source'     => 'none',
+			'days'         => null,
+			'confidence'   => null,
+			'source'       => 'none',
+			'sample_count' => null,
+			'average_days' => null,
 		);
 	}
 }
