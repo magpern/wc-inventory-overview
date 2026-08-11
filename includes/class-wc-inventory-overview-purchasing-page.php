@@ -88,6 +88,22 @@ class WC_Inventory_Overview_Purchasing_Page {
 		}
 
 		// Add help tabs, enqueue scripts, etc. (deferred for M2+).
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_merge_assets' ) );
+	}
+
+	/**
+	 * M17: enqueue the supplier-merge target picker + typed-confirmation JS.
+	 * Registered from load_page() so it only ever fires on this page.
+	 */
+	public function enqueue_merge_assets() {
+		wp_enqueue_script( 'wc-enhanced-select' );
+		wp_enqueue_script(
+			'wc-io-supplier-merge',
+			plugins_url( 'assets/supplier-merge.js', WC_INVENTORY_OVERVIEW_FILE ),
+			array( 'jquery', 'wc-enhanced-select' ),
+			WC_INVENTORY_OVERVIEW_VERSION,
+			true
+		);
 	}
 
 	/**
@@ -373,14 +389,16 @@ class WC_Inventory_Overview_Purchasing_Page {
 					<?php
 				} else {
 					echo '<strong>' . esc_html__( 'Archived', 'wc-inventory-overview' ) . '</strong>';
-					?>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
-						<input type="hidden" name="action" value="wc_io_supplier_reactivate">
-						<input type="hidden" name="supplier_id" value="<?php echo esc_attr( $supplier_id ); ?>">
-						<?php wp_nonce_field( 'wc_io_supplier_reactivate_' . $supplier_id, 'wc_io_supplier_reactivate_nonce' ); ?>
-						<?php submit_button( __( 'Reactivate', 'wc-inventory-overview' ), 'secondary', 'submit', false ); ?>
-					</form>
-					<?php
+					if ( empty( $supplier['merged_into_supplier_id'] ) ) {
+						?>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+							<input type="hidden" name="action" value="wc_io_supplier_reactivate">
+							<input type="hidden" name="supplier_id" value="<?php echo esc_attr( $supplier_id ); ?>">
+							<?php wp_nonce_field( 'wc_io_supplier_reactivate_' . $supplier_id, 'wc_io_supplier_reactivate_nonce' ); ?>
+							<?php submit_button( __( 'Reactivate', 'wc-inventory-overview' ), 'secondary', 'submit', false ); ?>
+						</form>
+						<?php
+					}
 				}
 				?>
 			</p>
@@ -388,7 +406,99 @@ class WC_Inventory_Overview_Purchasing_Page {
 			$this->render_spend_summary_section( $supplier_id );
 			$this->render_observed_lead_time( $supplier_id, $supplier );
 			$this->render_order_history_section( $supplier_id );
+			$this->render_supplier_merge_section( $supplier_id, $supplier );
 		}
+	}
+
+	/**
+	 * M17: "Merge into another supplier" section on the Supplier detail
+	 * screen. Eligible source (active or archived, not already merged):
+	 * shows the merge form. Already-merged source: shows a static notice,
+	 * no form -- and (Part J) no enabled Reactivate control anywhere on
+	 * this screen (enforced above in the Supplier Status block).
+	 *
+	 * @param int   $supplier_id Supplier id.
+	 * @param array $supplier    Supplier row.
+	 */
+	private function render_supplier_merge_section( int $supplier_id, array $supplier ) {
+		if ( ! WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::MERGE_SUPPLIER ) ) {
+			return;
+		}
+
+		if ( ! empty( $supplier['merged_into_supplier_id'] ) ) {
+			$target_id   = (int) $supplier['merged_into_supplier_id'];
+			$target      = WC_Inventory_Overview_Suppliers::get( $target_id );
+			$target_name = is_wp_error( $target ) ? '' : $target['name'];
+			$target_url  = add_query_arg(
+				array(
+					'page'        => self::PAGE_SLUG,
+					'tab'         => self::TAB_SUPPLIERS,
+					'action'      => 'edit',
+					'supplier_id' => $target_id,
+				),
+				admin_url( 'admin.php' )
+			);
+			?>
+			<h3><?php esc_html_e( 'Supplier Merge', 'wc-inventory-overview' ); ?></h3>
+			<p>
+				<?php
+				echo wp_kses_post(
+					sprintf(
+						/* translators: 1: target supplier name, 2: link to target supplier */
+						__( 'This supplier was merged into <a href="%2$s">%1$s</a>.', 'wc-inventory-overview' ),
+						esc_html( $target_name ),
+						esc_url( $target_url )
+					)
+				);
+				?>
+			</p>
+			<?php
+			return;
+		}
+
+		$token = WC_Inventory_Overview_PO_Request_Token::issue( 'supplier_merge' );
+		?>
+		<h3><?php esc_html_e( 'Merge into another supplier', 'wc-inventory-overview' ); ?></h3>
+		<p class="description">
+			<?php
+			esc_html_e(
+				'Merging this supplier cannot be undone. All purchase orders and goods receipts move to the target supplier. This supplier will be archived and can never be reactivated. Historical documents keep showing the original supplier name where they already did.',
+				'wc-inventory-overview'
+			);
+			?>
+		</p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="wc-io-supplier-merge-form">
+			<input type="hidden" name="action" value="wc_io_supplier_merge">
+			<input type="hidden" name="source_supplier_id" value="<?php echo esc_attr( $supplier_id ); ?>">
+			<input type="hidden" name="wc_io_supplier_merge_request_token" value="<?php echo esc_attr( $token ); ?>">
+			<?php wp_nonce_field( 'wc_io_supplier_merge_' . $supplier_id, 'wc_io_supplier_merge_nonce' ); ?>
+			<table class="form-table">
+				<tr>
+					<th scope="row"><label for="wc_io_supplier_merge_target"><?php esc_html_e( 'Merge into', 'wc-inventory-overview' ); ?></label></th>
+					<td>
+						<select
+							id="wc_io_supplier_merge_target"
+							name="target_supplier_id"
+							class="wc-io-supplier-merge-target-select"
+							data-exclude-supplier-id="<?php echo esc_attr( $supplier_id ); ?>"
+							data-ajax-action="wc_io_search_merge_targets"
+							data-nonce="<?php echo esc_attr( wp_create_nonce( 'wc_io_search_merge_targets' ) ); ?>"
+							style="min-width:300px;"
+						>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="wc_io_supplier_merge_confirmation"><?php esc_html_e( 'Type the supplier name to confirm', 'wc-inventory-overview' ); ?></label></th>
+					<td>
+						<input type="text" id="wc_io_supplier_merge_confirmation" name="supplier_merge_confirmation" autocomplete="off" data-expected-name="<?php echo esc_attr( $supplier['name'] ); ?>">
+						<p class="description"><?php echo esc_html( sprintf( /* translators: %s: supplier name */ __( 'Type "%s" exactly to enable the merge button.', 'wc-inventory-overview' ), $supplier['name'] ) ); ?></p>
+					</td>
+				</tr>
+			</table>
+			<?php submit_button( __( 'Merge Supplier', 'wc-inventory-overview' ), 'delete', 'submit', false, array( 'disabled' => 'disabled', 'id' => 'wc-io-supplier-merge-submit' ) ); ?>
+		</form>
+		<?php
 	}
 
 	/**
