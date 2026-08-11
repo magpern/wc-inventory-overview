@@ -117,7 +117,7 @@ class Test_WC_IO_Supplier_Merge_Service extends WP_UnitTestCase {
 		$this->assertWPError( $result );
 		// Could be target_not_active or target_already_merged, both valid.
 		$code = $result->get_error_code();
-		$this->assertIn( $code, array( 'wc_io_supplier_merge_target_not_active', 'wc_io_supplier_merge_target_already_merged' ) );
+		$this->assertContains( $code, array( 'wc_io_supplier_merge_target_not_active', 'wc_io_supplier_merge_target_already_merged' ) );
 	}
 
 	/**
