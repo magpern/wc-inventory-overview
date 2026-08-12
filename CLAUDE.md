@@ -6,20 +6,21 @@
 
 **Process:** [`docs/process/milestone-lifecycle.md`](docs/process/milestone-lifecycle.md) — the Standard Milestone Lifecycle (v2, effective M10 onward) governing plan → implement → audit → remediate → freeze → next-milestone sequencing and feature-train release batching. Read it before starting any milestone from M10 forward.
 
-**Canonical published baseline:** `main` / tag **`v1.33.0`**
-([`docs/GITHUB_RELEASE_NOTES_1.33.0.md`](docs/GITHUB_RELEASE_NOTES_1.33.0.md)).
+**Canonical published baseline:** `main` / tag **`v1.34.0`**
+([`docs/GITHUB_RELEASE_NOTES_1.34.0.md`](docs/GITHUB_RELEASE_NOTES_1.34.0.md)).
 Contains M0–M8 GA, the bundled M9–M12 Supplier Performance feature train
 (and CI recovery), the bundled M13–M15 Purchasing & Supplier Insights
-feature train, and M16 (PO Expected-Date & Delay Transparency) released as
-a standalone post-v1.32.0 release. **M0–M8 are GA; M9–M12 were bundled and
-released as v1.29.0; M13–M15 were bundled and released as v1.32.0; M16 was
-released as a standalone v1.33.0**. See milestone plans and readiness
+feature train, M16 (PO Expected-Date & Delay Transparency) released as
+standalone v1.33.0, and M17 (Supplier Merge) released as standalone v1.34.0.
+**M0–M8 are GA; M9–M12 were bundled and released as v1.29.0; M13–M15 were
+bundled and released as v1.32.0; M16 was released as standalone v1.33.0;
+M17 was released as standalone v1.34.0**. See milestone plans and readiness
 checklists in [`docs/milestones/`](docs/milestones/) and
 [`docs/checklists/`](docs/checklists/) for complete per-milestone detail.
 
-## Platform status: M0–M16 published (v1.33.0)
+## Platform status: M0–M17 published (v1.34.0)
 
-**Current baseline: plugin 1.33.0, `DB_VERSION` 10.** All nine foundational
+**Current baseline: plugin 1.34.0, `DB_VERSION` 11.** All nine foundational
 milestones (M0 Delivery Foundations through M8 Hardening & GA), the first
 post-GA feature train (M9–M12), and the second post-GA feature train
 (M13–M15) are **tagged and published** as `v1.32.0`.
