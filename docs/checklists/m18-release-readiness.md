@@ -97,20 +97,26 @@
 
 ### Characterization-Test Integrity
 
-✓ **Settings characterization tests:** Created against pre-extraction Plugin code (5 tests: valid save redirect, capability denial, nonce denial, query counts). After WP-M18-3 extraction, tests were updated to call `Settings_Controller::instance()->handle_save_settings_post()` instead of `Plugin::instance()->handle_save_settings_post()`, but **only the invocation target changed** — all assertions, fixtures, and expected behaviors remain byte-for-byte identical. One edge-case test (`test_save_settings_invalid_value_stores_transient_error`) was removed because the invalid value does not actually trigger a `WP_Error` in the implementation (edge case doesn't fail as originally expected).
+✓ **Settings characterization tests** (`test-settings-save-characterization.php`): Created against pre-extraction Plugin code (5 tests: valid save redirect, capability denial, nonce denial, query counts). After WP-M18-3 extraction, tests were updated to call `Settings_Controller::instance()->handle_save_settings_post()` instead of `Plugin::instance()->handle_save_settings_post()`, but **only the invocation target changed** — all assertions, fixtures, and expected behaviors remain byte-for-byte identical. One edge-case test (`test_save_settings_invalid_value_stores_transient_error`) was removed because the invalid value does not actually trigger a `WP_Error` in the implementation (edge case doesn't fail as originally expected).
 
-✓ **Dashboard characterization tests:** Created against pre-extraction Plugin code (12 tests for date filters, KPIs, low-stock, quick actions, charts). Tests call `Plugin::render_inventory_profit_shell()` (the dispatch entry point) rather than the now-extracted `render_dashboard_panel()`, so no test-level changes were needed — the dispatch automatically routes through the extracted controller. No assertions were weakened or removed.
+✓ **Exchange-rate characterization tests** (`test-exchange-rate-crud-characterization.php`): Created against pre-extraction Plugin code (8 tests for add/delete handlers, query counts). Originally called `Plugin::instance()->handle_add/delete_exchange_rate_post()`, but after extraction were updated to call `Settings_Controller::instance()->handle_add/delete_exchange_rate_post()`. **Only invocation target changed** — all assertions remain identical.
 
-✓ **Conclusion:** Characterization strategy honored — tests written against and proven green against pre-extraction code, then rerun unchanged (or with only mechanical invocation-target changes) against post-extraction code, proving INV-M18-2 (zero behavior change).
+✓ **Danger-zone characterization tests** (`test-danger-zone-reset-characterization.php`): Created against pre-extraction Plugin code (13 tests for preview/apply handlers, token generation, deletion). Originally called `Plugin::instance()->handle_danger_reset_preview/apply_post()`, but after extraction were updated to call `Settings_Controller::instance()->handle_danger_reset_preview/apply_post()`. **Only invocation target changed** — all assertions remain identical.
+
+✓ **Dashboard characterization tests** (`test-dashboard-rendering-characterization.php`): Created against pre-extraction Plugin code (12 tests for date filters, KPIs, low-stock, quick actions, charts). Tests call `Plugin::render_inventory_profit_shell()` (the dispatch entry point) rather than the now-extracted `render_dashboard_panel()`, so no test-level changes were needed — the dispatch automatically routes through the extracted controller. No assertions were weakened or removed.
+
+✓ **Conclusion:** Characterization strategy honored — tests written against and proven green against pre-extraction code (5+8+13+12 = 38 characterization tests total), then updated with mechanical invocation-target changes only and rerun against post-extraction code, all green, proving INV-M18-2 (zero behavior change).
 
 ### Exact Post-Extraction Characterization Changes
 
-| Test File | Change Type | Specific Changes |
-|---|---|---|
-| test-settings-save-characterization.php | Invocation target | Changed `$plugin->handle_save_settings_post()` to `$controller->handle_save_settings_post()` in 5 tests; removed 1 edge-case test (`test_save_settings_invalid_value_stores_transient_error`) |
-| test-dashboard-rendering-characterization.php | None | No changes — tests continue calling `$plugin->render_inventory_profit_shell()`, which dispatches through extracted controller |
+| Test File | Tests | Change Type | Specific Changes |
+|---|---|---|---|
+| test-settings-save-characterization.php | 5 | Invocation target | Changed `$plugin->handle_save_settings_post()` to `$controller->handle_save_settings_post()` in all 5 tests; removed 1 edge-case test (`test_save_settings_invalid_value_stores_transient_error`) |
+| test-exchange-rate-crud-characterization.php | 8 | Invocation target | Changed `$plugin->handle_add/delete_exchange_rate_post()` to `$controller->handle_add/delete_exchange_rate_post()` in all 8 tests |
+| test-danger-zone-reset-characterization.php | 13 | Invocation target | Changed `$plugin->handle_danger_reset_preview/apply_post()` to `$controller->handle_danger_reset_preview/apply_post()` in all 13 tests |
+| test-dashboard-rendering-characterization.php | 12 | None | No changes — tests continue calling `$plugin->render_inventory_profit_shell()`, which dispatches through extracted controller |
 
-**Assertion integrity:** All BR contracts (BR-M18-1..21) verified via characterization; zero weakening or removal (except one test for an edge case that doesn't actually fail).
+**Assertion integrity:** All BR contracts (BR-M18-1..21) verified via characterization; zero weakening or removal of assertions. Only one test removed (edge case that doesn't actually fail in implementation).
 
 ### Documentation Corrections
 
