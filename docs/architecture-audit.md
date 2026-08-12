@@ -582,7 +582,7 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ## Known risks / tech debt
 
-1. **Large god class:** `class-wc-inventory-overview-plugin.php` centralizes UI, handlers, and exports — harder to test and review. **Phase 1 (M18) complete:** Dashboard and Settings tabs extracted into dedicated `WC_Inventory_Overview_Dashboard_Controller` and `WC_Inventory_Overview_Settings_Controller` classes (~42% of the original 2,706 lines moved out). Remaining five tabs (Overview, Restock, Movements, Order Profit, Product Profitability) and their shared CSV-export/bulk-action machinery remain on Plugin — reserved for Phase 2 in a future dedicated milestone.
+1. **Large god class:** `class-wc-inventory-overview-plugin.php` centralizes UI, handlers, and exports — harder to test and review. **Phase 1 (M18) complete:** Dashboard and Settings tabs extracted into dedicated `WC_Inventory_Overview_Dashboard_Controller` and `WC_Inventory_Overview_Settings_Controller` classes (~42% of the original 2,706 lines moved out). **Phase 2 (M19) complete:** the three read-only reporting tabs (Movements, Order Profit, Product Profitability) extracted into a new `WC_Inventory_Overview_Reporting_Controller` (Plugin now 1,230 lines, ~55% total reduction from the original 2,706). **Not complete:** Overview (bulk product-status/visibility mutation + inline-stock AJAX) and Restock (two admin-post handlers writing stock/cost) remain on Plugin — both carry real mutation surface, deliberately excluded from M19's read-only-only scope, and are reserved for a future Phase 3 (which may itself split into two milestones, since the two tabs are not coupled to each other).
 2. **Custom SQL surface:** Profitability and movements list tables build dynamic SQL; most paths use `$wpdb->prepare`, but complexity increases regression risk.
 3. **`posts_clauses` filter:** Global filter at priority 999; scoped by query depth and admin context — avoid front-end product queries while filter is active.
 4. **Danger zone reset:** Can bulk-delete plugin tables/meta snapshots; gated by capability + nonces + preview token — still high impact for operators.
@@ -594,7 +594,7 @@ An independent audit of the completed M5 implementation (before this branch was 
 
 ## Recommended follow-ups (non-blocking)
 
-- Split `Plugin` into tab controllers or modules — **Phase 1 (M18) complete:** Dashboard + Settings extracted; **Phase 2 (future milestone):** remaining five tabs (Overview, Restock, Movements, Order Profit, Product Profitability) + CSV export + bulk actions.
+- Split `Plugin` into tab controllers or modules — **Phase 1 (M18) complete:** Dashboard + Settings extracted; **Phase 2 (M19) complete:** Movements + Order Profit + Product Profitability extracted; **Phase 3 (future milestone, not yet scheduled):** Overview (bulk actions + inline-stock AJAX) + Restock (mutation handlers + preview AJAX) — the two remaining, mutation-bearing tabs.
 - Extend schema-shape assertion per milestone (M3 introduced no schema change; M4 added Goods Receipt tables/columns; M5 added `qty_received`; M6 added `wc_io_purchase_batches.migrated_receipt_id`/`migrated_at`; M8–M15 introduced no schema change — next relevant whenever a future milestone next changes schema).
 - ~~Observed lead-time statistics (average/minimum/maximum delivery times, computed from actual receiving history)~~ — **done in M9** (see the M9 section above).
 - ~~Wiring observed lead time into PO-creation expected-date suggestions~~ — **done in M10** (see the M10 section above).
