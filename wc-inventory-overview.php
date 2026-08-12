@@ -170,6 +170,7 @@ add_action(
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-supplier-spend-service.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchasing-page.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-settings-controller.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-dashboard-controller.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-plugin.php';
 
 		WC_Inventory_Overview_Install::maybe_upgrade();
