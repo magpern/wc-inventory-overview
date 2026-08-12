@@ -104,7 +104,7 @@ class Test_WC_IO_Product_Profitability_Rendering_Characterization extends WP_Uni
 		);
 		$_REQUEST = $_GET;
 
-		$plugin->on_load_product_profitability_screen();
+		WC_Inventory_Overview_Reporting_Controller::instance()->on_load_product_profitability();
 		$this->assertTrue( true, 'on_load_product_profitability_screen() returned without exporting.' );
 	}
 
@@ -122,7 +122,7 @@ class Test_WC_IO_Product_Profitability_Rendering_Characterization extends WP_Uni
 		);
 		$_REQUEST = $_GET;
 
-		$plugin->on_load_product_profitability_screen();
+		WC_Inventory_Overview_Reporting_Controller::instance()->on_load_product_profitability();
 		$this->assertTrue( true, 'Export guarded off for non-matching tab.' );
 	}
 
@@ -143,7 +143,7 @@ class Test_WC_IO_Product_Profitability_Rendering_Characterization extends WP_Uni
 		$_REQUEST = $_GET;
 
 		$this->expectException( WPDieException::class );
-		$plugin->on_load_product_profitability_screen();
+		WC_Inventory_Overview_Reporting_Controller::instance()->on_load_product_profitability();
 	}
 
 	/**
@@ -164,7 +164,7 @@ class Test_WC_IO_Product_Profitability_Rendering_Characterization extends WP_Uni
 		);
 		$_REQUEST = $_GET;
 
-		$plugin->on_load_product_profitability_screen();
+		WC_Inventory_Overview_Reporting_Controller::instance()->on_load_product_profitability();
 		$this->assertTrue( true, 'Returned before reaching the export/nonce check.' );
 	}
 
@@ -182,7 +182,7 @@ class Test_WC_IO_Product_Profitability_Rendering_Characterization extends WP_Uni
 		);
 		$_REQUEST = $_GET;
 
-		$plugin->on_load_product_profitability_screen();
+		WC_Inventory_Overview_Reporting_Controller::instance()->on_load_product_profitability();
 		$this->assertTrue( true, 'on_load_product_profitability_screen() completed without error.' );
 	}
 
