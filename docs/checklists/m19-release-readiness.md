@@ -134,6 +134,41 @@ After extraction: all 25 characterization tests pass with **invocation-seam-only
 
 ---
 
+## Final CI Closure Evidence
+
+### Full local gate results (single comprehensive pass, after all implementation WPs)
+
+| Gate | Result |
+|---|---|
+| `docker compose -f tests/docker/docker-compose.phpunit.yml config` | Valid |
+| PHP Parallel Lint (206 files, full repo) | 0 syntax errors |
+| `composer validate --strict` | `./composer.json is valid` |
+| PHPCS (`phpcs.xml.dist`, full repo) | Not CI-gated per `docs/testing.md`; 1484 errors / 932 warnings (repo-wide baseline, up from M18's 1472/843 by exactly the 5 new M19 files — same pre-existing sniff categories, e.g. 15 violations in the new controller: `WordPress.WP.Capabilities`/`file_system_operations`/doc-comment sniffs, no new category introduced) |
+| **Full unit suite** (`--testsuite=unit`) | **417 tests, 2162 assertions — OK, 0 failures/errors** |
+| **M1–M19 focused blocking suite** (default filter) | **819 tests, 3620 assertions — OK, 0 failures/errors** |
+| **Full integration suite** (`--testsuite=integration`) | **413 tests, 1501 assertions — OK, 0 failures/errors** |
+| M19-specific suite alone (25 characterization + 11 architecture) | **36 tests — OK, 0 failures/errors** |
+| `--list-tests` discovery | All 36 M19 tests confirmed present and matched by the CI filter regex (`run-phpunit.sh`) |
+| `scripts/release-audit.sh --development` | Passed — version 1.36.0, ZIP built with 102 entries under `wc-inventory-overview/`, exit 0 |
+
+### GitHub Actions (draft PR #23, `feature/m19-admin-controller-decomposition-phase2` → `main`, not merged)
+
+Base branch note: initially opened against `feature/m18-admin-controller-decomposition` (stacked-PR pattern, since M18 is unreleased), but this repo's `tests.yml`/`ci.yml` workflows only trigger on push/PR events targeting `main`/`develop` — a PR based against a feature branch never fires CI. Re-based to `main` (matching M18's own draft PR #22) via the GitHub REST API (`gh pr edit`'s GraphQL call failed on an unrelated Projects-classic deprecation bug), then closed/reopened to force the "opened" event workflows listen for. This PR's diff now includes both M18's and M19's commits (21 commits total), same as PR #22 plus the 6 new M19 commits — this is expected for a stacked, unreleased pair of milestones and does not affect correctness.
+
+| Check | Run | Result |
+|---|---|---|
+| PHP Parallel Lint | [run 31644325426](https://github.com/magpern/wc-inventory-overview/actions/runs/31644325426) | pass (15s) |
+| PHP lint and build ZIP | [run 31644325388](https://github.com/magpern/wc-inventory-overview/actions/runs/31644325388) | pass (21s) |
+| PHPUnit | [run 31644325426](https://github.com/magpern/wc-inventory-overview/actions/runs/31644325426), job 94274205450 | pass (3m34s) — green on first attempt, no transient failures this time |
+
+All required checks green. PR remains **draft**; not merged, no tag, no release, no deploy.
+
+### Manual Acceptance
+
+**Not performed in this session** — no browser/dev-environment access available to this agent run. The successful CSV-export streaming path (Movements/Order Profit/Product Profitability `export_*_csv()` methods' `exit()` after writing to `php://output`) and the visual/functional regression spot-checks for Dashboard/Overview/Restock (per the plan's Manual Acceptance section) require a real browser session against `https://dev.biopentra.eu` or an equivalent dev stack, which this implementation pass did not have. This is recorded accurately, not fabricated. Recommended before this milestone is considered fully done in practice: load each of the three tabs, trigger each CSV export, confirm downloaded file content matches the on-screen table, and spot-check Dashboard/Overview/Restock for regressions.
+
+---
+
 **Frozen:** 2026-08-12
-**Freeze Authority:** M19 Implementation Complete — Level A Review Passed
-**Next Action:** Final comprehensive validation pass, then draft CI PR / GitHub Actions confirmation (see Final CI Closure Evidence, appended after that pass completes)
+**Freeze Authority:** M19 Implementation Complete — Level A Review Passed — CI-Green
+**Next Action:** Manual acceptance (browser-based CSV/UI verification) when a dev environment is available; release train composition / Phase 3 planning per business decision
