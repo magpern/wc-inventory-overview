@@ -29,6 +29,16 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 	private $performance_stats = array();
 
 	/**
+	 * M17: per-page merge-target names, keyed by target supplier ID.
+	 * Populated exactly once in prepare_items() via a single bulk lookup
+	 * (Suppliers::get_names_bulk()), avoiding N+1 for multiple merged rows
+	 * on one page -- consistent with this list table's own M12 precedent.
+	 *
+	 * @var array<int,string>
+	 */
+	private $merge_target_names = array();
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -103,6 +113,15 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 		// case (get_stats_bulk([]) returns without issuing SQL).
 		$grace_days              = WC_Inventory_Overview_PO_Delay::grace_days_from_option();
 		$this->performance_stats = WC_Inventory_Overview_Supplier_Lead_Time_Service::get_stats_bulk( $page_ids, $grace_days );
+
+		// M17: bulk-resolve merge-target names for any merged rows on this page.
+		$merge_target_ids = array();
+		foreach ( $suppliers as $supplier ) {
+			if ( ! empty( $supplier['merged_into_supplier_id'] ) ) {
+				$merge_target_ids[] = (int) $supplier['merged_into_supplier_id'];
+			}
+		}
+		$this->merge_target_names = WC_Inventory_Overview_Suppliers::get_names_bulk( $merge_target_ids );
 
 		$total_items = WC_Inventory_Overview_Suppliers::count( array(
 			'status' => $status,
@@ -266,7 +285,7 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 				esc_attr( __( 'Archive this supplier?', 'wc-inventory-overview' ) ),
 				__( 'Archive', 'wc-inventory-overview' )
 			);
-		} else {
+		} elseif ( empty( $item['merged_into_supplier_id'] ) ) {
 			$reactivate_url = wp_nonce_url(
 				admin_url(
 					'admin-post.php?action=wc_io_supplier_reactivate&supplier_id=' . absint( $item['id'] )
@@ -278,6 +297,16 @@ class WC_Inventory_Overview_Suppliers_List_Table extends WP_List_Table {
 				'<a href="%s">%s</a>',
 				esc_url( $reactivate_url ),
 				__( 'Reactivate', 'wc-inventory-overview' )
+			);
+		} else {
+			// M17: a merged supplier is permanently dissolved (BR-M17-15) --
+			// no Reactivate control, just a plain, non-actionable text label.
+			$target_id   = (int) $item['merged_into_supplier_id'];
+			$target_name = isset( $this->merge_target_names[ $target_id ] ) ? $this->merge_target_names[ $target_id ] : '';
+			$actions['merged'] = sprintf(
+				/* translators: %s: target supplier name */
+				esc_html__( 'Merged into %s', 'wc-inventory-overview' ),
+				esc_html( $target_name )
 			);
 		}
 

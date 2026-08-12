@@ -474,6 +474,27 @@ class WC_Inventory_Overview_Purchase_Orders {
 	}
 
 	/**
+	 * Bulk reassign all purchase orders from one supplier to another (M17).
+	 * Single UPDATE statement, applies to all statuses.
+	 * Must be called inside an active database transaction.
+	 *
+	 * @param int $from_id Source supplier ID.
+	 * @param int $to_id   Target supplier ID.
+	 * @return int|WP_Error Number of affected rows, or WP_Error on failure.
+	 */
+	public static function reassign_supplier_bulk( int $from_id, int $to_id ) {
+		global $wpdb;
+		$table  = self::table_name();
+		$result = $wpdb->query(
+			$wpdb->prepare( "UPDATE {$table} SET supplier_id = %d WHERE supplier_id = %d", $to_id, $from_id ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		);
+		if ( false === $result ) {
+			return new WP_Error( 'wc_io_po_reassign_supplier_failed', 'Failed to reassign purchase orders to new supplier', array( 'db_error' => $wpdb->last_error ) );
+		}
+		return (int) $result;
+	}
+
+	/**
 	 * Build a WHERE clause and prepare params for list/count.
 	 *
 	 * @param array<string,mixed> $args Args.

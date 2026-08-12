@@ -36,6 +36,7 @@ mirror: MP Commerce Fulfillment
 | Inbound stock mutation | wc-inventory-overview |
 | Inventory reconciliation | wc-inventory-overview |
 | Storefront expected-delivery presentation (`woocommerce_get_availability` text) | wc-inventory-overview — see [ADR-0003](adr/0003-storefront-expected-delivery-ownership.md) |
+| Supplier merge (consolidating a duplicate supplier record) | wc-inventory-overview — `Supplier_Merge_Service` (M17) |
 | Fulfillment (outbound) | MPCF |
 | Warehouse workflow (outbound states) | MPCF |
 | Picking progress | MPCF |

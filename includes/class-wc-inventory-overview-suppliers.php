@@ -230,10 +230,15 @@ class WC_Inventory_Overview_Suppliers {
 
 	/**
 	 * Reactivate an archived supplier (idempotent).
+	 * M17: hardened to reject merged suppliers (permanently dissolved).
 	 */
 	public static function reactivate( int $id ): bool {
 		$existing = self::get( $id );
 		if ( is_wp_error( $existing ) ) {
+			return false;
+		}
+
+		if ( ! empty( $existing['merged_into_supplier_id'] ) ) {
 			return false;
 		}
 
@@ -254,6 +259,91 @@ class WC_Inventory_Overview_Suppliers {
 		);
 
 		return false !== $updated;
+	}
+
+	/**
+	 * Get supplier by ID with row lock (FOR UPDATE).
+	 * M17: Used in merge operations to prevent concurrent modification.
+	 * Must be called inside an active database transaction.
+	 *
+	 * @param int $id Supplier ID.
+	 * @return array|WP_Error
+	 */
+	public static function get_for_update( int $id ) {
+		global $wpdb;
+		$table = self::table_name();
+		$row   = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d FOR UPDATE", $id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			ARRAY_A
+		);
+		if ( ! $row ) {
+			return new WP_Error( 'wc_io_supplier_not_found', "Supplier {$id} not found" );
+		}
+		return $row;
+	}
+
+	/**
+	 * Mark a supplier as merged into another (M17).
+	 * Sets status=archived and merged_into_supplier_id=target.
+	 * Must be called inside an active database transaction and after row lock.
+	 *
+	 * @param int $source_id Source supplier ID (being dissolved).
+	 * @param int $target_id Target supplier ID (receiving the merge).
+	 * @return true|WP_Error
+	 */
+	public static function mark_merged( int $source_id, int $target_id ) {
+		global $wpdb;
+		$result = $wpdb->update(
+			self::table_name(),
+			array(
+				'status'                  => self::STATUS_ARCHIVED,
+				'merged_into_supplier_id' => $target_id,
+				'updated_at'              => current_time( 'mysql', true ),
+			),
+			array( 'id' => $source_id ),
+			array( '%s', '%d', '%s' ),
+			array( '%d' )
+		);
+		if ( false === $result ) {
+			return new WP_Error( 'wc_io_supplier_mark_merged_failed', 'Failed to mark supplier as merged', array( 'db_error' => $wpdb->last_error ) );
+		}
+		if ( 0 === $result ) {
+			return new WP_Error( 'wc_io_supplier_mark_merged_unexpected_zero_rows', 'Source supplier row was not updated as expected during merge' );
+		}
+		return true;
+	}
+
+	/**
+	 * Get supplier names in bulk by ID (M17 optimization).
+	 * Single query, no N+1.
+	 *
+	 * @param array<int> $ids Supplier IDs.
+	 * @return array<int,string> ID => name map.
+	 */
+	public static function get_names_bulk( array $ids ): array {
+		if ( empty( $ids ) ) {
+			return array();
+		}
+
+		global $wpdb;
+		$table        = self::table_name();
+		$ids          = array_map( 'absint', $ids );
+		$ids          = array_unique( $ids );
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, name FROM {$table} WHERE id IN ({$placeholders})", // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- {$table} is a trusted internal constant; {$placeholders} is a fixed count of literal '%d' tokens, one per element of $ids, which supplies exactly that many replacement values below.
+				$ids
+			),
+			ARRAY_A
+		);
+
+		$map = array();
+		foreach ( $rows as $row ) {
+			$map[ (int) $row['id'] ] = $row['name'];
+		}
+		return $map;
 	}
 
 	/**

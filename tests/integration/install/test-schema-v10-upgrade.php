@@ -36,7 +36,7 @@ class Test_WC_IO_Batch_Migration_Schema_V10_Upgrade extends WP_UnitTestCase {
 
 		WC_Inventory_Overview_Install::maybe_upgrade();
 
-		$this->assertSame( '10', get_option( 'wc_io_db_version' ) );
+		$this->assertSame( WC_Inventory_Overview_Install::DB_VERSION, get_option( 'wc_io_db_version' ) );
 		$after_columns = array_column( $wpdb->get_results( "SHOW COLUMNS FROM {$table}" ), 'Field' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$this->assertContains( 'migrated_receipt_id', $after_columns );
 		$this->assertContains( 'migrated_at', $after_columns );

@@ -2,10 +2,10 @@
 
 Purchasing, receiving, inventory-position, and storefront expected-delivery platform for WooCommerce (HPOS-compatible).
 
-**Version:** 1.32.0 (published — tag `v1.32.0`)  
+**Version:** 1.34.0 (published — tag `v1.34.0`)  
 **Releases:** https://github.com/magpern/wc-inventory-overview/releases (tag `v*`)  
 **Requires:** WordPress 6.0+, PHP 7.4+, WooCommerce with HPOS supported  
-**Platform status:** Milestones M0–M15 complete and published (`v1.32.0`, schema `DB_VERSION` 10). M9–M12 shipped as one bundled feature-train release (`v1.29.0`); M13–M15 shipped as a second bundled feature-train release — see [`docs/GITHUB_RELEASE_NOTES_1.32.0.md`](docs/GITHUB_RELEASE_NOTES_1.32.0.md) and [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md).
+**Platform status:** Milestones M0–M17 complete and published (`v1.34.0`, schema `DB_VERSION` 11). M9–M12 shipped as one bundled feature-train release (`v1.29.0`); M13–M15 shipped as a second bundled feature-train release (`v1.32.0`); M16 released as standalone (`v1.33.0`); M17 released as standalone (`v1.34.0`) — see [`docs/GITHUB_RELEASE_NOTES_1.34.0.md`](docs/GITHUB_RELEASE_NOTES_1.34.0.md) and [`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md).
 
 ## Features
 
@@ -29,6 +29,8 @@ Purchasing, receiving, inventory-position, and storefront expected-delivery plat
 - **Printable Purchase Order (M13):** standalone, read-only printable HTML view of a Purchase Order, resilient to deleted product/supplier references
 - **Supplier Order History (M14):** paginated, status-inclusive list of every Purchase Order for a supplier, with per-order Ordered/Received Value
 - **Supplier Spend Summary (M15):** per-currency total of Ordered/Received Value across a supplier's committed Purchase Orders (currencies never blended)
+- **PO Expected-Date & Delay Transparency (M16):** visibility into expected-date suggestion provenance, configurable PO delay grace period, Supplier and Status columns on Inventory Position drilldown
+- **Supplier Merge (M17):** consolidate redundant suppliers by irreversibly merging source into target, reassigning all related POs and receipts, with full audit logging (schema v11)
 
 ## Installation
 

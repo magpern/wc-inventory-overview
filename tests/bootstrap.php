@@ -28,6 +28,11 @@ if ( ! defined( 'WP_TESTS_DIR' ) ) {
 
 define( 'WP_TESTS_MULTISITE', false );
 
+// M17: Mark that we're running under PHPUnit so test-only injection seams can activate.
+if ( ! defined( 'WC_IO_PHPUNIT_RUNNING' ) ) {
+	define( 'WC_IO_PHPUNIT_RUNNING', true );
+}
+
 if ( ! file_exists( WP_TESTS_DIR . '/includes/functions.php' ) ) {
 	echo 'ERROR: WordPress test library not found at ' . WP_TESTS_DIR . '. Ensure the test stack is running and seeded.' . PHP_EOL;
 	exit( 1 );
