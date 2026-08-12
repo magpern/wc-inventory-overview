@@ -68,7 +68,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 	 * BR-M18-7: Preview with valid payload generates token and redirects.
 	 */
 	public function test_danger_zone_preview_valid_payload_generates_token() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_danger_reset_preview' );
 
 		$_POST = array(
@@ -79,7 +79,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_danger_reset_preview_post();
+				$controller->handle_danger_reset_preview_post();
 			}
 		);
 
@@ -101,7 +101,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 	 * BR-M18-7: Preview with invalid payload returns error redirect.
 	 */
 	public function test_danger_zone_preview_invalid_payload_returns_error() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_danger_reset_preview' );
 
 		// No valid scope fields submitted
@@ -112,7 +112,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_danger_reset_preview_post();
+				$controller->handle_danger_reset_preview_post();
 			}
 		);
 
@@ -127,7 +127,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_danger_reset_preview' );
 
 		$_POST = array(
@@ -136,14 +136,14 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		);
 
 		$this->expectException( WPDieException::class );
-		$plugin->handle_danger_reset_preview_post();
+		$controller->handle_danger_reset_preview_post();
 	}
 
 	/**
 	 * BR-M18-3: Invalid nonce for preview.
 	 */
 	public function test_danger_zone_preview_invalid_nonce() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 
 		$_POST = array(
 			'_wc_io_danger_reset_preview_nonce' => 'invalid-nonce',
@@ -151,14 +151,14 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		);
 
 		$this->expectException( WPDieException::class );
-		$plugin->handle_danger_reset_preview_post();
+		$controller->handle_danger_reset_preview_post();
 	}
 
 	/**
 	 * BR-M18-8: Apply with missing confirmation checkbox returns error.
 	 */
 	public function test_danger_zone_apply_missing_confirmation_returns_error() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_danger_reset_apply' );
 
 		// First generate a preview
@@ -169,7 +169,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		try {
-			$plugin->handle_danger_reset_preview_post();
+			$controller->handle_danger_reset_preview_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect
 		}
@@ -190,7 +190,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_danger_reset_apply_post();
+				$controller->handle_danger_reset_apply_post();
 			}
 		);
 
@@ -202,7 +202,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 	 * BR-M18-8: Apply with wrong typed confirmation returns error.
 	 */
 	public function test_danger_zone_apply_wrong_typed_confirmation_returns_error() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_danger_reset_apply' );
 
 		// First generate a preview
@@ -213,7 +213,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		try {
-			$plugin->handle_danger_reset_preview_post();
+			$controller->handle_danger_reset_preview_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect
 		}
@@ -234,7 +234,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_danger_reset_apply_post();
+				$controller->handle_danger_reset_apply_post();
 			}
 		);
 
@@ -246,7 +246,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 	 * BR-M18-8: Apply with expired/invalid token returns error.
 	 */
 	public function test_danger_zone_apply_expired_token_returns_error() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_danger_reset_apply' );
 
 		$_POST = array(
@@ -259,7 +259,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_danger_reset_apply_post();
+				$controller->handle_danger_reset_apply_post();
 			}
 		);
 
@@ -272,7 +272,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 	 * Records that preview is deleted and result notice is stored.
 	 */
 	public function test_danger_zone_apply_valid_token_succeeds() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 
 		// First generate a preview
 		$preview_nonce = wp_create_nonce( 'wc_io_danger_reset_preview' );
@@ -283,7 +283,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$_REQUEST      = $_POST;
 
 		try {
-			$plugin->handle_danger_reset_preview_post();
+			$controller->handle_danger_reset_preview_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect
 		}
@@ -305,7 +305,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_danger_reset_apply_post();
+				$controller->handle_danger_reset_apply_post();
 			}
 		);
 
@@ -328,7 +328,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_danger_reset_apply' );
 
 		$_POST = array(
@@ -339,14 +339,14 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		);
 
 		$this->expectException( WPDieException::class );
-		$plugin->handle_danger_reset_apply_post();
+		$controller->handle_danger_reset_apply_post();
 	}
 
 	/**
 	 * BR-M18-3: Invalid nonce for apply.
 	 */
 	public function test_danger_zone_apply_invalid_nonce() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 
 		$_POST = array(
 			'_wc_io_danger_reset_apply_nonce'  => 'invalid-nonce',
@@ -356,7 +356,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		);
 
 		$this->expectException( WPDieException::class );
-		$plugin->handle_danger_reset_apply_post();
+		$controller->handle_danger_reset_apply_post();
 	}
 
 	/**
@@ -365,7 +365,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 	public function test_query_count_danger_zone_preview() {
 		global $wpdb;
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_danger_reset_preview' );
 
 		$_POST = array(
@@ -376,7 +376,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$before = $wpdb->num_queries;
 		try {
-			$plugin->handle_danger_reset_preview_post();
+			$controller->handle_danger_reset_preview_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect
 		}
@@ -392,7 +392,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 	public function test_query_count_danger_zone_apply() {
 		global $wpdb;
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 
 		// First generate a preview
 		$preview_nonce = wp_create_nonce( 'wc_io_danger_reset_preview' );
@@ -403,7 +403,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$_REQUEST      = $_POST;
 
 		try {
-			$plugin->handle_danger_reset_preview_post();
+			$controller->handle_danger_reset_preview_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect
 		}
@@ -424,7 +424,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$before = $wpdb->num_queries;
 		try {
-			$plugin->handle_danger_reset_apply_post();
+			$controller->handle_danger_reset_apply_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect
 		}

@@ -70,7 +70,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 	 * BR-M18-4: Valid exchange-rate add redirects with added notice.
 	 */
 	public function test_add_exchange_rate_valid_redirects_with_added_notice() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_add_exchange_rate' );
 
 		$_POST = array(
@@ -86,7 +86,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_add_exchange_rate_post();
+				$controller->handle_add_exchange_rate_post();
 			}
 		);
 
@@ -98,7 +98,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 	 * BR-M18-4: "to" field defaults to TO_CURRENCY when absent.
 	 */
 	public function test_add_exchange_rate_to_defaults_to_currency() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_add_exchange_rate' );
 
 		$_POST = array(
@@ -112,7 +112,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_add_exchange_rate_post();
+				$controller->handle_add_exchange_rate_post();
 			}
 		);
 
@@ -134,7 +134,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 	 * BR-M18-4: WP_Error from insert_rate triggers error redirect.
 	 */
 	public function test_add_exchange_rate_wp_error_redirects_with_error_message() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_add_exchange_rate' );
 
 		// Invalid rate (non-numeric)
@@ -148,7 +148,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_add_exchange_rate_post();
+				$controller->handle_add_exchange_rate_post();
 			}
 		);
 
@@ -163,7 +163,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_add_exchange_rate' );
 
 		$_POST = array(
@@ -177,7 +177,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		// Should redirect with error instead
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_delete_exchange_rate_post();
+				$controller->handle_delete_exchange_rate_post();
 			}
 		);
 
@@ -193,7 +193,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$id = WC_Inventory_Overview_Exchange_Rates::insert_rate( 'USD', 'EUR', '0.92', '2026-01-01', 'Test' );
 		$this->assertIsInt( $id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_delete_exchange_rate_' . $id );
 
 		$_POST = array(
@@ -205,7 +205,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_delete_exchange_rate_post();
+				$controller->handle_delete_exchange_rate_post();
 			}
 		);
 
@@ -221,7 +221,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 	 * BR-M18-6: WP_Error from delete_rate() triggers error redirect.
 	 */
 	public function test_delete_exchange_rate_wp_error_redirects_with_error_message() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 
 		// ID 999999 doesn't exist; delete_rate should return WP_Error
 		$nonce = wp_create_nonce( 'wc_io_delete_exchange_rate_999999' );
@@ -235,7 +235,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 
 		$location = $this->run_expecting_redirect(
 			static function () use ( $plugin ) {
-				$plugin->handle_delete_exchange_rate_post();
+				$controller->handle_delete_exchange_rate_post();
 			}
 		);
 
@@ -252,7 +252,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_delete_exchange_rate_' . $id );
 
 		$_POST = array(
@@ -265,7 +265,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 
 		$before = $wpdb->num_queries;
 		try {
-			$plugin->handle_add_exchange_rate_post();
+			$controller->handle_add_exchange_rate_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect throws exception
 		}
@@ -283,7 +283,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 
 		$id = WC_Inventory_Overview_Exchange_Rates::insert_rate( 'USD', 'EUR', '0.92', '2026-01-01', 'Test' );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_delete_exchange_rate_' . $id );
 
 		$_POST = array(
@@ -295,7 +295,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 
 		$before = $wpdb->num_queries;
 		try {
-			$plugin->handle_delete_exchange_rate_post();
+			$controller->handle_delete_exchange_rate_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect throws exception
 		}
