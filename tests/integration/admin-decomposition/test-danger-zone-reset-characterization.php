@@ -73,12 +73,12 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$_POST = array(
 			'_wc_io_danger_reset_preview_nonce' => $nonce,
-			'wc_io_reset_po'                    => '1', // Valid scope
+			'wc_io_reset_movements'             => '1',
 		);
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_danger_reset_preview_post();
 			}
 		);
@@ -111,7 +111,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_danger_reset_preview_post();
 			}
 		);
@@ -132,7 +132,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$_POST = array(
 			'_wc_io_danger_reset_preview_nonce' => $nonce,
-			'wc_io_reset_po'                    => '1',
+			'wc_io_reset_movements'             => '1',
 		);
 
 		$this->expectException( WPDieException::class );
@@ -147,7 +147,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$_POST = array(
 			'_wc_io_danger_reset_preview_nonce' => 'invalid-nonce',
-			'wc_io_reset_po'                    => '1',
+			'wc_io_reset_movements'             => '1',
 		);
 
 		$this->expectException( WPDieException::class );
@@ -164,7 +164,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		// First generate a preview
 		$_POST = array(
 			'_wc_io_danger_reset_preview_nonce' => wp_create_nonce( 'wc_io_danger_reset_preview' ),
-			'wc_io_reset_po'                    => '1',
+			'wc_io_reset_movements'             => '1',
 		);
 		$_REQUEST = $_POST;
 
@@ -189,7 +189,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_danger_reset_apply_post();
 			}
 		);
@@ -208,7 +208,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		// First generate a preview
 		$_POST = array(
 			'_wc_io_danger_reset_preview_nonce' => wp_create_nonce( 'wc_io_danger_reset_preview' ),
-			'wc_io_reset_po'                    => '1',
+			'wc_io_reset_movements'             => '1',
 		);
 		$_REQUEST = $_POST;
 
@@ -233,7 +233,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_danger_reset_apply_post();
 			}
 		);
@@ -258,7 +258,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_danger_reset_apply_post();
 			}
 		);
@@ -278,7 +278,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$preview_nonce = wp_create_nonce( 'wc_io_danger_reset_preview' );
 		$_POST         = array(
 			'_wc_io_danger_reset_preview_nonce' => $preview_nonce,
-			'wc_io_reset_po'                    => '1',
+			'wc_io_reset_movements'             => '1',
 		);
 		$_REQUEST      = $_POST;
 
@@ -304,7 +304,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$_REQUEST    = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_danger_reset_apply_post();
 			}
 		);
@@ -370,7 +370,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 
 		$_POST = array(
 			'_wc_io_danger_reset_preview_nonce' => $nonce,
-			'wc_io_reset_po'                    => '1',
+			'wc_io_reset_movements'             => '1',
 		);
 		$_REQUEST = $_POST;
 
@@ -398,7 +398,7 @@ class Test_WC_IO_Danger_Zone_Reset_Characterization extends WP_UnitTestCase {
 		$preview_nonce = wp_create_nonce( 'wc_io_danger_reset_preview' );
 		$_POST         = array(
 			'_wc_io_danger_reset_preview_nonce' => $preview_nonce,
-			'wc_io_reset_po'                    => '1',
+			'wc_io_reset_movements'             => '1',
 		);
 		$_REQUEST      = $_POST;
 

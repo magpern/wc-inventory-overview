@@ -85,7 +85,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_add_exchange_rate_post();
 			}
 		);
@@ -107,11 +107,12 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 			'wc_io_fx_from'                   => 'USD',
 			// 'wc_io_fx_to' is absent — should default
 			'wc_io_fx_rate'                   => '0.92',
+			'wc_io_fx_date'                   => '2026-01-01',
 		);
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_add_exchange_rate_post();
 			}
 		);
@@ -147,7 +148,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_add_exchange_rate_post();
 			}
 		);
@@ -167,22 +168,16 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$nonce  = wp_create_nonce( 'wc_io_add_exchange_rate' );
 
 		$_POST = array(
-			'wc_io_fx_delete_id'       => -1, // Invalid ID
-			'_wc_io_delete_fx_nonce'   => 'should-not-be-checked',
-					'_wp_http_referer'               => '/wp-admin/',
+			'_wc_io_add_exchange_rate_nonce' => $nonce,
+			'_wp_http_referer'               => '/wp-admin/',
+			'wc_io_fx_from'                   => 'USD',
+			'wc_io_fx_rate'                   => '0.92',
+			'wc_io_fx_date'                   => '2026-01-01',
 		);
 		$_REQUEST = $_POST;
 
-		// Should not throw WPDieException (nonce check should be skipped)
-		// Should redirect with error instead
-		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$controller->handle_delete_exchange_rate_post();
-			}
-		);
-
-		$this->assertStringContainsString( 'wc_io_fx_err=', $location );
-		$this->assertStringContainsString( rawurlencode( 'Invalid exchange rate id.' ), $location );
+		$this->expectException( WPDieException::class );
+		$controller->handle_add_exchange_rate_post();
 	}
 
 	/**
@@ -190,8 +185,10 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 	 */
 	public function test_delete_exchange_rate_valid_id_and_nonce_succeeds() {
 		// Create a test exchange rate
-		$id = WC_Inventory_Overview_Exchange_Rates::insert_rate( 'USD', 'EUR', '0.92', '2026-01-01', 'Test' );
-		$this->assertIsInt( $id );
+		$inserted = WC_Inventory_Overview_Exchange_Rates::insert_rate( 'USD', 'EUR', '0.92', '2026-01-01', 'Test' );
+		$this->assertTrue( $inserted );
+		global $wpdb;
+		$id = (int) $wpdb->insert_id;
 
 		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_delete_exchange_rate_' . $id );
@@ -204,7 +201,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_delete_exchange_rate_post();
 			}
 		);
@@ -213,7 +210,12 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'tab=' . WC_Inventory_Overview_Plugin::TAB_SETTINGS, $location );
 
 		// Verify the row was actually deleted
-		$row = WC_Inventory_Overview_Exchange_Rates::get( $id );
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT id FROM ' . $wpdb->prefix . 'wc_io_exchange_rates WHERE id = %d',
+				$id
+			)
+		);
 		$this->assertNull( $row );
 	}
 
@@ -234,7 +236,7 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
+			static function () use ( $controller ) {
 				$controller->handle_delete_exchange_rate_post();
 			}
 		);
@@ -247,7 +249,10 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 	 * BR-M18-2: Capability denial for delete.
 	 */
 	public function test_delete_exchange_rate_capability_denied() {
-		$id = WC_Inventory_Overview_Exchange_Rates::insert_rate( 'USD', 'EUR', '0.92', '2026-01-01', 'Test' );
+		global $wpdb;
+		$inserted = WC_Inventory_Overview_Exchange_Rates::insert_rate( 'USD', 'EUR', '0.92', '2026-01-01', 'Test' );
+		$this->assertTrue( $inserted );
+		$id = (int) $wpdb->insert_id;
 
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
@@ -256,23 +261,14 @@ class Test_WC_IO_Exchange_Rate_CRUD_Characterization extends WP_UnitTestCase {
 		$nonce  = wp_create_nonce( 'wc_io_delete_exchange_rate_' . $id );
 
 		$_POST = array(
-			'_wc_io_add_exchange_rate_nonce' => $nonce,
-			'wc_io_fx_from'                   => 'USD',
-			'wc_io_fx_rate'                   => '0.92',
-					'_wp_http_referer'               => '/wp-admin/',
+			'wc_io_fx_delete_id'     => $id,
+			'_wc_io_delete_fx_nonce' => $nonce,
+			'_wp_http_referer'       => '/wp-admin/',
 		);
 		$_REQUEST = $_POST;
 
-		$before = $wpdb->num_queries;
-		try {
-			$controller->handle_add_exchange_rate_post();
-		} catch ( Exception $e ) {
-			// Expected: redirect throws exception
-		}
-		$after = $wpdb->num_queries;
-
-		$query_count = $after - $before;
-		$this->assertGreaterThanOrEqual( 0, $query_count );
+		$this->expectException( WPDieException::class );
+		$controller->handle_delete_exchange_rate_post();
 	}
 
 	/**

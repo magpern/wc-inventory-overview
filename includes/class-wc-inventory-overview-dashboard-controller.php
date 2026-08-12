@@ -129,22 +129,22 @@ class WC_Inventory_Overview_Dashboard_Controller {
 			$links = array(
 				array(
 					'label'    => __( 'Restock / Add Inventory', 'wc-inventory-overview' ),
-					'url'      => WC_Inventory_Overview_Plugin::instance()->admin_url_tab( self::TAB_RESTOCK, array( 'restock_view' => self::RESTOCK_VIEW_QUICK ) ) . '#wc-io-restock-section',
+					'url'      => WC_Inventory_Overview_Plugin::instance()->admin_url_tab( WC_Inventory_Overview_Plugin::TAB_RESTOCK, array( 'restock_view' => WC_Inventory_Overview_Plugin::RESTOCK_VIEW_QUICK ) ) . '#wc-io-restock-section',
 					'dashicon' => 'dashicons-plus-alt',
 				),
 				array(
 					'label'    => __( 'Adjust Product Cost', 'wc-inventory-overview' ),
-					'url'      => WC_Inventory_Overview_Plugin::instance()->admin_url_tab( self::TAB_RESTOCK, array( 'restock_view' => self::RESTOCK_VIEW_ADJUST ) ) . '#wc-io-cost-adjustment-section',
+					'url'      => WC_Inventory_Overview_Plugin::instance()->admin_url_tab( WC_Inventory_Overview_Plugin::TAB_RESTOCK, array( 'restock_view' => WC_Inventory_Overview_Plugin::RESTOCK_VIEW_ADJUST ) ) . '#wc-io-cost-adjustment-section',
 					'dashicon' => 'dashicons-admin-generic',
 				),
 				array(
 					'label'    => __( 'View Order Profit', 'wc-inventory-overview' ),
-					'url'      => WC_Inventory_Overview_Plugin::instance()->admin_url_tab( self::TAB_ORDER_PROFIT ),
+					'url'      => WC_Inventory_Overview_Plugin::instance()->admin_url_tab( WC_Inventory_Overview_Plugin::TAB_ORDER_PROFIT ),
 					'dashicon' => 'dashicons-money-alt',
 				),
 				array(
 					'label'    => __( 'View Product Profitability', 'wc-inventory-overview' ),
-					'url'      => WC_Inventory_Overview_Plugin::instance()->admin_url_tab( self::TAB_PRODUCT_PROFITABILITY ),
+					'url'      => WC_Inventory_Overview_Plugin::instance()->admin_url_tab( WC_Inventory_Overview_Plugin::TAB_PRODUCT_PROFITABILITY ),
 					'dashicon' => 'dashicons-chart-bar',
 				),
 			);
@@ -299,8 +299,8 @@ class WC_Inventory_Overview_Dashboard_Controller {
 		echo '</div>';
 		echo '<div class="wc-io-dash-header-filters">';
 		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '" class="wc-io-dash-date-form">';
-		echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE_SLUG ) . '" />';
-		echo '<input type="hidden" name="tab" value="' . esc_attr( self::TAB_DASHBOARD ) . '" />';
+		echo '<input type="hidden" name="page" value="' . esc_attr( WC_Inventory_Overview_Plugin::PAGE_SLUG ) . '" />';
+		echo '<input type="hidden" name="tab" value="' . esc_attr( WC_Inventory_Overview_Plugin::TAB_DASHBOARD ) . '" />';
 		echo '<label for="wc-io-dash-date-from"><span class="screen-reader-text">' . esc_html__( 'Date from', 'wc-inventory-overview' ) . '</span></label>';
 		echo '<input type="date" id="wc-io-dash-date-from" name="wc_io_dash_date_from" value="' . esc_attr( $dates['date_from'] ) . '" class="wc-io-dash-date-input" />';
 		echo ' <span class="wc-io-dash-date-sep" aria-hidden="true">–</span> ';

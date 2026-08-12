@@ -21,7 +21,8 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 	}
 
 	public function tearDown(): void {
-		$_GET = array();
+		$_GET     = array();
+		$_REQUEST = array();
 		parent::tearDown();
 	}
 
@@ -37,6 +38,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'wc_io_dash_date_from' => '2026-01-01',
 			'wc_io_dash_date_to'   => '2026-12-31',
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -59,6 +61,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'wc_io_dash_date_from' => 'not-a-date',
 			'wc_io_dash_date_to'   => '2026/12/31', // Wrong format
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -80,6 +83,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG,
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -91,6 +95,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 			'wc_io_dash_date_from' => '', // Explicitly empty
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -112,6 +117,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG,
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -131,6 +137,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG,
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -151,6 +158,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG,
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -170,6 +178,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG,
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -182,8 +191,13 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 	 * BR-M18-18: Quick-actions locked state when no manage_woocommerce capability.
 	 */
 	public function test_dashboard_quick_actions_locked_without_capability() {
-		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
-		wp_set_current_user( $subscriber_id );
+		// Needs edit_products to pass the Dashboard tab's hub-level gate
+		// (BR-M18-20), but no manage_woocommerce, so BR-M18-18's quick-actions
+		// lock is the behavior actually under test.
+		$user_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		$user    = new WP_User( $user_id );
+		$user->add_cap( 'edit_products' );
+		wp_set_current_user( $user_id );
 
 		$plugin = WC_Inventory_Overview_Plugin::instance();
 
@@ -191,6 +205,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG,
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -210,6 +225,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG,
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -229,6 +245,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG,
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 		);
+		$_REQUEST = $_GET;
 
 		ob_start();
 		$plugin->render_inventory_profit_shell();
@@ -249,6 +266,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG,
 			'tab'  => WC_Inventory_Overview_Plugin::TAB_DASHBOARD,
 		);
+		$_REQUEST = $_GET;
 
 		$before = $wpdb->num_queries;
 		ob_start();
@@ -275,6 +293,7 @@ class Test_WC_IO_Dashboard_Rendering_Characterization extends WP_UnitTestCase {
 			'wc_io_dash_date_from' => '2026-01-01',
 			'wc_io_dash_date_to'   => '2026-12-31',
 		);
+		$_REQUEST = $_GET;
 
 		$before = $wpdb->num_queries;
 		ob_start();
