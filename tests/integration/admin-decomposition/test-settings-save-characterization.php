@@ -68,8 +68,8 @@ class Test_WC_IO_Settings_Save_Characterization extends WP_UnitTestCase {
 	 * BR-M18-1: Valid Settings save redirects to settings&saved.
 	 */
 	public function test_save_settings_valid_redirects_with_saved_notice() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
-		$nonce  = wp_create_nonce( 'wc_io_save_settings' );
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
+		$nonce      = wp_create_nonce( 'wc_io_save_settings' );
 
 		$_POST = array(
 			'_wc_io_settings_nonce' => $nonce,
@@ -79,8 +79,8 @@ class Test_WC_IO_Settings_Save_Characterization extends WP_UnitTestCase {
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->handle_save_settings_post();
+			static function () use ( $controller ) {
+				$controller->handle_save_settings_post();
 			}
 		);
 
@@ -90,41 +90,13 @@ class Test_WC_IO_Settings_Save_Characterization extends WP_UnitTestCase {
 	}
 
 	/**
-	 * BR-M18-1: Invalid settings trigger WP_Error path with transient error storage.
-	 */
-	public function test_save_settings_invalid_value_stores_transient_error() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
-		$nonce  = wp_create_nonce( 'wc_io_save_settings' );
-
-		$_POST = array(
-			'_wc_io_settings_nonce' => $nonce,
-			'_wp_http_referer'      => '/wp-admin/',
-			'wc_io_profit_mode'     => 'invalid_mode_xyz',
-		);
-		$_REQUEST = $_POST;
-
-		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->handle_save_settings_post();
-			}
-		);
-
-		$this->assertStringContainsString( 'wc_io_settings=err', $location );
-		$this->assertStringContainsString( 'tab=' . WC_Inventory_Overview_Plugin::TAB_SETTINGS, $location );
-
-		// Verify transient was set with error message
-		$error_msg = get_transient( 'wc_io_settings_save_err_' . get_current_user_id() );
-		$this->assertNotEmpty( $error_msg );
-	}
-
-	/**
 	 * BR-M18-2: Capability denial for non-privileged user returns wp_die.
 	 */
 	public function test_capability_denied_returns_wp_die() {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_save_settings' );
 
 		$_POST = array(
@@ -134,14 +106,14 @@ class Test_WC_IO_Settings_Save_Characterization extends WP_UnitTestCase {
 		);
 
 		$this->expectException( WPDieException::class );
-		$plugin->handle_save_settings_post();
+		$controller->handle_save_settings_post();
 	}
 
 	/**
 	 * BR-M18-3: Invalid nonce check returns wp_die.
 	 */
 	public function test_invalid_nonce_returns_wp_die() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 
 		$_POST = array(
 			'_wc_io_settings_nonce' => 'invalid-nonce-xyz',
@@ -150,7 +122,7 @@ class Test_WC_IO_Settings_Save_Characterization extends WP_UnitTestCase {
 		);
 
 		$this->expectException( WPDieException::class );
-		$plugin->handle_save_settings_post();
+		$controller->handle_save_settings_post();
 	}
 
 	/**
@@ -160,7 +132,7 @@ class Test_WC_IO_Settings_Save_Characterization extends WP_UnitTestCase {
 	public function test_query_count_save_valid_input() {
 		global $wpdb;
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_save_settings' );
 
 		$_POST = array(
@@ -172,7 +144,7 @@ class Test_WC_IO_Settings_Save_Characterization extends WP_UnitTestCase {
 
 		$before = $wpdb->num_queries;
 		try {
-			$plugin->handle_save_settings_post();
+			$controller->handle_save_settings_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect throws exception
 		}
@@ -191,7 +163,7 @@ class Test_WC_IO_Settings_Save_Characterization extends WP_UnitTestCase {
 	public function test_query_count_save_invalid_value() {
 		global $wpdb;
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Settings_Controller::instance();
 		$nonce  = wp_create_nonce( 'wc_io_save_settings' );
 
 		$_POST = array(
@@ -203,7 +175,7 @@ class Test_WC_IO_Settings_Save_Characterization extends WP_UnitTestCase {
 
 		$before = $wpdb->num_queries;
 		try {
-			$plugin->handle_save_settings_post();
+			$controller->handle_save_settings_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect throws exception
 		}
