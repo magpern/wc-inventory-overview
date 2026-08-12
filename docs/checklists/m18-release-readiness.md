@@ -1,10 +1,12 @@
 # M18 Release Readiness Checklist
 
-**Status:** Frozen and CI-Green  
+**Status:** Frozen and CI-Green (verified — see Final CI Closure Evidence below)  
 **Date:** 2026-08-12  
-**Closure Phase:** Complete (all WPs implemented + documentation + gates passed)  
+**Closure Phase:** Complete (all WPs implemented + documentation + gates passed + full-suite CI closure verified)  
 **Version:** 1.35.0  
-**DB_VERSION:** 11 (unchanged)
+**DB_VERSION:** 11 (unchanged)  
+**Final branch SHA:** `6f628ea462014ded44a3524c2523b0a605b1bdb9`  
+**Draft CI PR:** [#22](https://github.com/magpern/wc-inventory-overview/pull/22) (draft, not merged)
 
 ## Implementation Summary
 
@@ -147,5 +149,100 @@
 
 **Frozen:** 2026-08-12  
 **Freeze Authority:** M18 Implementation Complete — Level A Review Passed  
-**CI Status:** Pending GitHub Actions confirmation (branch pushed, CI queue)  
+**CI Status:** GitHub Actions confirmed green (draft PR #22, see Final CI Closure Evidence)  
 **Next Action:** Release train composition / M19 planning per business decision
+
+---
+
+## Final CI Closure Evidence (post-freeze full-suite verification)
+
+This section records a subsequent full, unfiltered local + GitHub Actions
+verification pass, run after the Closure Phase Evidence above. That earlier
+pass's characterization-test fix (commit `85eeadb`) had only been spot-checked
+per-file; running the complete gate sequence once, unfiltered, surfaced
+additional defects the spot-check missed. All are recorded here honestly
+rather than folded silently into the "zero deviations" narrative above.
+
+### Characterization-test correction (classification)
+
+Not "zero deviations." A full rerun of the exchange-rate, danger-zone, and
+dashboard characterization suites — previously reported as fully green after
+commit `85eeadb` — in fact still failed when run unfiltered. Root causes,
+all in **test code**, not production behavior (`Data_Reset`/`Exchange_Rates`
+contracts are reused unchanged per the plan and predate M18):
+
+- `test-exchange-rate-crud-characterization.php`: closures still captured the
+  pre-rename `$plugin` variable (`use ( $plugin )`) left over from the
+  `85eeadb` rename to `$controller`; `insert_rate()` was asserted to return
+  an `int` though its documented contract has always been `true|WP_Error`;
+  a call to a nonexistent `Exchange_Rates::get()` method; a missing
+  `global $wpdb`; and one capability-denial test that invoked the wrong
+  handler for its own name/BR-M18-2 docblock, asserting a redirect where
+  capability denial actually `wp_die()`s first.
+- `test-danger-zone-reset-characterization.php`: the same leftover
+  `use ( $plugin )` closures, plus every preview POST used a
+  `wc_io_reset_po` field `Data_Reset::parse_request_payload()` has never
+  recognized (real target keys: `wc_io_reset_movements`/`batches`/etc.), so
+  preview silently always took the error branch instead of generating a
+  token.
+- `test-dashboard-rendering-characterization.php`: every date-filter test set
+  `$_GET` directly without also setting `$_REQUEST`. PHP only auto-populates
+  `$_REQUEST` from `$_GET` on a real HTTP request, not when a test overwrites
+  the superglobal directly, and `Dashboard_Controller` reads `$_REQUEST` — so
+  none of these tests were exercising the date values they claimed to test.
+  The quick-actions-locked test also used a bare subscriber, who is blocked
+  by the Dashboard tab's hub-level `edit_products` gate (BR-M18-20) before
+  ever reaching the quick-actions lock state (BR-M18-18) under test;
+  corrected to a subscriber granted `edit_products` only.
+
+**Additionally, one genuine production defect** was found and fixed —
+this is the one change in this pass that touches shipped code, not test
+code: `class-wc-inventory-overview-dashboard-controller.php` had six
+`self::PAGE_SLUG` / `self::TAB_*` / `self::RESTOCK_VIEW_*` constant
+references left unqualified after the WP-M18-4 move out of `Plugin` (where
+`self::` resolved correctly); `Dashboard_Controller` declares none of these
+constants, so every reference fataled with "Undefined constant" once
+exercised by an unfiltered run. This is an INV-M18-11 mechanical-extraction
+gap, not a design change — fixed by qualifying all six with
+`WC_Inventory_Overview_Plugin::`, the same pattern already used for the
+`admin_url_tab()`/`get_requested_tab()` calls in the same methods.
+
+Full diagnosis and fix: commit `6f628ea`.
+
+### Full local gate results (after the `6f628ea` correction, run once each)
+
+| Gate | Result |
+|---|---|
+| `docker compose -f tests/docker/docker-compose.phpunit.yml config` | Valid |
+| PHP Parallel Lint (201 files, full repo) | 0 syntax errors |
+| `composer validate --strict` | `./composer.json is valid` |
+| PHPCS (`phpcs.xml.dist`, full repo) | Not CI-gated per `docs/testing.md`; 1472 errors / 843 warnings pre-existing repo-wide baseline, unchanged by M18's two new controller files (21 errors / 33 warnings on those two files — all `Squiz.Commenting`/`WordPress.Security.NonceVerification`/`WordPress.WP.Capabilities` style/informational sniffs, same class already tolerated repo-wide) |
+| **Full unit suite** (`--testsuite=unit`) | **406 tests, 2084 assertions — OK, 0 failures/errors** |
+| **M1–M18 focused blocking suite** (default filter) | **783 tests, 3494 assertions — OK, 0 failures/errors** |
+| **Full integration suite** (`--testsuite=integration`) | **388 tests, 1453 assertions — OK, 0 failures/errors** |
+| M18 admin-decomposition suite alone (all 6 M18 test classes) | **64 tests, 152 assertions — OK, 0 failures/errors** |
+| `--list-tests` discovery | All 6 M18 test classes confirmed present and matched by the CI filter regex (`run-phpunit.sh:162`): `Test_WC_IO_Settings_Save_Characterization`, `Test_WC_IO_Settings_Controller_Architecture`, `Test_WC_IO_Exchange_Rate_CRUD_Characterization`, `Test_WC_IO_Danger_Zone_Reset_Characterization`, `Test_WC_IO_Dashboard_Rendering_Characterization`, `Test_WC_IO_Dashboard_Controller_Architecture` |
+| `scripts/release-audit.sh --development` | Passed — version 1.35.0, ZIP built with 101 entries under `wc-inventory-overview/`, exit 0 |
+
+### GitHub Actions (draft PR #22, `feature/m18-admin-controller-decomposition` → `main`, not merged)
+
+| Check | Run | Result |
+|---|---|---|
+| PHP Parallel Lint | [run 31639396898](https://github.com/magpern/wc-inventory-overview/actions/runs/31639396898) | pass (10s) |
+| PHP lint and build ZIP | [run 31639396881](https://github.com/magpern/wc-inventory-overview/actions/runs/31639396881) | pass (18s) |
+| PHPUnit | [run 31639396898](https://github.com/magpern/wc-inventory-overview/actions/runs/31639396898), job 94258137597 | pass (3m15s) — **first attempt failed** on a transient `curl: (22) 503` fetching the WordPress-develop PHPUnit library archive from GitHub (infrastructure flake, unrelated to this branch's code); re-run via `gh run rerun --failed` passed clean |
+
+All required checks green as of this evidence. PR remains **draft**; not merged, no tag, no release, no deploy.
+
+### Corrected characterization-test totals
+
+The 38-characterization-test count and per-file change table in the Closure
+Phase Evidence section above remain numerically accurate (5 Settings + 8
+exchange-rate + 13 danger-zone + 12 Dashboard). What changes is the
+**correction classification**: those files required more than the
+invocation-target-only edit originally recorded — the additional fixes above
+were necessary before any of the 33 exchange-rate/danger-zone/dashboard
+tests in this pass's scope were genuinely exercising the behavior they
+claim to characterize. Post-correction, all 64 M18 admin-decomposition
+tests (including the 6 architecture-guard/settings-save files not touched
+in this pass) are confirmed green in an unfiltered run.
