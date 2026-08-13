@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.34.0
+Stable tag: 1.36.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,13 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.36.0 =
+* Milestones M18-M19 — Admin Controller Decomposition, Phases 1-2 (bundled feature train). Internal admin-architecture refactor: zero schema change (DB_VERSION unchanged, 11), zero new public API, zero new capability, zero merchant-facing behavior change.
+* M18: Dashboard and Settings tabs extracted into dedicated controller classes.
+* M19: Movements, Order Profit, and Product Profitability tabs extracted into a new dedicated reporting controller class.
+* Every screen, filter, CSV export, and notice behaves identically to v1.34.0 -- proven by characterization tests written against the pre-refactor code and verified byte-for-byte unchanged after extraction.
+* Inventory Overview and Restock / Cost Adjustment tabs are unaffected by this release.
 
 = 1.34.0 =
 * Milestone M17 — Supplier Merge. Schema change (v10 -> v11): new `merged_into_supplier_id` column on `wc_io_suppliers`, new append-only `wc_io_supplier_merges` audit table.

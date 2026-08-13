@@ -1,5 +1,61 @@
 # Changelog — WC Inventory Overview
 
+## [1.36.0] - Unreleased
+
+**Milestone M19 — Admin Controller Decomposition, Phase 2.** Internal refactoring: extraction of the Movements, Order Profit, and Product Profitability tabs from the Plugin god class into a new `WC_Inventory_Overview_Reporting_Controller`, following the same pattern established by `Settings_Controller`/`Dashboard_Controller` in M18. **Zero behavior change, zero schema change (`DB_VERSION` stays 11), zero new public API, zero new capability, zero new hook.** The extracted cluster is entirely read-only (screen bootstrap, rendering, CSV export) — zero mutation, zero AJAX, zero bulk actions. Branched from the unreleased M18 tip, not `main`, since M18 has not yet released. **Overview and Restock remain on Plugin** — both carry real mutation surface (Overview: bulk product-status/visibility mutation + inline-stock AJAX; Restock: two admin-post handlers writing stock/cost) and are deliberately deferred to a future Phase 3, not folded into this milestone. Level A completion review passed; see `docs/checklists/m19-release-readiness.md`. Not individually released — designed to join M18 in one Admin Controller Decomposition feature train.
+
+### Changed
+
+- **`WC_Inventory_Overview_Reporting_Controller`** — new class owning Movements/Order-Profit/Product-Profitability screen bootstrap, rendering, and CSV export (9 methods + 3 top-level screen-option filters, ~330 LOC, extracted from Plugin). Registers one `admin_enqueue_scripts` callback for the Movements tab's shared stylesheet + `movements-table.js`, split out of `Plugin::enqueue_assets()`'s three-way Dashboard/Overview/Movements branch. Instantiated from `Plugin::init()` via the same singleton `instance()->init()` pattern as `Settings_Controller`/`Purchasing_Page`.
+- **`Plugin::init()` bootstrap** — added `WC_Inventory_Overview_Reporting_Controller::instance()->init();`, appended after `Settings_Controller::instance()->init();`, before `Expected_Delivery_Service::register();`.
+- **`Plugin::on_load_inventory_profit_page()` dispatch** — the Movements/Order-Profit/Product-Profitability branches now call `WC_Inventory_Overview_Reporting_Controller::instance()->on_load_movements()`/`on_load_order_profit()`/`on_load_product_profitability()`; capability gates unchanged.
+- **`Plugin::render_inventory_profit_shell()` dispatch** — the corresponding `case` blocks now call `WC_Inventory_Overview_Reporting_Controller::instance()->render_movements()`/`render_order_profit()`/`render_product_profitability()`; capability-gate notice branches unchanged (byte-for-byte, even though characterization confirmed they are currently unreachable via normal navigation — `get_requested_tab()` already falls back to the Overview tab before the switch runs for a user lacking the required capability).
+- **`Plugin::enqueue_assets()`** — no longer references `TAB_MOVEMENTS`; the Movements-specific script enqueue moved to `Reporting_Controller::enqueue_reporting_assets()`. Dashboard/Overview branches unchanged.
+
+### Testing
+
+- New characterization test suites (25 tests total): `Test_WC_IO_Movements_Rendering_Characterization` (8), `Test_WC_IO_Order_Profit_Rendering_Characterization` (9), `Test_WC_IO_Product_Profitability_Rendering_Characterization` (8). Written and verified green against pre-extraction Plugin code, rerun unchanged (invocation-seam edits only) post-extraction to prove INV-M19-2. Exact pre-extraction query-count baselines locked in (Movements=2, Order Profit=3, Product Profitability=4), held exactly post-extraction.
+- New architecture-guard suite (11 tests): `Test_WC_IO_Reporting_Controller_Architecture`, verifying INV-M19-1/4/5/8/9/10/11/12/13 (no new capabilities, hooks, or SQL; capability-before-nonce ordering per export method; correct ownership; Overview/Restock untouched; bootstrap order preserved).
+- Targeted regression runs: `Test_WC_IO_No_Sibling_Plugin_Coupling`, existing `Test_Movements_Characterization` (domain-level), `Test_WC_IO_Schema_V11_Upgrade`, and `Test_WC_IO_Dashboard_*` (regression coverage since `enqueue_assets()` was touched) — 30 tests, 0 failures.
+- CI discovery filter updated with the four new M19 test class prefixes; verified via `--list-tests`.
+- Full unit/M1-M19-focused/integration suites green, 0 failures/errors.
+
+### Notes
+
+- The Plugin class shrinks from 1,561 lines (post-M18) to 1,230 lines (~21% further reduction). Combined M18+M19 reduction from the original god class: 2,706 → 1,230 lines (~55%).
+- **Two tabs remain undecomposed: Overview and Restock** (~361 and ~368 lines respectively), both carrying genuine mutation surface. The god-class decomposition project is **not** complete after M19 — a future Phase 3 milestone is needed to address them, and may reasonably be split into two milestones given the two tabs are not coupled to each other.
+- Query-count contract: all DB calls remain unchanged (moved code continues to call identical, unmodified `*_List_Table`/`*_Query` domain classes with identical arguments). Baselines captured during characterization; equality verified post-extraction.
+- Reporting Controller code contains zero `global $wpdb` or `$wpdb->` (INV-M19-8) — confirmed no raw SQL existed in the moved Plugin methods to relocate; all data access was already delegated to existing, unmodified domain classes.
+- Pre-move symbol audit found zero unqualified `self::`/`static::` constant references in the new controller (the class of defect M18 had in `Dashboard_Controller` — six unqualified `self::` constants — does not recur here).
+- No speculative design or scope expansion — this milestone extracts exactly what was already there, changes no business behavior, and reserves Phase 3 (Overview, Restock) for a later milestone.
+
+## [1.35.0] - Unreleased
+
+**Milestone M18 — Admin Controller Decomposition, Phase 1.** Internal refactoring: extraction of Dashboard and Settings tabs from the 2,706-line Plugin god class into two dedicated controller classes (`WC_Inventory_Overview_Settings_Controller`, `WC_Inventory_Overview_Dashboard_Controller`), following the existing pattern used by `WC_Inventory_Overview_Purchasing_Page`. **Zero behavior change, zero schema change (`DB_VERSION` stays 11), zero new public API, zero new capability, zero new hook.** Pure code organization; all business rules, security postures, and user-facing behaviors are byte-identical to v1.34.0. Phase 2 (remaining five tabs: Overview, Restock, Movements, Order Profit, Product Profitability) deferred to a future milestone. Level A completion review passed; see `docs/checklists/m18-release-readiness.md`. Not individually released — designed for feature-train batching.
+
+### Changed
+
+- **`WC_Inventory_Overview_Settings_Controller`** — new class owning all Settings-tab functionality: save handler, exchange-rate CRUD orchestration, danger-zone preview/apply orchestration, rendering, asset enqueue, AJAX exchange-rate lookup (12 methods, ~764 LOC, extracted from Plugin). Registers 7 hooks: `admin_post_wc_io_save_settings`, `admin_post_wc_io_add_exchange_rate`, `admin_post_wc_io_delete_exchange_rate`, `admin_post_wc_io_danger_reset_preview`, `admin_post_wc_io_danger_reset_apply`, `wp_ajax_wc_io_get_exchange_rate`, `admin_enqueue_scripts` (Settings-tab scope only). Instantiated from `Plugin::init()` via singleton `instance()->init()` pattern, same as `Purchasing_Page`.
+- **`WC_Inventory_Overview_Dashboard_Controller`** — new class owning Dashboard-tab rendering: date-filter parsing, operational panels (low-stock table, quick actions), KPI/chart rendering (3 methods, ~375 LOC, extracted from Plugin). No dedicated hooks; called directly from Plugin's tab dispatch. Instantiated via singleton `instance()->render()` pattern.
+- **`WC_Inventory_Overview_Plugin` visibility changes** — `get_requested_tab()` and `admin_url_tab()` promoted from `protected` to `public` (no signature/body changes) so the new controllers can call them for tab routing.
+- **`Plugin::init()` bootstrap** — added `WC_Inventory_Overview_Settings_Controller::instance()->init();` call in the existing bootstrap block, after `Purchasing_Page`, before action-registration begins. Settings-related `add_action()` calls removed; Settings hook registration is now owned by `Settings_Controller::init()`.
+- **`Plugin::render_inventory_profit_shell()` dispatch** — `TAB_SETTINGS` case now calls `WC_Inventory_Overview_Settings_Controller::instance()->render();`; `TAB_DASHBOARD` case now calls `WC_Inventory_Overview_Dashboard_Controller::instance()->render();`. Surrounding capability gates and tab availability logic unchanged.
+
+### Testing
+
+- New characterization test suites (17 tests total): `Test_WC_IO_Settings_Save_Characterization` (5 tests for save redirect/capability denial/nonce validation/query counts) and `Test_WC_IO_Dashboard_Rendering_Characterization` (12 tests for date filters, KPIs, low-stock, quick actions, charts). Written and verified green against pre-extraction Plugin code, rerun unchanged post-extraction to prove INV-M18-2 (zero behavior change).
+- New architecture-guard suites (14 tests total): `Test_WC_IO_Settings_Controller_Architecture` and `Test_WC_IO_Dashboard_Controller_Architecture`, verifying INV-M18-1/4/5/8/9/10/11/12 (no new capabilities, hooks, or SQL; correct ownership; nonce/capability-check stability).
+- Targeted regression runs: `Test_WC_IO_Settings_PO_Delay_Grace_Days` (8 tests) and `Test_WC_IO_No_Sibling_Plugin_Coupling` (8 tests), confirming zero hidden coupling introduced by the refactor.
+- CI discovery filter updated to include new test class prefixes.
+- Full unit/integration suites green, 0 failures/errors/risky.
+
+### Notes
+
+- The Plugin class shrinks from 2,706 lines to ~1,579 lines (~42% reduction). The two extracted controllers remain singleton-scoped and self-registered, preserving the existing architectural pattern.
+- Query-count contract: all DB calls remain unchanged (moved code continues to call identical domain services with identical arguments). Baseline captured during characterization; equality verified post-extraction.
+- Settings/Dashboard code contains zero `global $wpdb` or `$wpdb->` (INV-M18-8).
+- No speculative design or scope expansion — this milestone extracts exactly what was already there, changes no business behavior, and reserves Phase 2 (remaining tabs) for a later milestone.
+
 ## [1.34.0] - 2026-08-11
 
 **Milestone M17 — Supplier Merge.** Administrative capability to irreversibly merge a source supplier into a target supplier, reassigning all associated Purchase Orders and Goods Receipts. Closes the "Not Yet Available: Supplier merge tool" backlog line carried in `docs/admin-guide-suppliers.md` since before M9. **Schema change: `DB_VERSION` 10 → 11** (new `merged_into_supplier_id` column on `wc_io_suppliers`, new append-only `wc_io_supplier_merges` audit table). This is a schema-change / ownership-boundary-change milestone and releases standalone, not via a feature train. Not individually released — implemented and frozen on a feature branch; release timing decided separately.
