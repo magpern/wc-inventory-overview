@@ -166,6 +166,7 @@ add_action(
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-suppliers-list-table.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-purchase-orders-list-table.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-print-renderer.php';
+		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-reorder-prefill-service.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-po-admin.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-supplier-order-history-service.php';
 		require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-supplier-spend-service.php';

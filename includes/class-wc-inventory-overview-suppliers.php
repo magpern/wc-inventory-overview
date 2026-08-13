@@ -347,6 +347,47 @@ class WC_Inventory_Overview_Suppliers {
 	}
 
 	/**
+	 * Bulk-fetch supplier rows by ID, one query regardless of count (M22).
+	 *
+	 * Read-only, no row lock — for New PO prefill rendering, where the
+	 * chosen supplier is re-locked and re-validated independently by
+	 * PO_Service::create_draft() at actual submit time regardless of what
+	 * was prefilled.
+	 *
+	 * @param int[] $ids Supplier IDs.
+	 * @return array<int,array<string,mixed>> Rows keyed by ID; IDs that
+	 *         don't resolve to a row are simply absent from the result.
+	 */
+	public static function list_by_ids( array $ids ): array {
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+		if ( empty( $ids ) ) {
+			return array();
+		}
+		global $wpdb;
+		$table        = self::table_name();
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$sql          = "SELECT * FROM {$table} WHERE id IN ({$placeholders})"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows         = $wpdb->get_results( $wpdb->prepare( $sql, $ids ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$by_id        = array();
+		foreach ( (array) $rows as $row ) {
+			$by_id[ (int) $row['id'] ] = $row;
+		}
+		return $by_id;
+	}
+
+	/**
+	 * Whether a supplier row (already fetched) is selectable for a new PO
+	 * (M22). Same predicate already inlined at 4 existing PO_Service /
+	 * Goods_Receipt_Service call sites (status=active, not merged) — not
+	 * retrofitted onto those 4 sites in this milestone (out of scope).
+	 *
+	 * @param array<string,mixed> $supplier Supplier row (from get()/get_for_update()/list_by_ids()).
+	 */
+	public static function is_eligible_for_selection( array $supplier ): bool {
+		return self::STATUS_ACTIVE === ( $supplier['status'] ?? '' ) && empty( $supplier['merged_into_supplier_id'] );
+	}
+
+	/**
 	 * Validate supplier data. Requires 'name' and 'default_currency'; others optional.
 	 */
 	private static function validate( array $data, ?array $existing = null ) {
