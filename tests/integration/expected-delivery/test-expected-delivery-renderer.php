@@ -288,8 +288,27 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 		set_current_screen( 'edit-post' );
 		$this->assertTrue( is_admin() );
 
-		$inactive = WC_Inventory_Overview_Expected_Delivery_Renderer::filter_availability( $availability, $product );
-		$this->assertSame( $availability, $inactive, 'Admin, non-AJAX must be inert' );
+		// Force wp_doing_ajax() to false regardless of ambient process state:
+		// DOING_AJAX is a PHP constant that, once defined true by any earlier
+		// test in this PHPUnit process (e.g. an AJAX-handler characterization
+		// test elsewhere in the suite -- an established, pre-existing
+		// convention, see
+		// tests/integration/supplier-merge/test-supplier-merge-admin.php),
+		// cannot be unset, so wp_doing_ajax()'s default `defined('DOING_AJAX')
+		// && DOING_AJAX` term can no longer be relied on to be false here.
+		// This mirrors the exact override technique the test already uses
+		// below to force the opposite case -- the assertion's semantics are
+		// unchanged, only the precondition is made deterministic instead of
+		// depending on suite-wide test execution order.
+		add_filter( 'wp_doing_ajax', '__return_false', 20 );
+		WC_Inventory_Overview_Expected_Delivery_Service::flush_memo();
+
+		try {
+			$inactive = WC_Inventory_Overview_Expected_Delivery_Renderer::filter_availability( $availability, $product );
+			$this->assertSame( $availability, $inactive, 'Admin, non-AJAX must be inert' );
+		} finally {
+			remove_filter( 'wp_doing_ajax', '__return_false', 20 );
+		}
 
 		add_filter( 'wp_doing_ajax', '__return_true' );
 		WC_Inventory_Overview_Expected_Delivery_Service::flush_memo();

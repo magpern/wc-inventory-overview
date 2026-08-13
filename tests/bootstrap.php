@@ -84,6 +84,51 @@ tests_add_filter( 'muplugins_loaded', 'wc_io_tests_manually_load_plugins' );
 
 require WP_TESTS_DIR . '/includes/bootstrap.php';
 
+// M20: global wp_die_ajax_handler safety net.
+//
+// WP_UnitTestCase_Base::set_up()/tear_down() (abstract-testcase.php:138/201)
+// register/deregister a per-test handler on the 'wp_die_handler' filter
+// (get_wp_die_handler() -> wp_die_handler(), abstract-testcase.php:506-534)
+// that throws WPDieException -- the mechanism every wp_die()-expecting test
+// in this suite relies on. wp_die() uses a *different* filter,
+// 'wp_die_ajax_handler', whenever wp_doing_ajax() is true, and
+// WP_UnitTestCase_Base never registers anything on that one (only
+// WP_Ajax_UnitTestCase does, a different base class nothing in this repo
+// extends). DOING_AJAX is a PHP constant and cannot be unset once defined by
+// any test in this process (an existing, documented convention in
+// tests/integration/supplier-merge/test-supplier-merge-admin.php and
+// tests/integration/supplier-order-history/test-supplier-order-history-admin.php,
+// both pre-dating M20) -- so once any test anywhere in a full-suite run
+// defines it, every wp_die() call in every later-run test, even one
+// completely unrelated to AJAX, routes through 'wp_die_ajax_handler'
+// instead, which falls through to a real `die` and silently kills the
+// entire PHPUnit process with no test report -- reproduced running the full
+// M1-M20 suite after M20 added two more legitimate DOING_AJAX-defining AJAX
+// tests, which shifted execution order enough to expose this pre-existing
+// gap for the first time. Fixed by registering the exact same
+// throw-WPDieException logic globally on 'wp_die_ajax_handler', mirroring
+// WP_UnitTestCase_Base::wp_die_handler()'s own body line-for-line (WP_Error
+// unwrap, non-scalar-message guard, $args['response'] -> exception code) --
+// not a change to any individual test's behavior/assertions, and not a
+// per-test filter (a global one is the only option available from outside
+// WP_UnitTestCase_Base itself, which is vendored WP-core test scaffolding,
+// not part of this repo).
+add_filter(
+	'wp_die_ajax_handler',
+	static function () {
+		return static function ( $message, $title = '', $args = array() ) {
+			if ( is_wp_error( $message ) ) {
+				$message = $message->get_error_message();
+			}
+			if ( ! is_scalar( $message ) ) {
+				$message = '0';
+			}
+			$code = isset( $args['response'] ) ? $args['response'] : 0;
+			throw new WPDieException( $message, $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- re-thrown wp_die() message, not output.
+		};
+	}
+);
+
 // By this point WP core's bootstrap has completed its own install and fired
 // plugins_loaded, so both WooCommerce and this plugin's classes must exist.
 if ( ! class_exists( 'WooCommerce' ) ) {
