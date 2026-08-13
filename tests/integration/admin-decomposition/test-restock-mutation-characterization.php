@@ -102,7 +102,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 
 		$before_movements = $this->movement_count();
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'_wpnonce'        => wp_create_nonce( 'wc_io_restock' ),
 			'wc_io_line_id'   => $product->get_id(),
@@ -114,8 +114,8 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->handle_restock_post();
+			static function () use ( $controller ) {
+				$controller->handle_restock_post();
 			}
 		);
 
@@ -135,7 +135,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 	public function test_handle_restock_post_missing_product() {
 		$before_movements = $this->movement_count();
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'_wpnonce' => wp_create_nonce( 'wc_io_restock' ),
 			'wc_io_qty' => 5,
@@ -143,8 +143,8 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->handle_restock_post();
+			static function () use ( $controller ) {
+				$controller->handle_restock_post();
 			}
 		);
 
@@ -160,7 +160,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 		$before_movements = $this->movement_count();
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'_wpnonce'        => wp_create_nonce( 'wc_io_restock' ),
 			'wc_io_line_id'   => $product->get_id(),
@@ -170,8 +170,8 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->handle_restock_post();
+			static function () use ( $controller ) {
+				$controller->handle_restock_post();
 			}
 		);
 
@@ -190,12 +190,12 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array( 'wc_io_line_id' => 1 );
 
 		$this->expect_wp_die(
-			static function () use ( $plugin ) {
-				$plugin->handle_restock_post();
+			static function () use ( $controller ) {
+				$controller->handle_restock_post();
 			}
 		);
 	}
@@ -206,7 +206,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 	public function test_handle_restock_post_invalid_nonce() {
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'_wpnonce'      => 'invalid-nonce',
 			'wc_io_line_id' => $product->get_id(),
@@ -215,8 +215,8 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		);
 
 		$this->expect_wp_die(
-			static function () use ( $plugin ) {
-				$plugin->handle_restock_post();
+			static function () use ( $controller ) {
+				$controller->handle_restock_post();
 			}
 		);
 	}
@@ -236,7 +236,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 
 		$before_movements = $this->movement_count();
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'_wpnonce'           => wp_create_nonce( 'wc_io_cost_adjustment' ),
 			'wc_io_adj_line_id'  => $product->get_id(),
@@ -246,8 +246,8 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->handle_cost_adjustment_post();
+			static function () use ( $controller ) {
+				$controller->handle_cost_adjustment_post();
 			}
 		);
 
@@ -264,7 +264,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 	 * BR-M20-6: missing product redirects with missing_product, no mutation.
 	 */
 	public function test_handle_cost_adjustment_post_missing_product() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'_wpnonce'           => wp_create_nonce( 'wc_io_cost_adjustment' ),
 			'wc_io_new_avg_cost' => 6.0,
@@ -272,8 +272,8 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->handle_cost_adjustment_post();
+			static function () use ( $controller ) {
+				$controller->handle_cost_adjustment_post();
 			}
 		);
 
@@ -289,7 +289,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$this->set_product_average_cost( $product, 5.0 );
 		$before_movements = $this->movement_count();
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'_wpnonce'           => wp_create_nonce( 'wc_io_cost_adjustment' ),
 			'wc_io_adj_line_id'  => $product->get_id(),
@@ -298,8 +298,8 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$_REQUEST = $_POST;
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->handle_cost_adjustment_post();
+			static function () use ( $controller ) {
+				$controller->handle_cost_adjustment_post();
 			}
 		);
 
@@ -317,12 +317,12 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array( 'wc_io_adj_line_id' => 1 );
 
 		$this->expect_wp_die(
-			static function () use ( $plugin ) {
-				$plugin->handle_cost_adjustment_post();
+			static function () use ( $controller ) {
+				$controller->handle_cost_adjustment_post();
 			}
 		);
 	}
@@ -333,7 +333,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 	public function test_handle_cost_adjustment_post_invalid_nonce() {
 		$product = $this->create_simple_product( array( 'stock_qty' => 20 ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'_wpnonce'           => 'invalid-nonce',
 			'wc_io_adj_line_id'  => $product->get_id(),
@@ -341,8 +341,8 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 		);
 
 		$this->expect_wp_die(
-			static function () use ( $plugin ) {
-				$plugin->handle_cost_adjustment_post();
+			static function () use ( $controller ) {
+				$controller->handle_cost_adjustment_post();
 			}
 		);
 	}
@@ -366,7 +366,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 
 		$before = $wpdb->num_queries;
 		try {
-			$plugin->handle_restock_post();
+			$controller->handle_restock_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect throws.
 		}
@@ -381,7 +381,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 		$this->set_product_average_cost( $product, 5.0 );
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'_wpnonce'           => wp_create_nonce( 'wc_io_cost_adjustment' ),
 			'wc_io_adj_line_id'  => $product->get_id(),
@@ -391,7 +391,7 @@ class Test_WC_IO_Restock_Mutation_Characterization extends WC_Inventory_Overview
 
 		$before = $wpdb->num_queries;
 		try {
-			$plugin->handle_cost_adjustment_post();
+			$controller->handle_cost_adjustment_post();
 		} catch ( Exception $e ) {
 			// Expected: redirect throws.
 		}

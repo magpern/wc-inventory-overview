@@ -73,7 +73,7 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 		$this->set_product_average_cost( $product, 4.5 );
 		$this->set_product_inventory_value( $product, 112.5 );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_cost_adj_preview' ),
 			'product_id' => $product->get_id(),
@@ -81,8 +81,8 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_get_cost_adjustment_preview();
+			static function () use ( $controller ) {
+				$controller->ajax_get_cost_adjustment_preview();
 			}
 		);
 
@@ -97,15 +97,15 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 	 * BR-M20-8: missing/zero product_id -> "Invalid product." error.
 	 */
 	public function test_preview_invalid_product_id() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'nonce' => wp_create_nonce( 'wc_io_cost_adj_preview' ),
 		);
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_get_cost_adjustment_preview();
+			static function () use ( $controller ) {
+				$controller->ajax_get_cost_adjustment_preview();
 			}
 		);
 
@@ -117,7 +117,7 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 	 * BR-M20-8: nonexistent product_id -> "Product not found." error.
 	 */
 	public function test_preview_product_not_found() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_cost_adj_preview' ),
 			'product_id' => 999999999,
@@ -125,8 +125,8 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_get_cost_adjustment_preview();
+			static function () use ( $controller ) {
+				$controller->ajax_get_cost_adjustment_preview();
 			}
 		);
 
@@ -141,7 +141,7 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 	public function test_preview_rejects_variable_parent() {
 		$parent = $this->create_variable_product();
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_cost_adj_preview' ),
 			'product_id' => $parent->get_id(),
@@ -149,8 +149,8 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_get_cost_adjustment_preview();
+			static function () use ( $controller ) {
+				$controller->ajax_get_cost_adjustment_preview();
 			}
 		);
 
@@ -167,7 +167,7 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_cost_adj_preview' ),
 			'product_id' => $product->get_id(),
@@ -175,8 +175,8 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_get_cost_adjustment_preview();
+			static function () use ( $controller ) {
+				$controller->ajax_get_cost_adjustment_preview();
 			}
 		);
 
@@ -191,7 +191,7 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 	public function test_preview_invalid_nonce_dies() {
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'nonce'      => 'invalid-nonce',
 			'product_id' => $product->get_id(),
@@ -207,7 +207,7 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 
 		try {
 			$this->expectException( WPDieException::class );
-			$plugin->ajax_get_cost_adjustment_preview();
+			$controller->ajax_get_cost_adjustment_preview();
 		} finally {
 			remove_filter( 'wp_die_ajax_handler', $force_throwing_die_handler, PHP_INT_MAX );
 		}
@@ -223,7 +223,7 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 		$product = $this->create_simple_product( array( 'stock_qty' => 25 ) );
 		$this->set_product_average_cost( $product, 4.5 );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_cost_adj_preview' ),
 			'product_id' => $product->get_id(),
@@ -232,8 +232,8 @@ class Test_WC_IO_Restock_Cost_Adjustment_Preview_Characterization extends WC_Inv
 
 		$before = $wpdb->num_queries;
 		$this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_get_cost_adjustment_preview();
+			static function () use ( $controller ) {
+				$controller->ajax_get_cost_adjustment_preview();
 			}
 		);
 		$after = $wpdb->num_queries;

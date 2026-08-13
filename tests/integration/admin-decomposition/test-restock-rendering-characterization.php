@@ -204,10 +204,10 @@ class Test_WC_IO_Restock_Rendering_Characterization extends WP_UnitTestCase {
 	 * for an authorized user — it only bootstraps, never renders.
 	 */
 	public function test_on_load_restock_screen_no_op_for_authorized_user() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 
 		ob_start();
-		$result = $plugin->on_load_restock_screen();
+		$result = $controller->on_load_restock_screen();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
@@ -222,10 +222,10 @@ class Test_WC_IO_Restock_Rendering_Characterization extends WP_UnitTestCase {
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
 
 		ob_start();
-		$result = $plugin->on_load_restock_screen();
+		$result = $controller->on_load_restock_screen();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
