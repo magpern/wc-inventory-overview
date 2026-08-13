@@ -188,4 +188,115 @@ class Test_WC_IO_Summary_Needs_Reorder extends WC_Inventory_Overview_Test_Case {
 			array_keys( $stats )
 		);
 	}
+
+	// -----------------------------------------------------------------
+	// WP-M21-5: get_low_stock_lines_for_chart() row extension (BR-M21-8)
+	// -----------------------------------------------------------------
+
+	/**
+	 * Pre-M21 keys/values/order (id, name, qty, low) are unchanged; new keys
+	 * are additive.
+	 */
+	public function test_chart_row_shape_is_additive() {
+		$product = $this->create_simple_product( array( 'stock_qty' => 1 ) );
+		$product->set_low_stock_amount( 5 );
+		$product->save();
+
+		$rows = WC_Inventory_Overview_Summary::get_low_stock_lines_for_chart( array(), 10 );
+
+		$row = null;
+		foreach ( $rows as $r ) {
+			if ( (int) $r['id'] === $product->get_id() ) {
+				$row = $r;
+				break;
+			}
+		}
+		$this->assertNotNull( $row );
+
+		$this->assertEqualsCanonicalizing(
+			array( 'id', 'name', 'qty', 'low', 'position', 'incoming', 'needs_reorder', 'covered_by_incoming' ),
+			array_keys( $row )
+		);
+		$this->assertEqualsWithDelta( 1.0, $row['qty'], 0.0001 );
+		$this->assertEqualsWithDelta( 5.0, $row['low'], 0.0001 );
+	}
+
+	/**
+	 * A chart row with no incoming supply: position === on_hand, incoming
+	 * === 0, needs_reorder === true.
+	 */
+	public function test_chart_row_with_no_incoming_needs_reorder() {
+		$product = $this->create_simple_product( array( 'stock_qty' => 1 ) );
+		$product->set_low_stock_amount( 5 );
+		$product->save();
+
+		$row = null;
+		foreach ( WC_Inventory_Overview_Summary::get_low_stock_lines_for_chart( array(), 50 ) as $r ) {
+			if ( (int) $r['id'] === $product->get_id() ) {
+				$row = $r;
+			}
+		}
+		$this->assertNotNull( $row );
+
+		$this->assertEqualsWithDelta( 1.0, $row['position'], 0.0001 );
+		$this->assertEqualsWithDelta( 0.0, $row['incoming'], 0.0001 );
+		$this->assertTrue( $row['needs_reorder'] );
+		$this->assertFalse( $row['covered_by_incoming'] );
+	}
+
+	/**
+	 * A chart row whose incoming supply covers the threshold:
+	 * covered_by_incoming === true, needs_reorder === false.
+	 */
+	public function test_chart_row_covered_by_incoming() {
+		$product = $this->create_simple_product( array( 'stock_qty' => 1 ) );
+		$product->set_low_stock_amount( 5 );
+		$product->save();
+
+		$po = $this->create_purchase_order();
+		$this->add_po_line( $po['id'], array( 'product_id' => $product->get_id(), 'qty_ordered' => 10 ) );
+		$this->place_po( $po['id'] );
+
+		$row = null;
+		foreach ( WC_Inventory_Overview_Summary::get_low_stock_lines_for_chart( array(), 50 ) as $r ) {
+			if ( (int) $r['id'] === $product->get_id() ) {
+				$row = $r;
+			}
+		}
+		$this->assertNotNull( $row );
+
+		$this->assertEqualsWithDelta( 11.0, $row['position'], 0.0001 );
+		$this->assertEqualsWithDelta( 10.0, $row['incoming'], 0.0001 );
+		$this->assertFalse( $row['needs_reorder'] );
+		$this->assertTrue( $row['covered_by_incoming'] );
+	}
+
+	/**
+	 * The Dashboard chart payload (Dashboard_Charts_Data) continues to use
+	 * only name/qty from each row -- unaffected by the new keys (BR-M21-8).
+	 */
+	public function test_dashboard_chart_payload_unaffected_by_new_keys() {
+		$product = $this->create_simple_product( array( 'stock_qty' => 1 ) );
+		$product->set_low_stock_amount( 5 );
+		$product->save();
+
+		$summary_base = array(
+			'search'          => '',
+			'category_tt_id'  => 0,
+			'stock_status'    => array(),
+			'exclude_private' => false,
+		);
+
+		$payload = WC_Inventory_Overview_Dashboard_Charts_Data::build_admin_script_payload(
+			array( 'totals' => array( 'product_revenue' => 0 ), 'daily_buckets' => array() ),
+			array( 'date_from' => '2026-01-01', 'date_to' => '2026-12-31', 'statuses' => array() ),
+			array( 'date_from' => '2026-01-01', 'date_to' => '2026-12-31' ),
+			$summary_base
+		);
+
+		$this->assertArrayHasKey( 'lowStock', $payload );
+		$this->assertArrayHasKey( 'labels', $payload['lowStock'] );
+		$this->assertArrayHasKey( 'values', $payload['lowStock'] );
+		$this->assertNotEmpty( $payload['lowStock']['values'] );
+	}
 }

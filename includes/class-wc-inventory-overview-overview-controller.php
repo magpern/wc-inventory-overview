@@ -430,6 +430,28 @@ class WC_Inventory_Overview_Overview_Controller {
 			),
 		);
 
+		// M21 (BR-M21-6): "Needs Reorder" is the first capability-conditional
+		// card in this method -- visible only to manage_woocommerce viewers
+		// (mirroring the same gate already used elsewhere for
+		// Incoming/Position -- BR-M21-4), inserted immediately after Low
+		// stock. The six pre-existing cards above remain unconditionally
+		// edit_products-visible, unchanged (INV-M21-6).
+		if ( current_user_can( 'manage_woocommerce' ) ) {
+			array_splice(
+				$cards,
+				5,
+				0,
+				array(
+					array(
+						'key'   => 'needs_reorder',
+						'label' => __( 'Needs Reorder', 'wc-inventory-overview' ),
+						'value' => $stats['needs_reorder'] ?? 0,
+						'alert' => ( ( $stats['needs_reorder'] ?? 0 ) > 0 ),
+					),
+				)
+			);
+		}
+
 		echo '<div class="wc-io-summary" role="region" aria-label="' . esc_attr__( 'Inventory summary', 'wc-inventory-overview' ) . '">';
 		foreach ( $cards as $card ) {
 			$cls = 'wc-io-summary-card';

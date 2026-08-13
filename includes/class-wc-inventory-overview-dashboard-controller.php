@@ -74,6 +74,13 @@ class WC_Inventory_Overview_Dashboard_Controller {
 			echo '<th scope="col" class="column-status">' . esc_html__( 'Status', 'wc-inventory-overview' ) . '</th>';
 			echo '<th scope="col" class="column-qty">' . esc_html__( 'Current stock', 'wc-inventory-overview' ) . '</th>';
 			echo '<th scope="col" class="column-threshold">' . esc_html__( 'Threshold', 'wc-inventory-overview' ) . '</th>';
+			// M21 (BR-M21-9): two new columns, visible only to manage_woocommerce
+			// viewers (same $can_shop gate as Quick Actions below). Absent that
+			// capability, this table renders with exactly its pre-M21 5 columns.
+			if ( $can_shop ) {
+				echo '<th scope="col" class="column-incoming">' . esc_html__( 'Incoming', 'wc-inventory-overview' ) . '</th>';
+				echo '<th scope="col" class="column-reorder">' . esc_html__( 'Reorder status', 'wc-inventory-overview' ) . '</th>';
+			}
 			echo '<th scope="col" class="column-actions">' . esc_html__( 'Edit', 'wc-inventory-overview' ) . '</th>';
 			echo '</tr></thead><tbody>';
 			foreach ( $rows as $row ) {
@@ -92,6 +99,19 @@ class WC_Inventory_Overview_Dashboard_Controller {
 				echo '<td class="column-status"><span class="' . esc_attr( $badge_class ) . '">' . esc_html( $badge_text ) . '</span></td>';
 				echo '<td class="column-qty">' . esc_html( (string) wc_stock_amount( $qty ) ) . '</td>';
 				echo '<td class="column-threshold">' . esc_html( (string) wc_stock_amount( isset( $row['low'] ) ? $row['low'] : 0 ) ) . '</td>';
+				if ( $can_shop ) {
+					$incoming = isset( $row['incoming'] ) ? (float) $row['incoming'] : 0.0;
+					echo '<td class="column-incoming">' . ( $incoming > 0 ? esc_html( (string) wc_stock_amount( $incoming ) ) : '<span class="wc-io-dash-ops-na" aria-hidden="true">' . esc_html( '—' ) . '</span>' ) . '</td>';
+
+					if ( ! empty( $row['covered_by_incoming'] ) ) {
+						$reorder_class = 'wc-io-dash-badge wc-io-dash-badge--calm';
+						$reorder_text  = __( 'Covered by incoming', 'wc-inventory-overview' );
+					} else {
+						$reorder_class = 'wc-io-dash-badge wc-io-dash-badge--critical';
+						$reorder_text  = __( 'Needs reorder', 'wc-inventory-overview' );
+					}
+					echo '<td class="column-reorder"><span class="' . esc_attr( $reorder_class ) . '">' . esc_html( $reorder_text ) . '</span></td>';
+				}
 				echo '<td class="column-actions">';
 				if ( $edit && current_user_can( 'edit_product', $pid ) ) {
 					printf(
@@ -186,9 +206,10 @@ class WC_Inventory_Overview_Dashboard_Controller {
 			'exclude_private' => WC_Inventory_Overview_Repository::request_excludes_private(),
 		);
 
-		$inv_metrics = WC_Inventory_Overview_Dashboard_Inventory_Metrics::compute_for_dashboard( $summary_base );
-		$summary     = WC_Inventory_Overview_Summary::build( $summary_base );
-		$low_stock   = isset( $summary['low_stock'] ) ? (int) $summary['low_stock'] : 0;
+		$inv_metrics    = WC_Inventory_Overview_Dashboard_Inventory_Metrics::compute_for_dashboard( $summary_base );
+		$summary        = WC_Inventory_Overview_Summary::build( $summary_base );
+		$low_stock      = isset( $summary['low_stock'] ) ? (int) $summary['low_stock'] : 0;
+		$needs_reorder  = isset( $summary['needs_reorder'] ) ? (int) $summary['needs_reorder'] : 0;
 
 		$na          = "\u{2014}";
 		$margin_html = null === $totals['margin_percent']
@@ -291,6 +312,25 @@ class WC_Inventory_Overview_Dashboard_Controller {
 			),
 		);
 
+		// M21 (BR-M21-10): "Needs Reorder" KPI, visible only to
+		// manage_woocommerce viewers (mirroring the $can_shop gate already
+		// used below for Quick Actions -- BR-M21-4). Absent that
+		// capability, the KPI set above -- including the unchanged Low
+		// Stock Items card -- renders exactly as today (INV-M21-6).
+		if ( current_user_can( 'manage_woocommerce' ) ) {
+			$kpis[] = array(
+				'key'      => 'needs_reorder',
+				'label'    => __( 'Needs Reorder', 'wc-inventory-overview' ),
+				'html'     => '<span class="wc-io-dash-kpi-num">' . esc_html( number_format_i18n( $needs_reorder ) ) . '</span>',
+				'dashicon' => 'dashicons-warning',
+				'accent'   => $needs_reorder > 0 ? 'lowstock' : 'calm',
+				'help'     => __( 'Low-stock lines whose incoming purchase orders do not yet cover the low-stock threshold.', 'wc-inventory-overview' ),
+				'note'     => $needs_reorder > 0
+					? __( 'Consider placing a purchase order.', 'wc-inventory-overview' )
+					: __( 'Incoming supply covers current low-stock lines.', 'wc-inventory-overview' ),
+			);
+		}
+
 		echo '<div class="wc-io-dash">';
 		echo '<div class="wc-io-dash-header">';
 		echo '<div class="wc-io-dash-header-text">';
@@ -317,6 +357,9 @@ class WC_Inventory_Overview_Dashboard_Controller {
 			$dashicon        = isset( $kpi['dashicon'] ) ? preg_replace( '/[^a-z0-9\-]/', '', (string) $kpi['dashicon'] ) : 'dashicons-chart-line';
 			$kpi_outer_class = 'postbox wc-io-dash-kpi wc-io-dash-kpi--accent-' . $accent;
 			if ( 'low_stock' === $kpi['key'] && $low_stock > 0 ) {
+				$kpi_outer_class .= ' wc-io-dash-kpi--needs-attention';
+			}
+			if ( 'needs_reorder' === $kpi['key'] && $needs_reorder > 0 ) {
 				$kpi_outer_class .= ' wc-io-dash-kpi--needs-attention';
 			}
 			if ( 'missing_cost_lines' === $kpi['key'] && (int) $inv_metrics['missing_cost_lines'] > 0 ) {

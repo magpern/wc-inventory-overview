@@ -187,9 +187,17 @@ class WC_Inventory_Overview_Summary {
 	/**
 	 * Low-stock sellable lines (same rules as low-stock count), for dashboard chart.
 	 *
+	 * M21 (BR-M21-8): each returned row is additively extended with
+	 * incoming/position/needs_reorder/covered_by_incoming -- the pre-M21
+	 * id/name/qty/low keys, their values, and the qty-then-name sort order
+	 * are all unchanged. Classification runs once, in one bulk call, only
+	 * over the rows actually being returned (a strict subset of this
+	 * method's already-existing bounded candidate pool) -- never once per
+	 * row (INV-M21-4).
+	 *
 	 * @param array<string, mixed> $base_params Base filters (search, category, stock_status, exclude_private).
 	 * @param int                    $limit       Max rows.
-	 * @return array<int, array{id:int,name:string,qty:float,low:float}>
+	 * @return array<int, array{id:int,name:string,qty:float,low:float,incoming:float,position:float,needs_reorder:bool,covered_by_incoming:bool}>
 	 */
 	public static function get_low_stock_lines_for_chart( array $base_params, $limit = 10 ) {
 		$limit = max( 1, min( 50, (int) $limit ) );
@@ -207,6 +215,9 @@ class WC_Inventory_Overview_Summary {
 				'per_page'                  => $per_page,
 			)
 		);
+
+		$product_candidates   = array();
+		$variation_candidates = array();
 
 		while ( $page <= $max_page && count( $rows ) < $limit * 5 ) {
 			$params['paged'] = $page;
@@ -226,12 +237,23 @@ class WC_Inventory_Overview_Summary {
 				if ( null === $low || (float) $qty > (float) $low ) {
 					continue;
 				}
+				$id     = (int) $p->get_id();
 				$rows[] = array(
-					'id'   => (int) $p->get_id(),
+					'id'   => $id,
 					'name' => wp_strip_all_tags( $p->get_formatted_name() ),
 					'qty'  => (float) wc_stock_amount( $qty ),
 					'low'  => (float) $low,
 				);
+
+				$candidate = array(
+					'on_hand'   => (float) $qty,
+					'threshold' => (float) $low,
+				);
+				if ( $p->is_type( 'variation' ) ) {
+					$variation_candidates[ $id ] = $candidate;
+				} else {
+					$product_candidates[ $id ] = $candidate;
+				}
 			}
 			if ( $page >= ( $r['max_num_pages'] ?? 1 ) ) {
 				break;
@@ -249,6 +271,28 @@ class WC_Inventory_Overview_Summary {
 			}
 		);
 
-		return array_slice( $rows, 0, $limit );
+		$rows = array_slice( $rows, 0, $limit );
+
+		$returned_product_candidates   = array();
+		$returned_variation_candidates = array();
+		foreach ( $rows as $row ) {
+			if ( isset( $product_candidates[ $row['id'] ] ) ) {
+				$returned_product_candidates[ $row['id'] ] = $product_candidates[ $row['id'] ];
+			} elseif ( isset( $variation_candidates[ $row['id'] ] ) ) {
+				$returned_variation_candidates[ $row['id'] ] = $variation_candidates[ $row['id'] ];
+			}
+		}
+		$classified = self::classify_needs_reorder_bulk( $returned_product_candidates, $returned_variation_candidates );
+
+		foreach ( $rows as &$row ) {
+			$c                          = $classified[ $row['id'] ] ?? null;
+			$row['position']            = null !== $c ? $c['position'] : $row['qty'];
+			$row['incoming']            = null !== $c ? max( 0.0, $row['position'] - $row['qty'] ) : 0.0;
+			$row['needs_reorder']       = null !== $c ? $c['needs_reorder'] : true;
+			$row['covered_by_incoming'] = null !== $c ? $c['covered_by_incoming'] : false;
+		}
+		unset( $row );
+
+		return $rows;
 	}
 }
