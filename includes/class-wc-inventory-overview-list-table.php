@@ -349,7 +349,7 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			return '<div class="wc-io-badges wc-io-badges-variable-parent">' . $inner . '</div>';
 		}
 
-		return self::render_status_badges( $item );
+		return self::render_status_badges( $item, $this->position_map );
 	}
 
 	/**
@@ -387,10 +387,20 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 	/**
 	 * Direct stock badge HTML for a single sellable line (simple or variation), no wrapper.
 	 *
-	 * @param WC_Product $item Product.
+	 * M21 (BR-M21-1..4): when the existing Low-stock rule below already finds
+	 * the line low, and a caller-supplied Position result is available for
+	 * it, an additional Reorder Signal badge is appended alongside (never
+	 * instead of) the existing "Low stock" badge, per D13. $position_map is
+	 * empty for any caller lacking manage_woocommerce (mirrored from
+	 * $this->position_map's own existing gating in prepare_items()) or for
+	 * any pre-M21 caller that omits the parameter — in both cases this
+	 * method's output is byte-identical to its pre-M21 behavior.
+	 *
+	 * @param WC_Product                        $item         Product.
+	 * @param array<int, array<string, mixed>>   $position_map M21: Inventory Position results keyed by item ID (optional).
 	 * @return string
 	 */
-	public static function render_direct_stock_badges_inner( WC_Product $item ) {
+	public static function render_direct_stock_badges_inner( WC_Product $item, array $position_map = array() ) {
 		if ( \Automattic\WooCommerce\Enums\ProductStockStatus::ON_BACKORDER === $item->get_stock_status() ) {
 			return '<span class="wc-io-badge wc-io-badge-backorder">' . esc_html__( 'On backorder', 'wc-inventory-overview' ) . '</span>';
 		}
@@ -398,7 +408,8 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			return '<span class="wc-io-badge wc-io-badge-out">' . esc_html__( 'Out of stock', 'wc-inventory-overview' ) . '</span>';
 		}
 
-		$low = false;
+		$low     = false;
+		$low_amt = null;
 		if ( $item->managing_stock() ) {
 			$qty = $item->get_stock_quantity();
 			if ( null !== $qty && '' !== $qty ) {
@@ -409,10 +420,39 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			}
 		}
 		if ( $low ) {
-			return '<span class="wc-io-badge wc-io-badge-low">' . esc_html__( 'Low stock', 'wc-inventory-overview' ) . '</span>';
+			$html = '<span class="wc-io-badge wc-io-badge-low">' . esc_html__( 'Low stock', 'wc-inventory-overview' ) . '</span>';
+			$html .= self::render_reorder_signal_badge( $item->get_id(), (float) $low_amt, $position_map );
+			return $html;
 		}
 
 		return '<span class="wc-io-badge wc-io-badge-in">' . esc_html__( 'In stock', 'wc-inventory-overview' ) . '</span>';
+	}
+
+	/**
+	 * M21 (BR-M21-3, BR-M21-11): Reorder Signal badge for an already-low-stock
+	 * item, or '' when no Position result is available for it (viewer lacks
+	 * manage_woocommerce, or the item is absent from the map). The sole
+	 * caller of WC_Inventory_Overview_Reorder_Signal_Resolver::resolve() on
+	 * this class's behalf (INV-M21-2).
+	 *
+	 * @param int                               $item_id      Product or variation ID.
+	 * @param float                             $threshold    The same effective low-stock threshold already used for this item's Low-stock determination (BR-M21-2).
+	 * @param array<int, array<string, mixed>>   $position_map Inventory Position results keyed by item ID.
+	 * @return string
+	 */
+	protected static function render_reorder_signal_badge( int $item_id, float $threshold, array $position_map ) {
+		if ( ! isset( $position_map[ $item_id ] ) ) {
+			return '';
+		}
+
+		$position    = (float) $position_map[ $item_id ]['position'];
+		$signal      = WC_Inventory_Overview_Reorder_Signal_Resolver::resolve( $position, $threshold );
+
+		if ( $signal['needs_reorder'] ) {
+			return ' <span class="wc-io-badge wc-io-badge-needs-reorder">' . esc_html__( 'Needs reorder', 'wc-inventory-overview' ) . '</span>';
+		}
+
+		return ' <span class="wc-io-badge wc-io-badge-covered-incoming">' . esc_html__( 'Covered by incoming', 'wc-inventory-overview' ) . '</span>';
 	}
 
 	/**
@@ -421,8 +461,8 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 	 * @param WC_Product $item Product.
 	 * @return string
 	 */
-	public static function render_direct_stock_badges( WC_Product $item ) {
-		return '<div class="wc-io-badges">' . self::render_direct_stock_badges_inner( $item ) . '</div>';
+	public static function render_direct_stock_badges( WC_Product $item, array $position_map = array() ) {
+		return '<div class="wc-io-badges">' . self::render_direct_stock_badges_inner( $item, $position_map ) . '</div>';
 	}
 
 	/**
@@ -431,9 +471,9 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 	 * @param WC_Product $item Product.
 	 * @return string
 	 */
-	public static function render_status_badges( WC_Product $item ) {
+	public static function render_status_badges( WC_Product $item, array $position_map = array() ) {
 		$inner  = self::render_publish_visibility_badges_inner( $item );
-		$inner .= self::render_direct_stock_badges_inner( $item );
+		$inner .= self::render_direct_stock_badges_inner( $item, $position_map );
 
 		return '<div class="wc-io-badges">' . $inner . '</div>';
 	}
@@ -456,12 +496,13 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 		$position_total   = 0.0;
 		$incoming_delayed = false;
 
-		$n_managed   = 0;
-		$n_unmanaged = 0;
-		$n_bo        = 0;
-		$n_out       = 0;
-		$n_in_ok     = 0;
-		$n_in_low    = 0;
+		$n_managed         = 0;
+		$n_unmanaged       = 0;
+		$n_bo              = 0;
+		$n_out             = 0;
+		$n_in_ok           = 0;
+		$n_in_low          = 0;
+		$n_in_needs_reorder = 0; // M21 (BR-M21-5): per-child count, never a parent-level Position comparison (INV-M21-7).
 
 		foreach ( $children as $v ) {
 			if ( ! $v instanceof WC_Product || ! $v->is_type( 'variation' ) ) {
@@ -503,6 +544,18 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 
 			if ( $low ) {
 				++$n_in_low;
+				// M21 (BR-M21-5, INV-M21-7): classify this child individually
+				// -- never a synthetic parent-level Position/threshold
+				// comparison. null $child_pos (viewer lacks
+				// manage_woocommerce, or no Position entry) simply does not
+				// count toward n_in_needs_reorder, mirroring the row-level
+				// badge's own "no position_map entry -> no signal" rule.
+				if ( null !== $child_pos ) {
+					$signal = WC_Inventory_Overview_Reorder_Signal_Resolver::resolve( (float) $child_pos['position'], (float) $low_amt );
+					if ( $signal['needs_reorder'] ) {
+						++$n_in_needs_reorder;
+					}
+				}
 			} else {
 				++$n_in_ok;
 			}
@@ -603,6 +656,16 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			}
 		}
 
+		// M21 (BR-M21-5): a "Needs reorder" child-badge, parallel to the
+		// existing wc-io-badge-low-child low-stock child-badge above. Only
+		// reachable when n_in_low > 0 (needs_reorder is always a subset of
+		// low-stock), which the two branches above already covered with
+		// their own "Low stock" representation -- this is purely additive,
+		// alongside (never instead of) it, per D13.
+		if ( $n_in_needs_reorder > 0 ) {
+			$badges[] = '<span class="wc-io-badge wc-io-badge-needs-reorder wc-io-badge-needs-reorder-child">' . esc_html__( 'Needs reorder', 'wc-inventory-overview' ) . '</span>';
+		}
+
 		$badges = array_values( array_unique( $badges ) );
 
 		if ( ! $badges && $n_managed > 0 ) {
@@ -617,6 +680,7 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 			'n_out'             => $n_out,
 			'n_in_ok'           => $n_in_ok,
 			'n_in_low'          => $n_in_low,
+			'n_in_needs_reorder' => $n_in_needs_reorder,
 			'n_in_all'          => $n_in_all,
 			'mixed_in_out'      => $mixed_in_out,
 			'mixed_bo'          => $mixed_bo,
@@ -852,6 +916,18 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 				$low = WC_Inventory_Overview_Settings::get_effective_low_stock_amount( $item );
 				if ( null !== $low && (float) $qty <= (float) $low ) {
 					$classes[] = 'wc-io-is-low-stock';
+
+					// M21 (BR-M21-4, INV-M21-5): position_map is only ever
+					// populated for manage_woocommerce viewers (see
+					// prepare_items()); empty for anyone else, so this class
+					// is never added for edit_products-only viewers.
+					$pos = $this->position_map[ $item->get_id() ] ?? null;
+					if ( null !== $pos ) {
+						$signal = WC_Inventory_Overview_Reorder_Signal_Resolver::resolve( (float) $pos['position'], (float) $low );
+						if ( $signal['needs_reorder'] ) {
+							$classes[] = 'wc-io-needs-reorder';
+						}
+					}
 				}
 			}
 		}
@@ -1102,7 +1178,7 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 					echo '<td><code>' . esc_html( $ch->get_sku() ?: '—' ) . '</code></td>';
 					echo '<td>' . esc_html( wp_strip_all_tags( wc_get_formatted_variation( $ch, true, false, true ) ) ) . '</td>';
 					echo '<td>' . esc_html( $sq ) . '</td>';
-					echo '<td>' . wp_kses_post( self::render_status_badges( $ch ) ) . '</td>';
+					echo '<td>' . wp_kses_post( self::render_status_badges( $ch, $this->position_map ) ) . '</td>';
 					echo '</tr>';
 				}
 				echo '</tbody></table></div>';

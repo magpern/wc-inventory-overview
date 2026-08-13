@@ -299,12 +299,38 @@ class WC_Inventory_Overview_Overview_Controller {
 		}
 		$product->save();
 
+		// M21 (BR-M21-4, INV-M21-5): the refreshed badge HTML may include a
+		// Reorder Signal only for manage_woocommerce viewers, mirroring the
+		// same capability gate already governing position_map elsewhere in
+		// this class (prepare_items()) -- never built for edit_products-only
+		// viewers, so render_status_badges() below sees an empty map (its
+		// pre-M21, unchanged behavior) for them.
+		$position_map = array();
+		if ( current_user_can( 'manage_woocommerce' ) && $product->managing_stock() ) {
+			$on_hand = self::product_on_hand_qty( $product );
+			$position_map = $product->is_type( 'variation' )
+				? WC_Inventory_Overview_Inventory_Position_Service::get_positions_bulk( array(), array( $id => $on_hand ) )
+				: WC_Inventory_Overview_Inventory_Position_Service::get_positions_bulk( array( $id => $on_hand ), array() );
+		}
+
 		wp_send_json_success(
 			array(
 				'formatted'  => (string) wc_stock_amount( (float) $product->get_stock_quantity() ),
-				'badgesHtml' => WC_Inventory_Overview_List_Table::render_status_badges( $product ),
+				'badgesHtml' => WC_Inventory_Overview_List_Table::render_status_badges( $product, $position_map ),
 			)
 		);
+	}
+
+	/**
+	 * On Hand quantity for Position lookups (M21) -- 0.0 when unset, matching
+	 * WC_Inventory_Overview_List_Table::item_on_hand_qty()'s own convention.
+	 *
+	 * @param WC_Product $item Product.
+	 * @return float
+	 */
+	protected static function product_on_hand_qty( WC_Product $item ) {
+		$qty = $item->get_stock_quantity();
+		return ( null === $qty || '' === $qty ) ? 0.0 : (float) $qty;
 	}
 
 	/**
