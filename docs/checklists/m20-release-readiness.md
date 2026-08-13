@@ -1,6 +1,6 @@
 # M20 Release Readiness Checklist
 
-**Status:** Frozen and CI-Green (pending final GitHub Actions confirmation below)
+**Status:** Frozen and CI-Green (verified)
 **Date:** 2026-08-13
 **Version:** 1.37.0
 **DB_VERSION:** 11 (unchanged)
@@ -189,9 +189,15 @@ All three are documented in commit `3d4af86` (`fix(m20): correct genuine defects
 | `--list-tests` discovery | All 94 M20 tests confirmed present and matched by the CI filter regex (`run-phpunit.sh`) |
 | `scripts/release-audit.sh --development` | Passed — version 1.37.0, ZIP built with 104 entries under `wc-inventory-overview/`, both new controller files confirmed packaged, exit 0 |
 
-### GitHub Actions
+### GitHub Actions (draft PR #25, `feature/m20-admin-controller-decomposition-phase3` → `main`, not merged)
 
-Recorded after push, in a follow-up update to this section (see PR link once opened).
+| Check | Run | Result |
+|---|---|---|
+| PHP Parallel Lint | [run 31698643740](https://github.com/magpern/wc-inventory-overview/actions/runs/31698643740/job/94442141413) | pass (13s) |
+| PHP lint and build ZIP | [run 31698643761](https://github.com/magpern/wc-inventory-overview/actions/runs/31698643761/job/94442142172) | pass (21s) |
+| PHPUnit | [run 31698643740](https://github.com/magpern/wc-inventory-overview/actions/runs/31698643740/job/94442141704) | pass (3m31s) |
+
+All required checks green on the first attempt. PR remains **draft**; not merged, no tag, no release, no deploy.
 
 ### Manual Acceptance
 
@@ -200,5 +206,5 @@ Recorded after push, in a follow-up update to this section (see PR link once ope
 ---
 
 **Frozen:** 2026-08-13
-**Freeze Authority:** M20 Implementation Complete — Level A Review Passed — CI-Green (local); GitHub Actions confirmation pending push
-**Next Action:** Push branch, open draft PR, confirm GitHub Actions green; manual acceptance (browser-based UI verification) when a dev environment is available; release decision (standalone vs. next feature train) per business decision
+**Freeze Authority:** M20 Implementation Complete — Level A Review Passed — CI-Green (local and GitHub Actions, draft PR #25)
+**Next Action:** Manual acceptance (browser-based UI verification) when a dev environment is available; release decision (standalone vs. next feature train) per business decision
