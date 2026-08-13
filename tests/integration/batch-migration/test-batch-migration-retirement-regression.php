@@ -33,28 +33,38 @@ class Test_WC_IO_Batch_Migration_Retirement_Regression extends WC_Inventory_Over
 		$this->assertNotFalse( has_action( 'wp_ajax_wc_io_get_cost_adjustment_preview' ), 'Cost Adjustment preview AJAX hook must remain registered.' );
 	}
 
+	/**
+	 * M20 invocation-seam update: get_restock_subview() moved from Plugin to
+	 * Restock_Controller (WP-M20-2) -- reflection target updated, assertions
+	 * unchanged.
+	 */
 	public function test_restock_subview_no_longer_includes_batch() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
-		$method = new ReflectionMethod( $plugin, 'get_restock_subview' );
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
+		$method     = new ReflectionMethod( $controller, 'get_restock_subview' );
 		$method->setAccessible( true );
 
 		$_GET['tab']          = WC_Inventory_Overview_Plugin::TAB_RESTOCK;
 		$_GET['restock_view'] = 'batch';
-		$result               = $method->invoke( $plugin );
+		$result               = $method->invoke( $controller );
 		unset( $_GET['restock_view'], $_GET['tab'] );
 
 		$this->assertSame( WC_Inventory_Overview_Plugin::RESTOCK_VIEW_QUICK, $result, 'A stale restock_view=batch request must fall back to Quick Restock, not error.' );
 	}
 
+	/**
+	 * M20 invocation-seam update: get_restock_subview() moved from Plugin to
+	 * Restock_Controller (WP-M20-2) -- reflection target updated, assertions
+	 * unchanged.
+	 */
 	public function test_restock_subview_still_accepts_quick_and_adjust() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
-		$method = new ReflectionMethod( $plugin, 'get_restock_subview' );
+		$controller = WC_Inventory_Overview_Restock_Controller::instance();
+		$method     = new ReflectionMethod( $controller, 'get_restock_subview' );
 		$method->setAccessible( true );
 
 		$_GET['tab'] = WC_Inventory_Overview_Plugin::TAB_RESTOCK;
 		foreach ( array( WC_Inventory_Overview_Plugin::RESTOCK_VIEW_QUICK, WC_Inventory_Overview_Plugin::RESTOCK_VIEW_ADJUST ) as $view ) {
 			$_GET['restock_view'] = $view;
-			$this->assertSame( $view, $method->invoke( $plugin ) );
+			$this->assertSame( $view, $method->invoke( $controller ) );
 		}
 		unset( $_GET['restock_view'], $_GET['tab'] );
 	}
