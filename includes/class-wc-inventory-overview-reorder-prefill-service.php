@@ -57,7 +57,7 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 			return self::result( 'invalid', null, 0, array( self::notice_invalid() ) );
 		}
 
-		/** @var WC_Product $product */
+		// $resolved['product'] is always a WC_Product per PO_Product_Validator's contract.
 		$product = $resolved['product'];
 		$item_id = (int) ( $resolved['variation_id'] > 0 ? $resolved['variation_id'] : $resolved['product_id'] );
 		$type    = $resolved['variation_id'] > 0
@@ -122,6 +122,8 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 	}
 
 	/**
+	 * Assemble the resolve() return shape.
+	 *
 	 * @param string     $status      Five-state contract value.
 	 * @param array|null $line        Prefilled line, or null.
 	 * @param int        $supplier_id Preselected supplier id, or 0.
@@ -137,6 +139,9 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 		);
 	}
 
+	/**
+	 * Notice for the 'malformed' status (§8 case 2).
+	 */
 	private static function notice_malformed(): array {
 		return array(
 			'type'    => 'warning',
@@ -144,6 +149,9 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 		);
 	}
 
+	/**
+	 * Notice for the 'invalid' status (§8 case 3).
+	 */
 	private static function notice_invalid(): array {
 		return array(
 			'type'    => 'warning',
@@ -151,6 +159,9 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 		);
 	}
 
+	/**
+	 * Notice for the 'stale' status (§8 case 4).
+	 */
 	private static function notice_stale(): array {
 		return array(
 			'type'    => 'info',
@@ -158,6 +169,9 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 		);
 	}
 
+	/**
+	 * Notice for a 'prefilled' outcome with zero eligible suppliers.
+	 */
 	private static function notice_no_supplier(): array {
 		return array(
 			'type'    => 'info',
@@ -165,6 +179,9 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 		);
 	}
 
+	/**
+	 * Notice for a 'prefilled' outcome with more than one eligible supplier.
+	 */
 	private static function notice_multiple_suppliers(): array {
 		return array(
 			'type'    => 'info',

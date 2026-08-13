@@ -438,9 +438,9 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 	 * for covered_by_incoming, never for a variable-parent rollup row
 	 * (structural: this method is never called for that row, M22 plan §3).
 	 *
-	 * @param WC_Product                        $item         Product or variation this row represents (M22: needed for the action link's identity/type).
-	 * @param float                             $threshold    The same effective low-stock threshold already used for this item's Low-stock determination (BR-M21-2).
-	 * @param array<int, array<string, mixed>>   $position_map Inventory Position results keyed by item ID.
+	 * @param WC_Product                       $item         Product or variation this row represents (M22: needed for the action link's identity/type).
+	 * @param float                            $threshold    The same effective low-stock threshold already used for this item's Low-stock determination (BR-M21-2).
+	 * @param array<int, array<string, mixed>> $position_map Inventory Position results keyed by item ID.
 	 * @return string
 	 */
 	protected static function render_reorder_signal_badge( WC_Product $item, float $threshold, array $position_map ) {
