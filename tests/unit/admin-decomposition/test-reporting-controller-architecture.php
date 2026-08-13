@@ -108,23 +108,41 @@ class Test_WC_IO_Reporting_Controller_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * INV-M19-13: Overview and Restock methods are untouched — still owned
-	 * by Plugin, not moved or renamed.
+	 * INV-M20-19: INTENTIONAL REGRESSION-TEST BOUNDARY UPDATE, not a
+	 * characterization-assertion violation (INV-M20-15 governs only M20's
+	 * own new pre-extraction tests, not a prior milestone's regression test
+	 * whose asserted boundary this milestone deliberately changes).
+	 *
+	 * M19's own text named this exact test as the reason Overview/Restock
+	 * were excluded from that milestone's scope and reserved for "a future
+	 * Phase 3" (docs/milestones/m19-implementation-plan.md §24). M20 is that
+	 * Phase 3: Overview moved to WC_Inventory_Overview_Overview_Controller
+	 * and Restock moved to WC_Inventory_Overview_Restock_Controller. This
+	 * test now asserts the new, post-M20 boundary — Plugin no longer owns
+	 * any of the ten methods it used to assert were still present.
 	 */
-	public function test_overview_and_restock_remain_on_plugin() {
+	public function test_overview_and_restock_moved_off_plugin() {
 		$plugin_file = file_get_contents( WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-plugin.php' );
 
-		$this->assertStringContainsString( 'function render_inventory_overview_panel', $plugin_file );
-		$this->assertStringContainsString( 'function maybe_export_csv', $plugin_file );
-		$this->assertStringContainsString( 'function maybe_handle_bulk', $plugin_file );
-		$this->assertStringContainsString( 'function ajax_save_inline_stock', $plugin_file );
-		$this->assertStringContainsString( 'function render_summary_cards', $plugin_file );
+		$this->assertStringNotContainsString( 'function render_inventory_overview_panel', $plugin_file );
+		$this->assertStringNotContainsString( 'function maybe_export_csv', $plugin_file );
+		$this->assertStringNotContainsString( 'function maybe_handle_bulk', $plugin_file );
+		$this->assertStringNotContainsString( 'function ajax_save_inline_stock', $plugin_file );
+		$this->assertStringNotContainsString( 'function render_summary_cards', $plugin_file );
 
-		$this->assertStringContainsString( 'function render_restock_panel', $plugin_file );
-		$this->assertStringContainsString( 'function handle_restock_post', $plugin_file );
-		$this->assertStringContainsString( 'function handle_cost_adjustment_post', $plugin_file );
-		$this->assertStringContainsString( 'function ajax_get_cost_adjustment_preview', $plugin_file );
-		$this->assertStringContainsString( 'function enqueue_restock_assets', $plugin_file );
+		$this->assertStringNotContainsString( 'function render_restock_panel', $plugin_file );
+		$this->assertStringNotContainsString( 'function handle_restock_post', $plugin_file );
+		$this->assertStringNotContainsString( 'function handle_cost_adjustment_post', $plugin_file );
+		$this->assertStringNotContainsString( 'function ajax_get_cost_adjustment_preview', $plugin_file );
+		$this->assertStringNotContainsString( 'function enqueue_restock_assets', $plugin_file );
+
+		$overview_file = file_get_contents( WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-overview-controller.php' );
+		$this->assertStringContainsString( 'function render(', $overview_file );
+		$this->assertStringContainsString( 'function maybe_export_csv', $overview_file );
+
+		$restock_file = file_get_contents( WC_INVENTORY_OVERVIEW_PATH . 'includes/class-wc-inventory-overview-restock-controller.php' );
+		$this->assertStringContainsString( 'function handle_restock_post', $restock_file );
+		$this->assertStringContainsString( 'function handle_cost_adjustment_post', $restock_file );
 	}
 
 	/**
