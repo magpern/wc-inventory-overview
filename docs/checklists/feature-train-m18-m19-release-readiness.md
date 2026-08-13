@@ -1,10 +1,32 @@
 # Feature Train M18–M19 — Release Readiness
 
-**Status:** Readiness review complete — manual acceptance passed — proceeding to release.
-**Date:** 2026-08-12
+**Status:** Readiness review complete — manual acceptance passed — **bundled release executed.**
+**Date:** 2026-08-12 (review + release execution, same session).
 **Review type:** Combined train-level review (each milestone already passed its own Level A completion review; see `docs/checklists/m18-release-readiness.md` / `m19-release-readiness.md`).
 **Last released baseline (at review time):** `main` / tag **`v1.34.0`** (`bfdde20`).
 **Canonical train branch / SHA (at review time):** `feature/m19-admin-controller-decomposition-phase2` @ `9e07ee8`.
+
+## WP6 execution record
+
+| Step | Result |
+|------|--------|
+| Release notes | `docs/GITHUB_RELEASE_NOTES_1.36.0.md`; `readme.txt` stable tag + changelog updated |
+| Release-prep tip | `c978685` on `feature/m19-admin-controller-decomposition-phase2` |
+| Final release gates | `docker compose config` valid; PHP Parallel Lint 206 files clean; `composer validate --strict` valid; `release-audit.sh --release` passed (v1.36.0, release notes detected, 102-entry ZIP) |
+| Release PR | [#24](https://github.com/magpern/wc-inventory-overview/pull/24) — non-draft, base `main`, 6 checks green (Lint, Build ZIP, PHPUnit) |
+| Draft CI-only PRs | [#22](https://github.com/magpern/wc-inventory-overview/pull/22) (M18), [#23](https://github.com/magpern/wc-inventory-overview/pull/23) (M19) closed without merging, each with an explanatory comment pointing to PR #24 |
+| Release merge commit | `b9c978cd116e047cc129af26c45157c078b8440f` on `main` (merge commit, history-preserving, 24 commits merged) |
+| Tag | `v1.36.0` → `b9c978c` (annotated, verified via `git ls-remote --tags origin 'v1.36.0^{}'` dereference) |
+| GitHub Release | https://github.com/magpern/wc-inventory-overview/releases/tag/v1.36.0 — published automatically by the repository's existing `.github/workflows/release.yml` (triggers on `push: tags: v*`; builds ZIP, runs `release-audit.sh --release`, publishes via `softprops/action-gh-release`), not draft, not prerelease |
+| ZIP | `wc-inventory-overview-1.36.0.zip`, 105 entries (102 files + 3 directory-entry markers), published asset SHA256 `f07e829ed75f4575506055513541ea15fdbdc75f5eb499f738db22619ac005b0`; content-verified against an independent local rebuild (`c543e12d...`, same content, differs only in directory-entry markers and timestamps — a benign cross-tool ZIP difference, not a content discrepancy); confirmed zero `.git/`/`.github/`/`tests/`/`docs/` entries, single `wc-inventory-overview/` root, correct `Version: 1.36.0` header, all three new controller classes (`Dashboard_Controller`, `Settings_Controller`, `Reporting_Controller`) present |
+| Deploy | `wc-inventory-overview` is bind-mounted directly from `/opt/biopentra/dev/wc-inventory-overview` into the live `wordpress` container (no separate build/deploy artifact for this plugin) — checked out `main` @ `b9c978c`, container restarted; live `wp plugin status` confirms version 1.36.0, `wc_io_db_version` option confirms 11, `curl -I https://dev.biopentra.eu` returns HTTP 200 |
+| Live validation | All 7 admin tabs (Dashboard, Settings, Movements, Order Profit, Product Profitability, Overview, Restock) re-verified rendering cleanly on released `main` via `wp eval-file` as the real admin; Movements CSV export re-verified streaming correctly; zero plugin-attributable errors in container logs post-release |
+| Rollback rehearsal | `v1.36.0` → checked out `v1.34.0` tag at the bind-mount path, container restarted: plugin reports v1.34.0, `DB_VERSION` stayed 11, Dashboard/Movements rendered via the pre-extraction monolithic `Plugin` class with **byte-identical output length** to v1.36.0 (13,812 / 40,556 — proving the extraction was genuinely behavior-preserving in both directions), `Dashboard_Controller`/`Reporting_Controller` classes correctly absent at v1.34.0, site reachable throughout → restored `main`/`v1.36.0`, container restarted, version/DB_VERSION/reachability re-confirmed. No business data altered (read-only probes + restarts only) |
+| Post-release documentation | `CLAUDE.md` canonical baseline, platform status, milestone paragraph, and Implementation Status table (M18/M19 rows) updated to reflect `v1.36.0` published, mirroring the v1.32.0/v1.34.0 publication commits' treatment |
+
+**Post-release verdict:** No CRITICAL or MAJOR findings surfaced during release execution. Train released cleanly.
+
+**One notable prior execution deviation, not repeated here (recorded for completeness):** during the M19 freeze session, draft CI-only PR #23 was initially opened stacked against `feature/m18-admin-controller-decomposition` before it was discovered that this repository's `tests.yml`/`ci.yml` workflows only trigger on push/PR events targeting `main`/`develop` — a PR based against a feature branch never fires CI. It was re-based to `main` via the GitHub REST API and closed/reopened to force the "opened" event. Having learned this, the real release PR (#24) was opened with base `main` directly from the start — CI triggered normally on the first attempt, no workaround needed this time.
 
 ## Train composition
 

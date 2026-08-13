@@ -6,24 +6,30 @@
 
 **Process:** [`docs/process/milestone-lifecycle.md`](docs/process/milestone-lifecycle.md) — the Standard Milestone Lifecycle (v2, effective M10 onward) governing plan → implement → audit → remediate → freeze → next-milestone sequencing and feature-train release batching. Read it before starting any milestone from M10 forward.
 
-**Canonical published baseline:** `main` / tag **`v1.34.0`**
-([`docs/GITHUB_RELEASE_NOTES_1.34.0.md`](docs/GITHUB_RELEASE_NOTES_1.34.0.md)).
+**Canonical published baseline:** `main` / tag **`v1.36.0`**
+([`docs/GITHUB_RELEASE_NOTES_1.36.0.md`](docs/GITHUB_RELEASE_NOTES_1.36.0.md);
+train closure: [`docs/checklists/feature-train-m18-m19-release-readiness.md`](docs/checklists/feature-train-m18-m19-release-readiness.md)).
 Contains M0–M8 GA, the bundled M9–M12 Supplier Performance feature train
 (and CI recovery), the bundled M13–M15 Purchasing & Supplier Insights
 feature train, M16 (PO Expected-Date & Delay Transparency) released as
-standalone v1.33.0, and M17 (Supplier Merge) released as standalone v1.34.0.
+standalone v1.33.0, M17 (Supplier Merge) released as standalone v1.34.0,
+and the bundled M18–M19 Admin Controller Decomposition feature train.
 **M0–M8 are GA; M9–M12 were bundled and released as v1.29.0; M13–M15 were
 bundled and released as v1.32.0; M16 was released as standalone v1.33.0;
-M17 was released as standalone v1.34.0**. See milestone plans and readiness
+M17 was released as standalone v1.34.0; M18–M19 were bundled and released
+as v1.36.0**. See milestone plans and readiness
 checklists in [`docs/milestones/`](docs/milestones/) and
 [`docs/checklists/`](docs/checklists/) for complete per-milestone detail.
 
-## Platform status: M0–M17 published (v1.34.0)
+## Platform status: M0–M19 published (v1.36.0)
 
-**Current baseline: plugin 1.34.0, `DB_VERSION` 11.** All nine foundational
+**Current baseline: plugin 1.36.0, `DB_VERSION` 11.** All nine foundational
 milestones (M0 Delivery Foundations through M8 Hardening & GA), the first
 post-GA feature train (M9–M12), and the second post-GA feature train
-(M13–M15) are **tagged and published** as `v1.32.0`.
+(M13–M15) are tagged and published as `v1.32.0`; M16 and M17 released
+standalone as `v1.33.0`/`v1.34.0`; the third post-GA feature train (M18–M19,
+Admin Controller Decomposition Phases 1–2) is **tagged and published** as
+`v1.36.0`.
 M9–M12 were each frozen on feature branches (M9 with a full independent audit;
 M10–M12 with Level A completion reviews) and released together per
 `docs/process/milestone-lifecycle.md` WP6 as `v1.29.0` — not as separate
@@ -59,11 +65,28 @@ supplier's committed Purchase Orders, never blending currencies) — zero
 schema change across any of the three milestones, zero new public API (all
 new services are Internal, not Public — D16), zero change to any existing
 business behavior beyond each milestone's own one addition.
+M18–M19 were each frozen on feature branches with Level A completion reviews
+and released together per WP6 as `v1.36.0`. Unlike every prior post-GA
+milestone, M18–M19 add **zero** merchant-facing capability — they are a
+pure internal admin-architecture refactor. M18 extracted the Dashboard and
+Settings tabs of the `WC_Inventory_Overview_Plugin` god class into dedicated
+`WC_Inventory_Overview_Dashboard_Controller`/`WC_Inventory_Overview_Settings_Controller`
+classes. M19 extracted the Movements, Order Profit, and Product
+Profitability tabs into a new `WC_Inventory_Overview_Reporting_Controller`.
+Both milestones were built characterization-tests-first (behavior captured
+before any code moved, proven byte-identical after) — zero schema change,
+zero new public API, zero new capability, zero behavior change beyond the
+class each method now lives in. The Inventory Overview and Restock / Cost
+Adjustment tabs remain on `Plugin` and are unaffected; their own
+decomposition is explicitly deferred to a future, not-yet-scheduled Phase 3
+(see `docs/architecture-audit.md`).
 **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)**
 remains the consolidated architecture snapshot — completed milestones, frozen
 ownership boundaries, public APIs, schema, invariants, and future-governance
 rules (updated in place for M8–M15, not superseded — see its own
-§12 rule and the milestone table). The Implementation Status
+§12 rule and the milestone table; M18–M19 are pure presentation-layer
+reorganization and add no new domain concept, so no further update to that
+file is required). The Implementation Status
 table at the end of this file remains the authoritative per-milestone release
 ledger.
 
@@ -244,8 +267,10 @@ This table is updated as each milestone is implemented. Each milestone links to 
 | M14 | Supplier Order History | ✅ Complete | 1.31.0 | [docs/milestones/m14-implementation-plan.md](docs/milestones/m14-implementation-plan.md) | Schema unchanged (v10); second milestone of the M13–M15 feature train. New `WC_Inventory_Overview_Supplier_Order_History_Service` (Internal, not Public — D16, INV-M14-3) composes a paginated, status-inclusive (INV-M14-4) list of a supplier's Purchase Orders exclusively through `Purchase_Orders::count()`/`list()`/`values_bulk()` (new additive method) — no new domain owner. Rendered as a new "Order History" section on the existing Supplier detail screen, reusing the existing `manage_woocommerce` gate; dedicated `wc_io_supplier_order_history_page` pagination parameter. Each row's Ordered/Received Value is PO-line cost only, in that PO's own currency, never summed across POs or currencies and never conflated with landed cost or inventory valuation (INV-M14-2). Zero mutation (INV-M14-1), zero new public API, zero new capability, zero new hook. Level A completion review passed; see `docs/checklists/m14-release-readiness.md`. Released as part of the M13–M15 train, v1.32.0. |
 | M15 | Supplier Spend Summary | ✅ Complete | 1.32.0 | [docs/milestones/m15-implementation-plan.md](docs/milestones/m15-implementation-plan.md) | Schema unchanged (v10); third milestone of the M13–M15 feature train. New `WC_Inventory_Overview_Supplier_Spend_Service` (Internal, not Public — D16, INV-M15-3) owns the "committed spend" status rule (BR-M15-1: `placed`/`partially_received`/`received`/`closed_short` only — `draft` and `cancelled` always excluded, INV-M15-1, a genuinely new business decision not reused verbatim from M13/M14) and composes the summary exclusively through the new `Purchase_Orders::spend_summary_for_supplier()` (self-contained aggregate; does not compose through `list()`) — no new domain owner. Rendered as a new "Spend Summary" section on the existing Supplier detail screen, before Observed Lead Time / Order History, reusing the existing `manage_woocommerce` gate. One row per currency; never blended or converted (INV-M15-2) — `po_count` is `COUNT(DISTINCT po.id)` scoped per currency row (BR-M15-5), so a PO with lines in more than one currency may count once in more than one row. A true database-level aggregate: exactly 1 query regardless of history size (proven at 200-PO/3-currency scale), unlike M14's page-scoped 3-query contract. Zero mutation, zero new public API, zero new capability, zero new hook. Level A completion review passed; see `docs/checklists/m15-release-readiness.md`. Completes the M13–M15 train, v1.32.0. |
 | M16 | PO Expected-Date & Delay Transparency | ✅ Complete | 1.33.0 | [docs/milestones/m16-implementation-plan.md](docs/milestones/m16-implementation-plan.md) | Schema unchanged (v10); standalone post-v1.32.0 release, v1.33.0. Three read-mostly surfaces, no new domain owner: (1) `Expected_Date_Suggestion_Service`'s return shape gains `sample_count`/`average_days` (BR-M16-2), sourced from the same already-fetched `Supplier_Lead_Time_Service` stats, so the New PO screen can show *why* a suggestion was made ("Suggested from this supplier's delivery history (N orders, avg D days)." / "...configured default (D days)."), never overloading the resolved `days` value as evidence. (2) A new Settings-tab field exposes the existing `WC_Inventory_Overview_PO_Delay::OPTION_GRACE_DAYS` option (previously editable only via raw `update_option()`) through an explicit validate-or-preserve contract (BR-M16-4) — invalid/missing input always leaves the stored value untouched, deliberately not `absint()`-style coercion. (3) The Inventory Position drilldown (M3) gains Supplier/Status columns from two additional `SELECT` columns on the already-executing `query_open_lines()` query — zero new query, fixed column order (BR-M16-8). Zero domain/operational mutation; one existing settings-option write. Zero new public API, zero new capability, zero storefront impact. Level A completion review passed; see `docs/checklists/m16-release-readiness.md`. |
+| M18 | Admin Controller Decomposition, Phase 1 | ✅ Complete | 1.35.0 | [docs/milestones/m18-implementation-plan.md](docs/milestones/m18-implementation-plan.md) | Schema unchanged (v11); first milestone of the M18–M19 feature train. Pure internal refactor extracting the Dashboard and Settings tabs of the `WC_Inventory_Overview_Plugin` god class (2,706 lines) into dedicated `WC_Inventory_Overview_Dashboard_Controller`/`WC_Inventory_Overview_Settings_Controller` classes, characterization-tests-first. Zero schema change, zero new public API, zero new capability, zero behavior change (BR-M18-1..21, byte-identical pre/post extraction). Plugin: 2,706 → 1,561 lines. Overview, Restock, Movements, Order Profit, Product Profitability remain on Plugin, reserved for later phases. Level A completion review passed; see `docs/checklists/m18-release-readiness.md`. Released as part of the M18–M19 train, v1.36.0. |
+| M19 | Admin Controller Decomposition, Phase 2 | ✅ Complete | 1.36.0 | [docs/milestones/m19-implementation-plan.md](docs/milestones/m19-implementation-plan.md) | Schema unchanged (v11); second milestone of the M18–M19 feature train. Extracts the three read-only reporting tabs — Movements, Order Profit, Product Profitability — into a new `WC_Inventory_Overview_Reporting_Controller` (BR-M19-1..9, INV-M19-1..15), characterization-tests-first, exact pre/post query-count parity proven (2/3/4 queries respectively). Zero mutation surface in the entire extracted cluster (unlike M18, which retained Settings' pre-existing save/exchange-rate/danger-zone mutation paths unchanged). Overview and Restock — the two remaining tabs, both carrying real mutation surface — are deliberately excluded and reserved for a future, not-yet-scheduled Phase 3. Plugin: 1,561 → 1,230 lines (2,706 → 1,230 combined with M18, ~55% total reduction). Level A completion review passed; see `docs/checklists/m19-release-readiness.md`. Completes the M18–M19 train, v1.36.0. |
 
-**Release note:** **`v1.32.0` is tagged and published** — bundled M13–M15 Purchasing & Supplier Insights feature train; see [`docs/GITHUB_RELEASE_NOTES_1.32.0.md`](docs/GITHUB_RELEASE_NOTES_1.32.0.md). Intermediate development versions `1.30.0`/`1.31.0` were never tagged. **`v1.29.0` is tagged and published** — bundled M9–M12 feature train (+ CI recovery); see [`docs/GITHUB_RELEASE_NOTES_1.29.0.md`](docs/GITHUB_RELEASE_NOTES_1.29.0.md). Intermediate development versions `1.26.0`/`1.27.0`/`1.28.0` were never tagged. Prior releases through `v1.25.0` remain tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
+**Release note:** **`v1.36.0` is tagged and published** — bundled M18–M19 Admin Controller Decomposition feature train; see [`docs/GITHUB_RELEASE_NOTES_1.36.0.md`](docs/GITHUB_RELEASE_NOTES_1.36.0.md). Intermediate development version `1.35.0` (M18 alone) was never tagged. **`v1.32.0` is tagged and published** — bundled M13–M15 Purchasing & Supplier Insights feature train; see [`docs/GITHUB_RELEASE_NOTES_1.32.0.md`](docs/GITHUB_RELEASE_NOTES_1.32.0.md). Intermediate development versions `1.30.0`/`1.31.0` were never tagged. **`v1.29.0` is tagged and published** — bundled M9–M12 feature train (+ CI recovery); see [`docs/GITHUB_RELEASE_NOTES_1.29.0.md`](docs/GITHUB_RELEASE_NOTES_1.29.0.md). Intermediate development versions `1.26.0`/`1.27.0`/`1.28.0` were never tagged. Prior releases through `v1.25.0` remain tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
 
 ---
 
