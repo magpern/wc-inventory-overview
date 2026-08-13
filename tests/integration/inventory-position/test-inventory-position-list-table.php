@@ -514,9 +514,24 @@ class Test_WC_IO_Inventory_Position_List_Table extends WC_Inventory_Overview_Tes
 	}
 
 	/**
-	 * Query-scaling guard (WP7): rendering 20+ mixed simple/variation rows
-	 * with open incoming supply issues at most one product-scoped and one
-	 * variation-scoped SELECT against the PO lines table.
+	 * Query-scaling guard (WP7; bound recalibrated 2->4 by M21, see below):
+	 * rendering 20+ mixed simple/variation rows with open incoming supply
+	 * issues a small, fixed number of SELECTs against the PO lines table --
+	 * never one per row (no N+1).
+	 *
+	 * M21 note: prepare_items() makes two independent bulk Position lookups
+	 * on one page load, each bounded to at most 1 product-scoped + 1
+	 * variation-scoped query by get_positions_bulk()'s own D12 contract, and
+	 * each over a genuinely different candidate scope that cannot be merged:
+	 * (1) WC_Inventory_Overview_Summary::build() (M21, BR-M21-7) computes
+	 * needs_reorder over the store-wide low-stock population (every matching
+	 * line across the whole catalog, for the summary cards), while (2)
+	 * $this->position_map (M3, unchanged) computes Incoming/Position over
+	 * only this page's rendered rows, for the row/column display -- the
+	 * former runs first inside prepare_items(), before the latter's
+	 * candidate set (item_groups) even exists. The pre-M21 bound of 2 here
+	 * only ever covered (2); this test now bounds the fixed combined total
+	 * of (1)+(2), still independent of N (INV-M21-4).
 	 */
 	public function test_position_query_count_bounded_for_twenty_plus_rows() {
 		for ( $i = 0; $i < 15; $i++ ) {
@@ -562,9 +577,9 @@ class Test_WC_IO_Inventory_Position_List_Table extends WC_Inventory_Overview_Tes
 		remove_filter( 'query', $counter );
 
 		$this->assertLessThanOrEqual(
-			2,
+			4,
 			count( $position_queries ),
-			'Inventory Overview must not issue per-row Position queries (no N+1)'
+			'Inventory Overview must not issue per-row Position queries (no N+1); fixed bound covers both Summary::build()\'s (M21) and position_map\'s (M3) independent bulk lookups.'
 		);
 	}
 }

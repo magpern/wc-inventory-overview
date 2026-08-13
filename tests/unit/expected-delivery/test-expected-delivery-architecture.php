@@ -135,6 +135,19 @@ class Test_WC_IO_Expected_Delivery_Architecture extends WP_UnitTestCase {
 	 * Inventory_Position_Service:: is exactly the list table and the
 	 * Expected Delivery Service. M7 consumes Inventory Position (D12);
 	 * it never becomes a second calculator.
+	 *
+	 * Extended by M21: Reorder Signal classification needs the same
+	 * Position figures, so two more legitimate callers are added --
+	 * neither becomes a second calculator either, both consume
+	 * get_positions_bulk()'s result exactly as List_Table already did.
+	 * - class-wc-inventory-overview-summary.php: classify_needs_reorder_bulk()
+	 *   is the sole caller of get_positions_bulk() on Summary's own
+	 *   behalf (INV-M21-2), for the store-wide needs_reorder scan and the
+	 *   chart-row extension.
+	 * - class-wc-inventory-overview-overview-controller.php:
+	 *   ajax_save_inline_stock()'s badge-refresh response builds a single-item,
+	 *   manage_woocommerce-gated Position lookup so the AJAX response can
+	 *   include the same Reorder Signal badge the list table shows.
 	 */
 	public function test_only_list_table_and_expected_delivery_service_call_position_service() {
 		$callers = array();
@@ -157,9 +170,11 @@ class Test_WC_IO_Expected_Delivery_Architecture extends WP_UnitTestCase {
 			array(
 				'class-wc-inventory-overview-expected-delivery-service.php',
 				'class-wc-inventory-overview-list-table.php',
+				'class-wc-inventory-overview-overview-controller.php',
+				'class-wc-inventory-overview-summary.php',
 			),
 			$callers,
-			'Only the list table and the Expected Delivery Service may call Inventory_Position_Service:: (D12 sole-calculator discipline, extended to M7).'
+			'Only the list table, the Expected Delivery Service, Summary (M21), and Overview_Controller (M21) may call Inventory_Position_Service:: (D12 sole-calculator discipline, extended to M7/M21).'
 		);
 	}
 
