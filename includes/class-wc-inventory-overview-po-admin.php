@@ -151,6 +151,26 @@ class WC_Inventory_Overview_PO_Admin {
 	}
 
 	/**
+	 * New-PO URL pre-populated from a Reorder Signal quick action (M22).
+	 * GET-only, no nonce -- nothing mutates on GET, same reasoning as
+	 * WC_Inventory_Overview_Goods_Receipt_Admin::render_new_from_po(). The
+	 * params are pure UX hints: render_detail() re-validates identity and
+	 * re-derives needs_reorder from scratch via
+	 * WC_Inventory_Overview_Reorder_Prefill_Service::resolve() before ever
+	 * using them (§4/§8/§9 of the M22 plan).
+	 *
+	 * @param int $product_id   Product id (parent id for a variation, own id for a simple product).
+	 * @param int $variation_id Variation id, or 0 for a simple product.
+	 */
+	public static function reorder_prefill_url( int $product_id, int $variation_id = 0 ): string {
+		$args = array( 'wc_io_ro_product_id' => $product_id );
+		if ( $variation_id > 0 ) {
+			$args['wc_io_ro_variation_id'] = $variation_id;
+		}
+		return add_query_arg( $args, self::detail_url( 0 ) );
+	}
+
+	/**
 	 * List URL.
 	 *
 	 * @param array<string,string> $extra Extra query args.
@@ -269,6 +289,8 @@ class WC_Inventory_Overview_PO_Admin {
 		$field_errs = self::consume_field_errors();
 		$actions    = $is_new ? array( WC_Inventory_Overview_PO_Lifecycle::ACTION_EDIT ) : WC_Inventory_Overview_PO_Lifecycle::available_actions( $status );
 
+		$prefill = self::resolve_reorder_prefill( $is_new, $can_edit );
+
 		$title = $is_new
 			? __( 'New Purchase Order', 'wc-inventory-overview' )
 			: sprintf(
@@ -298,14 +320,15 @@ class WC_Inventory_Overview_PO_Admin {
 		</h2>
 
 		<?php if ( $can_edit ) : ?>
+			<?php self::render_reorder_prefill_notices( $prefill['notices'] ); ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wc-io-po-form" id="wc-io-po-form">
 				<input type="hidden" name="action" value="wc_io_po_save" />
 				<input type="hidden" name="po_id" value="<?php echo esc_attr( (string) $po_id ); ?>" />
 				<input type="hidden" name="wc_io_po_request_token" value="<?php echo esc_attr( WC_Inventory_Overview_PO_Request_Token::issue( 'save' ) ); ?>" />
 				<?php wp_nonce_field( 'wc_io_po_save_' . $po_id, 'wc_io_po_save_nonce' ); ?>
 
-				<?php self::render_header_fields( $po, $field_errs, true ); ?>
-				<?php self::render_lines_editor( $lines, $po, $field_errs, true ); ?>
+				<?php self::render_header_fields( $po, $field_errs, true, $prefill['supplier_id'] ); ?>
+				<?php self::render_lines_editor( $lines, $po, $field_errs, true, $prefill['line'] ); ?>
 
 				<p class="submit">
 					<button type="submit" class="button button-primary"><?php echo esc_html( WC_Inventory_Overview_PO_Lifecycle::action_label( WC_Inventory_Overview_PO_Lifecycle::ACTION_EDIT ) ); ?></button>
@@ -322,6 +345,55 @@ class WC_Inventory_Overview_PO_Admin {
 			<?php self::render_timeline( $po_id ); ?>
 		<?php endif; ?>
 		<?php
+	}
+
+	/**
+	 * Resolve M22 reorder-prefill state for the New PO screen (§8). Only
+	 * ever active for a brand-new, editable PO screen and an
+	 * EDIT_PO-capable viewer (BR-M22-2, BR-M22-11) -- an absent GET param,
+	 * the edit/view screens, or a lesser-privileged viewer all resolve to
+	 * this method's "no prefill" default without ever invoking
+	 * Reorder_Prefill_Service.
+	 *
+	 * @param bool $is_new   True only for action=new with no po_id.
+	 * @param bool $can_edit True only for an EDIT_PO-capable viewer of an editable PO.
+	 * @return array{supplier_id:int, line:array<string,mixed>|null, notices:array<int,array{type:string,message:string}>}
+	 */
+	private static function resolve_reorder_prefill( bool $is_new, bool $can_edit ): array {
+		$none = array(
+			'supplier_id' => 0,
+			'line'        => null,
+			'notices'     => array(),
+		);
+
+		if ( ! $is_new || ! $can_edit || ! isset( $_GET['wc_io_ro_product_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- GET-only UX hint; nothing mutates on GET (M22 plan §9).
+			return $none;
+		}
+
+		$product_id   = absint( wp_unslash( $_GET['wc_io_ro_product_id'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$variation_id = isset( $_GET['wc_io_ro_variation_id'] ) ? absint( wp_unslash( $_GET['wc_io_ro_variation_id'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		$resolved = WC_Inventory_Overview_Reorder_Prefill_Service::resolve( $product_id, $variation_id );
+
+		return array(
+			'supplier_id' => $resolved['supplier_id'],
+			'line'        => 'prefilled' === $resolved['status'] ? $resolved['line'] : null,
+			'notices'     => $resolved['notices'],
+		);
+	}
+
+	/**
+	 * Reorder-prefill notices (§8) -- request-scoped, never a POST-redirect
+	 * transient notice (those are reserved for handle_save()'s own
+	 * outcomes via NOTICE_QUERY/render_notices()).
+	 *
+	 * @param array<int,array{type:string,message:string}> $notices Notices from Reorder_Prefill_Service::resolve().
+	 */
+	private static function render_reorder_prefill_notices( array $notices ): void {
+		foreach ( $notices as $notice ) {
+			$css_class = 'warning' === $notice['type'] ? 'notice-warning' : 'notice-info';
+			echo '<div class="notice ' . esc_attr( $css_class ) . ' wc-io-reorder-prefill-notice"><p>' . esc_html( $notice['message'] ) . '</p></div>';
+		}
 	}
 
 	/**
@@ -369,12 +441,13 @@ class WC_Inventory_Overview_PO_Admin {
 	/**
 	 * Header fields.
 	 *
-	 * @param array<string,mixed>|null $po         PO row.
-	 * @param array<string,string>     $field_errs Errors.
-	 * @param bool                     $editable   Editable.
+	 * @param array<string,mixed>|null $po                   PO row.
+	 * @param array<string,string>     $field_errs           Errors.
+	 * @param bool                     $editable             Editable.
+	 * @param int                      $prefill_supplier_id  M22: reorder-prefill supplier id, used only when $po is null (a brand-new PO). 0 = none.
 	 */
-	private static function render_header_fields( $po, array $field_errs, bool $editable ) {
-		$supplier_id = $po['supplier_id'] ?? 0;
+	private static function render_header_fields( $po, array $field_errs, bool $editable, int $prefill_supplier_id = 0 ) {
+		$supplier_id = $po['supplier_id'] ?? $prefill_supplier_id;
 		$suppliers   = WC_Inventory_Overview_Suppliers::list(
 			array(
 				'status'   => 'active',
@@ -484,12 +557,13 @@ class WC_Inventory_Overview_PO_Admin {
 	/**
 	 * Lines table / editor.
 	 *
-	 * @param array<int,array<string,mixed>> $lines      Lines.
-	 * @param array<string,mixed>|null       $po         PO.
-	 * @param array<string,string>           $field_errs Errors.
-	 * @param bool                           $editable   Editable.
+	 * @param array<int,array<string,mixed>> $lines         Lines.
+	 * @param array<string,mixed>|null       $po            PO.
+	 * @param array<string,string>           $field_errs    Errors.
+	 * @param bool                           $editable      Editable.
+	 * @param array<string,mixed>|null       $prefill_line  M22: reorder-prefill line (product_id/variation_id/name_snapshot/sku_snapshot only), used only when $lines is empty.
 	 */
-	private static function render_lines_editor( array $lines, $po, array $field_errs, bool $editable ) {
+	private static function render_lines_editor( array $lines, $po, array $field_errs, bool $editable, ?array $prefill_line = null ) {
 		$currency = (string) ( $po['currency'] ?? 'EUR' );
 		?>
 		<h3><?php esc_html_e( 'Lines', 'wc-inventory-overview' ); ?></h3>
@@ -517,7 +591,7 @@ class WC_Inventory_Overview_PO_Admin {
 			<tbody>
 			<?php
 			if ( empty( $lines ) && $editable ) {
-				self::render_line_row( null, 0, true );
+				self::render_line_row( $prefill_line, 0, true );
 			} else {
 				foreach ( $lines as $index => $line ) {
 					self::render_line_row( $line, $index, $editable );

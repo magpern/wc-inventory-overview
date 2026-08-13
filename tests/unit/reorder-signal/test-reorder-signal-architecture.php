@@ -54,6 +54,10 @@ class Test_WC_IO_Reorder_Signal_Architecture extends WP_UnitTestCase {
 			'class-wc-inventory-overview-list-table.php',
 			'class-wc-inventory-overview-overview-controller.php',
 			'class-wc-inventory-overview-dashboard-controller.php',
+			// M22: reads Reorder_Signal_Resolver::resolve()'s own return
+			// keys to decide the reorder-prefill 'stale' vs 'prefilled'
+			// outcome -- calls through the Resolver, never reimplements it.
+			'class-wc-inventory-overview-reorder-prefill-service.php',
 		);
 
 		$offenders = array();
