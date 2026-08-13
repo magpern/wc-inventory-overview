@@ -6,30 +6,35 @@
 
 **Process:** [`docs/process/milestone-lifecycle.md`](docs/process/milestone-lifecycle.md) — the Standard Milestone Lifecycle (v2, effective M10 onward) governing plan → implement → audit → remediate → freeze → next-milestone sequencing and feature-train release batching. Read it before starting any milestone from M10 forward.
 
-**Canonical published baseline:** `main` / tag **`v1.36.0`**
-([`docs/GITHUB_RELEASE_NOTES_1.36.0.md`](docs/GITHUB_RELEASE_NOTES_1.36.0.md);
-train closure: [`docs/checklists/feature-train-m18-m19-release-readiness.md`](docs/checklists/feature-train-m18-m19-release-readiness.md)).
+**Canonical published baseline:** `main` / tag **`v1.37.0`**
+([`docs/GITHUB_RELEASE_NOTES_1.37.0.md`](docs/GITHUB_RELEASE_NOTES_1.37.0.md);
+M20 freeze: [`docs/checklists/m20-release-readiness.md`](docs/checklists/m20-release-readiness.md)).
 Contains M0–M8 GA, the bundled M9–M12 Supplier Performance feature train
 (and CI recovery), the bundled M13–M15 Purchasing & Supplier Insights
 feature train, M16 (PO Expected-Date & Delay Transparency) released as
 standalone v1.33.0, M17 (Supplier Merge) released as standalone v1.34.0,
-and the bundled M18–M19 Admin Controller Decomposition feature train.
+the bundled M18–M19 Admin Controller Decomposition feature train, and M20
+(Admin Controller Decomposition Phase 3) released as standalone v1.37.0.
 **M0–M8 are GA; M9–M12 were bundled and released as v1.29.0; M13–M15 were
 bundled and released as v1.32.0; M16 was released as standalone v1.33.0;
 M17 was released as standalone v1.34.0; M18–M19 were bundled and released
-as v1.36.0**. See milestone plans and readiness
-checklists in [`docs/milestones/`](docs/milestones/) and
+as v1.36.0; M20 was released as standalone v1.37.0**. See milestone plans
+and readiness checklists in [`docs/milestones/`](docs/milestones/) and
 [`docs/checklists/`](docs/checklists/) for complete per-milestone detail.
 
-## Platform status: M0–M19 published (v1.36.0)
+## Platform status: M0–M20 published (v1.37.0)
 
-**Current baseline: plugin 1.36.0, `DB_VERSION` 11.** All nine foundational
+**Current baseline: plugin 1.37.0, `DB_VERSION` 11.** All nine foundational
 milestones (M0 Delivery Foundations through M8 Hardening & GA), the first
 post-GA feature train (M9–M12), and the second post-GA feature train
 (M13–M15) are tagged and published as `v1.32.0`; M16 and M17 released
 standalone as `v1.33.0`/`v1.34.0`; the third post-GA feature train (M18–M19,
-Admin Controller Decomposition Phases 1–2) is **tagged and published** as
-`v1.36.0`.
+Admin Controller Decomposition Phases 1–2) is tagged and published as
+`v1.36.0`; M20 (Admin Controller Decomposition Phase 3), released standalone,
+is **tagged and published** as `v1.37.0`. The Admin Controller Decomposition
+project (M18–M20) is now complete: the former `WC_Inventory_Overview_Plugin`
+god class (2,706 lines) is a composition-root/shell (410 lines), with all
+seven admin tabs living in dedicated controller classes.
 M9–M12 were each frozen on feature branches (M9 with a full independent audit;
 M10–M12 with Level A completion reviews) and released together per
 `docs/process/milestone-lifecycle.md` WP6 as `v1.29.0` — not as separate
@@ -77,14 +82,19 @@ Both milestones were built characterization-tests-first (behavior captured
 before any code moved, proven byte-identical after) — zero schema change,
 zero new public API, zero new capability, zero behavior change beyond the
 class each method now lives in.
-**M20 (Admin Controller Decomposition, Phase 3) is complete, frozen (Level A
-completion review), and development-version-bumped to `1.37.0`, but not
-merged, tagged, or released** — `main` remains at `v1.36.0`; see
-`docs/checklists/m20-release-readiness.md`. M20 extracted the two remaining,
+**M20 (Admin Controller Decomposition, Phase 3) is complete and released as
+standalone `v1.37.0`** (merge commit `bf57b356cfd441b45f176d33e3ac3159370dfd0b`,
+merged via PR #26); see `docs/checklists/m20-release-readiness.md` for the
+Level A completion review and `docs/GITHUB_RELEASE_NOTES_1.37.0.md` for the
+published release notes. M20 extracted the two remaining,
 mutation-bearing tabs — Inventory Overview and Restock / Cost Adjustment —
 into `WC_Inventory_Overview_Overview_Controller` and
 `WC_Inventory_Overview_Restock_Controller`, completing the Admin Controller
-Decomposition project (see `docs/architecture-audit.md`).
+Decomposition project (see `docs/architecture-audit.md`). AI-driven dev
+acceptance (real WordPress admin/runtime execution against dev.biopentra.eu,
+browser automation unavailable) and a code-only rollback rehearsal
+(v1.37.0 → v1.36.0 → v1.37.0) were both performed post-release with no
+issues found.
 **[`docs/ARCHITECTURE_BASELINE_v1.24.0.md`](docs/ARCHITECTURE_BASELINE_v1.24.0.md)**
 remains the consolidated architecture snapshot — completed milestones, frozen
 ownership boundaries, public APIs, schema, invariants, and future-governance
@@ -274,9 +284,9 @@ This table is updated as each milestone is implemented. Each milestone links to 
 | M16 | PO Expected-Date & Delay Transparency | ✅ Complete | 1.33.0 | [docs/milestones/m16-implementation-plan.md](docs/milestones/m16-implementation-plan.md) | Schema unchanged (v10); standalone post-v1.32.0 release, v1.33.0. Three read-mostly surfaces, no new domain owner: (1) `Expected_Date_Suggestion_Service`'s return shape gains `sample_count`/`average_days` (BR-M16-2), sourced from the same already-fetched `Supplier_Lead_Time_Service` stats, so the New PO screen can show *why* a suggestion was made ("Suggested from this supplier's delivery history (N orders, avg D days)." / "...configured default (D days)."), never overloading the resolved `days` value as evidence. (2) A new Settings-tab field exposes the existing `WC_Inventory_Overview_PO_Delay::OPTION_GRACE_DAYS` option (previously editable only via raw `update_option()`) through an explicit validate-or-preserve contract (BR-M16-4) — invalid/missing input always leaves the stored value untouched, deliberately not `absint()`-style coercion. (3) The Inventory Position drilldown (M3) gains Supplier/Status columns from two additional `SELECT` columns on the already-executing `query_open_lines()` query — zero new query, fixed column order (BR-M16-8). Zero domain/operational mutation; one existing settings-option write. Zero new public API, zero new capability, zero storefront impact. Level A completion review passed; see `docs/checklists/m16-release-readiness.md`. |
 | M18 | Admin Controller Decomposition, Phase 1 | ✅ Complete | 1.35.0 | [docs/milestones/m18-implementation-plan.md](docs/milestones/m18-implementation-plan.md) | Schema unchanged (v11); first milestone of the M18–M19 feature train. Pure internal refactor extracting the Dashboard and Settings tabs of the `WC_Inventory_Overview_Plugin` god class (2,706 lines) into dedicated `WC_Inventory_Overview_Dashboard_Controller`/`WC_Inventory_Overview_Settings_Controller` classes, characterization-tests-first. Zero schema change, zero new public API, zero new capability, zero behavior change (BR-M18-1..21, byte-identical pre/post extraction). Plugin: 2,706 → 1,561 lines. Overview, Restock, Movements, Order Profit, Product Profitability remain on Plugin, reserved for later phases. Level A completion review passed; see `docs/checklists/m18-release-readiness.md`. Released as part of the M18–M19 train, v1.36.0. |
 | M19 | Admin Controller Decomposition, Phase 2 | ✅ Complete | 1.36.0 | [docs/milestones/m19-implementation-plan.md](docs/milestones/m19-implementation-plan.md) | Schema unchanged (v11); second milestone of the M18–M19 feature train. Extracts the three read-only reporting tabs — Movements, Order Profit, Product Profitability — into a new `WC_Inventory_Overview_Reporting_Controller` (BR-M19-1..9, INV-M19-1..15), characterization-tests-first, exact pre/post query-count parity proven (2/3/4 queries respectively). Zero mutation surface in the entire extracted cluster (unlike M18, which retained Settings' pre-existing save/exchange-rate/danger-zone mutation paths unchanged). Overview and Restock — the two remaining tabs, both carrying real mutation surface — are deliberately excluded and reserved for a future, not-yet-scheduled Phase 3. Plugin: 1,561 → 1,230 lines (2,706 → 1,230 combined with M18, ~55% total reduction). Level A completion review passed; see `docs/checklists/m19-release-readiness.md`. Completes the M18–M19 train, v1.36.0. |
-| M20 | Admin Controller Decomposition, Phase 3 | ✅ Complete (frozen, unreleased) | 1.37.0 | [docs/milestones/m20-implementation-plan.md](docs/milestones/m20-implementation-plan.md) | Schema unchanged (v11); standalone milestone, branched from `main`/v1.36.0. Extracts the two remaining, mutation-bearing tabs — Overview (bulk product-status/visibility/stock-status mutation + inline-stock AJAX) and Restock (two admin-post mutation handlers + read-only cost-adjustment preview AJAX) — into `WC_Inventory_Overview_Overview_Controller` and `WC_Inventory_Overview_Restock_Controller` respectively (BR-M20-1..20, INV-M20-1..20), characterization-tests-first, Restock extracted before Overview (ascending risk). Mutation ownership unchanged throughout: `Restock_Service`/`Cost_Adjustment_Service` remain the sole, unmodified authoritative mutators; Overview's bulk/inline mutations remain inline `WC_Product` calls, relocated verbatim. 94 new M20-specific tests (68 characterization + 26 architecture-guard), 0 failures. **Completes the Admin Controller Decomposition project started in M18** — Plugin: 1,230 → 410 lines (2,706 → 410 combined with M18/M19, ~85% total reduction), now a pure composition-root/shell. Level A completion review passed; see `docs/checklists/m20-release-readiness.md`. Not yet released — joins no train by default; awaiting a release decision. |
+| M20 | Admin Controller Decomposition, Phase 3 | ✅ Complete | 1.37.0 | [docs/milestones/m20-implementation-plan.md](docs/milestones/m20-implementation-plan.md) | Schema unchanged (v11); standalone milestone, branched from `main`/v1.36.0. Extracts the two remaining, mutation-bearing tabs — Overview (bulk product-status/visibility/stock-status mutation + inline-stock AJAX) and Restock (two admin-post mutation handlers + read-only cost-adjustment preview AJAX) — into `WC_Inventory_Overview_Overview_Controller` and `WC_Inventory_Overview_Restock_Controller` respectively (BR-M20-1..20, INV-M20-1..20), characterization-tests-first, Restock extracted before Overview (ascending risk). Mutation ownership unchanged throughout: `Restock_Service`/`Cost_Adjustment_Service` remain the sole, unmodified authoritative mutators; Overview's bulk/inline mutations remain inline `WC_Product` calls, relocated verbatim. 94 new M20-specific tests (68 characterization + 26 architecture-guard), 0 failures. **Completes the Admin Controller Decomposition project started in M18** — Plugin: 1,230 → 410 lines (2,706 → 410 combined with M18/M19, ~85% total reduction), now a pure composition-root/shell. Level A completion review passed; see `docs/checklists/m20-release-readiness.md`. Released standalone as `v1.37.0` via PR #26, merge commit `bf57b356cfd441b45f176d33e3ac3159370dfd0b`. |
 
-**Release note:** **`v1.36.0` is tagged and published** — bundled M18–M19 Admin Controller Decomposition feature train; see [`docs/GITHUB_RELEASE_NOTES_1.36.0.md`](docs/GITHUB_RELEASE_NOTES_1.36.0.md). Intermediate development version `1.35.0` (M18 alone) was never tagged. **`v1.32.0` is tagged and published** — bundled M13–M15 Purchasing & Supplier Insights feature train; see [`docs/GITHUB_RELEASE_NOTES_1.32.0.md`](docs/GITHUB_RELEASE_NOTES_1.32.0.md). Intermediate development versions `1.30.0`/`1.31.0` were never tagged. **`v1.29.0` is tagged and published** — bundled M9–M12 feature train (+ CI recovery); see [`docs/GITHUB_RELEASE_NOTES_1.29.0.md`](docs/GITHUB_RELEASE_NOTES_1.29.0.md). Intermediate development versions `1.26.0`/`1.27.0`/`1.28.0` were never tagged. Prior releases through `v1.25.0` remain tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
+**Release note:** **`v1.37.0` is tagged and published** — standalone M20 Admin Controller Decomposition Phase 3, completing the project started in M18; see [`docs/GITHUB_RELEASE_NOTES_1.37.0.md`](docs/GITHUB_RELEASE_NOTES_1.37.0.md). **`v1.36.0` is tagged and published** — bundled M18–M19 Admin Controller Decomposition feature train; see [`docs/GITHUB_RELEASE_NOTES_1.36.0.md`](docs/GITHUB_RELEASE_NOTES_1.36.0.md). Intermediate development version `1.35.0` (M18 alone) was never tagged. **`v1.32.0` is tagged and published** — bundled M13–M15 Purchasing & Supplier Insights feature train; see [`docs/GITHUB_RELEASE_NOTES_1.32.0.md`](docs/GITHUB_RELEASE_NOTES_1.32.0.md). Intermediate development versions `1.30.0`/`1.31.0` were never tagged. **`v1.29.0` is tagged and published** — bundled M9–M12 feature train (+ CI recovery); see [`docs/GITHUB_RELEASE_NOTES_1.29.0.md`](docs/GITHUB_RELEASE_NOTES_1.29.0.md). Intermediate development versions `1.26.0`/`1.27.0`/`1.28.0` were never tagged. Prior releases through `v1.25.0` remain tagged and published; see their respective `docs/GITHUB_RELEASE_NOTES_*.md`.
 
 ---
 
