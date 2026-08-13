@@ -42,12 +42,12 @@ class Test_WC_IO_Overview_Csv_Export_Characterization extends WC_Inventory_Overv
 	 * normally (no export attempted, no exit()).
 	 */
 	public function test_csv_export_not_triggered_without_param() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 
 		$_GET     = array( 'page' => WC_Inventory_Overview_Plugin::PAGE_SLUG, 'tab' => WC_Inventory_Overview_Plugin::TAB_OVERVIEW );
 		$_REQUEST = $_GET;
 
-		$plugin->on_load_screen();
+		$controller->on_load_screen();
 		$this->assertTrue( true, 'on_load_screen() returned without exporting.' );
 	}
 
@@ -55,12 +55,12 @@ class Test_WC_IO_Overview_Csv_Export_Characterization extends WC_Inventory_Overv
 	 * BR-M20-13: wc_io_export present but not 'csv' -- guarded off.
 	 */
 	public function test_csv_export_requires_csv_value() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 
 		$_GET     = array( 'wc_io_export' => 'xlsx' );
 		$_REQUEST = $_GET;
 
-		$plugin->on_load_screen();
+		$controller->on_load_screen();
 		$this->assertTrue( true, 'Export guarded off for a non-csv value.' );
 	}
 
@@ -73,7 +73,7 @@ class Test_WC_IO_Overview_Csv_Export_Characterization extends WC_Inventory_Overv
 	 * test-restock-mutation-characterization.php's identical note).
 	 */
 	public function test_csv_export_invalid_nonce_dies() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 
 		$_GET     = array( 'wc_io_export' => 'csv' );
 		$_REQUEST = $_GET;
@@ -87,7 +87,7 @@ class Test_WC_IO_Overview_Csv_Export_Characterization extends WC_Inventory_Overv
 		add_filter( 'wp_die_ajax_handler', $throw_handler, PHP_INT_MAX );
 		try {
 			$this->expectException( WPDieException::class );
-			$plugin->on_load_screen();
+			$controller->on_load_screen();
 		} finally {
 			remove_filter( 'wp_die_handler', $throw_handler, PHP_INT_MAX );
 			remove_filter( 'wp_die_ajax_handler', $throw_handler, PHP_INT_MAX );
@@ -104,7 +104,7 @@ class Test_WC_IO_Overview_Csv_Export_Characterization extends WC_Inventory_Overv
 		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber_id );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 
 		$_GET     = array( 'wc_io_export' => 'csv' );
 		$_REQUEST = $_GET;
@@ -118,7 +118,7 @@ class Test_WC_IO_Overview_Csv_Export_Characterization extends WC_Inventory_Overv
 		add_filter( 'wp_die_ajax_handler', $throw_handler, PHP_INT_MAX );
 		try {
 			$this->expectException( WPDieException::class );
-			$plugin->on_load_screen();
+			$controller->on_load_screen();
 		} finally {
 			remove_filter( 'wp_die_handler', $throw_handler, PHP_INT_MAX );
 			remove_filter( 'wp_die_ajax_handler', $throw_handler, PHP_INT_MAX );
@@ -142,9 +142,9 @@ class Test_WC_IO_Overview_Csv_Export_Characterization extends WC_Inventory_Overv
 			'wc_io_stock_status' => 'instock',
 		);
 
-		$ref = new ReflectionMethod( 'WC_Inventory_Overview_Plugin', 'get_query_params_from_request' );
+		$ref = new ReflectionMethod( 'WC_Inventory_Overview_Overview_Controller', 'get_query_params_from_request' );
 		$ref->setAccessible( true );
-		$params = $ref->invoke( WC_Inventory_Overview_Plugin::instance() );
+		$params = $ref->invoke( WC_Inventory_Overview_Overview_Controller::instance() );
 
 		$this->assertSame( 'search text', $params['search'] );
 		$this->assertSame( (int) $term_obj->term_taxonomy_id, $params['category_tt_id'] );
@@ -159,9 +159,9 @@ class Test_WC_IO_Overview_Csv_Export_Characterization extends WC_Inventory_Overv
 	public function test_get_query_params_from_request_rejects_invalid_stock_status() {
 		$_REQUEST = array( 'wc_io_stock_status' => 'not-a-real-status' );
 
-		$ref = new ReflectionMethod( 'WC_Inventory_Overview_Plugin', 'get_query_params_from_request' );
+		$ref = new ReflectionMethod( 'WC_Inventory_Overview_Overview_Controller', 'get_query_params_from_request' );
 		$ref->setAccessible( true );
-		$params = $ref->invoke( WC_Inventory_Overview_Plugin::instance() );
+		$params = $ref->invoke( WC_Inventory_Overview_Overview_Controller::instance() );
 
 		$this->assertSame( array(), $params['stock_status'] );
 	}

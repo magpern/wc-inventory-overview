@@ -63,7 +63,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 	public function test_bulk_set_draft() {
 		$product = $this->create_simple_product( array( 'status' => 'publish' ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action'   => 'wc_io_set_draft',
 			'post'     => array( $product->get_id() ),
@@ -71,8 +71,8 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		);
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->on_load_screen();
+			static function () use ( $controller ) {
+				$controller->on_load_screen();
 			}
 		);
 
@@ -88,7 +88,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 	public function test_bulk_hide_catalog() {
 		$product = $this->create_simple_product();
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action'   => 'wc_io_hide_catalog',
 			'post'     => array( $product->get_id() ),
@@ -96,8 +96,8 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		);
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->on_load_screen();
+			static function () use ( $controller ) {
+				$controller->on_load_screen();
 			}
 		);
 
@@ -123,7 +123,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		$product->set_stock_status( \Automattic\WooCommerce\Enums\ProductStockStatus::OUT_OF_STOCK );
 		$product->save();
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action'   => 'wc_io_mark_instock',
 			'post'     => array( $product->get_id() ),
@@ -131,8 +131,8 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		);
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->on_load_screen();
+			static function () use ( $controller ) {
+				$controller->on_load_screen();
 			}
 		);
 
@@ -150,7 +150,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		$product->set_stock_status( \Automattic\WooCommerce\Enums\ProductStockStatus::IN_STOCK );
 		$product->save();
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action'   => 'wc_io_mark_outofstock',
 			'post'     => array( $product->get_id() ),
@@ -158,8 +158,8 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		);
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->on_load_screen();
+			static function () use ( $controller ) {
+				$controller->on_load_screen();
 			}
 		);
 
@@ -176,7 +176,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 	public function test_bulk_action2_used_when_action_is_dash_one() {
 		$product = $this->create_simple_product( array( 'status' => 'publish' ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action'   => '-1',
 			'action2'  => 'wc_io_set_draft',
@@ -185,8 +185,8 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		);
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->on_load_screen();
+			static function () use ( $controller ) {
+				$controller->on_load_screen();
 			}
 		);
 
@@ -201,7 +201,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 	public function test_bulk_invalid_action_no_op() {
 		$product = $this->create_simple_product( array( 'status' => 'publish' ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action'   => 'wc_io_delete_everything',
 			'post'     => array( $product->get_id() ),
@@ -209,7 +209,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		);
 
 		ob_start();
-		$plugin->on_load_screen();
+		$controller->on_load_screen();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
@@ -226,14 +226,14 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 	public function test_bulk_missing_nonce_silent_no_op() {
 		$product = $this->create_simple_product( array( 'status' => 'publish' ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action' => 'wc_io_set_draft',
 			'post'   => array( $product->get_id() ),
 		);
 
 		ob_start();
-		$plugin->on_load_screen();
+		$controller->on_load_screen();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
@@ -252,7 +252,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 	public function test_bulk_invalid_nonce_dies() {
 		$product = $this->create_simple_product( array( 'status' => 'publish' ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action'   => 'wc_io_set_draft',
 			'post'     => array( $product->get_id() ),
@@ -268,7 +268,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		add_filter( 'wp_die_ajax_handler', $throw_handler, PHP_INT_MAX );
 		try {
 			$this->expectException( WPDieException::class );
-			$plugin->on_load_screen();
+			$controller->on_load_screen();
 		} finally {
 			remove_filter( 'wp_die_handler', $throw_handler, PHP_INT_MAX );
 			remove_filter( 'wp_die_ajax_handler', $throw_handler, PHP_INT_MAX );
@@ -287,7 +287,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		$product = $this->create_simple_product( array( 'status' => 'publish' ) );
 		$bogus_id = 999999999;
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action'   => 'wc_io_set_draft',
 			'post'     => array( $bogus_id, $product->get_id() ),
@@ -295,8 +295,8 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		);
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->on_load_screen();
+			static function () use ( $controller ) {
+				$controller->on_load_screen();
 			}
 		);
 
@@ -313,7 +313,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 	public function test_bulk_redirect_strips_transient_query_args() {
 		$product = $this->create_simple_product( array( 'status' => 'publish' ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_SERVER['HTTP_REFERER'] = admin_url( 'admin.php?page=' . WC_Inventory_Overview_Plugin::PAGE_SLUG . '&tab=overview&wc_io_export=csv&_wc_io_export_nonce=x&action=wc_io_set_draft&_wpnonce=y' );
 		$_REQUEST = array(
 			'action'   => 'wc_io_set_draft',
@@ -322,8 +322,8 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 		);
 
 		$location = $this->run_expecting_redirect(
-			static function () use ( $plugin ) {
-				$plugin->on_load_screen();
+			static function () use ( $controller ) {
+				$controller->on_load_screen();
 			}
 		);
 
@@ -344,7 +344,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 
 		$product = $this->create_simple_product( array( 'status' => 'publish' ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_REQUEST = array(
 			'action'   => 'wc_io_set_draft',
 			'post'     => array( $product->get_id() ),
@@ -353,7 +353,7 @@ class Test_WC_IO_Overview_Bulk_Action_Characterization extends WC_Inventory_Over
 
 		$before = $wpdb->num_queries;
 		try {
-			$plugin->on_load_screen();
+			$controller->on_load_screen();
 		} catch ( Exception $e ) {
 			// Expected: redirect throws.
 		}

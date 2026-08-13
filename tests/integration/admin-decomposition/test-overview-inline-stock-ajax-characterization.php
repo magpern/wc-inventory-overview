@@ -70,7 +70,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 		$this->set_product_average_cost( $product, 5.0 );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_inventory' ),
 			'product_id' => $product->get_id(),
@@ -79,8 +79,8 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_save_inline_stock();
+			static function () use ( $controller ) {
+				$controller->ajax_save_inline_stock();
 			}
 		);
 
@@ -104,7 +104,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$this->set_product_average_cost( $product, 5.0 );
 		$this->set_product_inventory_value( $product, 50.0 );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_inventory' ),
 			'product_id' => $product->get_id(),
@@ -113,8 +113,8 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_save_inline_stock();
+			static function () use ( $controller ) {
+				$controller->ajax_save_inline_stock();
 			}
 		);
 
@@ -131,7 +131,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 	public function test_inline_stock_missing_quantity() {
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_inventory' ),
 			'product_id' => $product->get_id(),
@@ -139,8 +139,8 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_save_inline_stock();
+			static function () use ( $controller ) {
+				$controller->ajax_save_inline_stock();
 			}
 		);
 
@@ -158,7 +158,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 	public function test_inline_stock_unmanaged_stock_rejected() {
 		$product = $this->create_simple_product( array( 'stock_qty' => 10, 'manage_stock' => false ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_inventory' ),
 			'product_id' => $product->get_id(),
@@ -167,8 +167,8 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_save_inline_stock();
+			static function () use ( $controller ) {
+				$controller->ajax_save_inline_stock();
 			}
 		);
 
@@ -181,7 +181,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 	 * (400).
 	 */
 	public function test_inline_stock_invalid_product_id() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_POST  = array(
 			'nonce'     => wp_create_nonce( 'wc_io_inventory' ),
 			'stock_qty' => 5,
@@ -189,8 +189,8 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_save_inline_stock();
+			static function () use ( $controller ) {
+				$controller->ajax_save_inline_stock();
 			}
 		);
 
@@ -208,7 +208,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_inventory' ),
 			'product_id' => $product->get_id(),
@@ -217,8 +217,8 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$_REQUEST = $_POST;
 
 		$response = $this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_save_inline_stock();
+			static function () use ( $controller ) {
+				$controller->ajax_save_inline_stock();
 			}
 		);
 
@@ -236,7 +236,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 	public function test_inline_stock_invalid_nonce_dies() {
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_POST  = array(
 			'nonce'      => 'invalid-nonce',
 			'product_id' => $product->get_id(),
@@ -253,7 +253,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 
 		try {
 			$this->expectException( WPDieException::class );
-			$plugin->ajax_save_inline_stock();
+			$controller->ajax_save_inline_stock();
 		} finally {
 			remove_filter( 'wp_die_ajax_handler', $force_throwing_die_handler, PHP_INT_MAX );
 		}
@@ -274,7 +274,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_inventory' ),
 			'product_id' => $product->get_id(),
@@ -283,8 +283,8 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$_REQUEST = $_POST;
 
 		$this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_save_inline_stock();
+			static function () use ( $controller ) {
+				$controller->ajax_save_inline_stock();
 			}
 		);
 
@@ -302,7 +302,7 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 		$product = $this->create_simple_product( array( 'stock_qty' => 10 ) );
 		$this->set_product_average_cost( $product, 5.0 );
 
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 		$_POST  = array(
 			'nonce'      => wp_create_nonce( 'wc_io_inventory' ),
 			'product_id' => $product->get_id(),
@@ -312,8 +312,8 @@ class Test_WC_IO_Overview_Inline_Stock_Ajax_Characterization extends WC_Inventor
 
 		$before = $wpdb->num_queries;
 		$this->run_ajax(
-			static function () use ( $plugin ) {
-				$plugin->ajax_save_inline_stock();
+			static function () use ( $controller ) {
+				$controller->ajax_save_inline_stock();
 			}
 		);
 		$after = $wpdb->num_queries;

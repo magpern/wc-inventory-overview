@@ -76,7 +76,7 @@ class Test_WC_IO_Overview_Rendering_Characterization extends WC_Inventory_Overvi
 	 */
 	public function test_render_summary_cards_empty_stats_renders_nothing() {
 		ob_start();
-		WC_Inventory_Overview_Plugin::render_summary_cards( array() );
+		WC_Inventory_Overview_Overview_Controller::render_summary_cards( array() );
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
@@ -180,10 +180,10 @@ class Test_WC_IO_Overview_Rendering_Characterization extends WC_Inventory_Overvi
 	 * no-op path completes without error/output).
 	 */
 	public function test_on_load_screen_no_op_when_no_export_or_bulk_params() {
-		$plugin = WC_Inventory_Overview_Plugin::instance();
+		$controller = WC_Inventory_Overview_Overview_Controller::instance();
 
 		ob_start();
-		$result = $plugin->on_load_screen();
+		$result = $controller->on_load_screen();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
