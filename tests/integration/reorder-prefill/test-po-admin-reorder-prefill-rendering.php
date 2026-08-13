@@ -220,4 +220,71 @@ class Test_WC_IO_PO_Admin_Reorder_Prefill_Rendering extends WC_Inventory_Overvie
 
 		$this->assertSame( $before, $after );
 	}
+
+	// ---------------------------------------------------------------
+	// WP-M22-5: full GET-prefill -> POST-submit round trip through the
+	// completely unmodified handle_save()/PO_Service::create_draft()
+	// pipeline (BR-M22-12, INV-M22-3, INV-M22-15).
+	// ---------------------------------------------------------------
+
+	public function test_prefilled_get_then_submit_creates_matching_draft() {
+		$product = $this->make_needs_reorder_product();
+		$po      = $this->create_purchase_order( array( 'order_date' => '2026-01-01' ) );
+		$this->add_po_line( $po['id'], array( 'product_id' => $product->get_id() ) );
+		WC_Inventory_Overview_Purchase_Orders::update_fields( $po['id'], array( 'status' => 'placed' ) );
+
+		// Step 1: GET render with the reorder-prefill params (what the merchant's browser does on click).
+		$_GET['wc_io_ro_product_id'] = (string) $product->get_id();
+		$this->render_new_po();
+
+		// Step 2: the merchant reviews and submits -- exactly what handle_save() already
+		// expects, with zero special-casing for reorder-prefill origin. The GET params
+		// from step 1 are never read here; only $_POST matters (BR-M22-12/INV-M22-15).
+		$token = WC_Inventory_Overview_PO_Request_Token::issue( 'save' );
+		add_filter(
+			'wp_redirect',
+			static function ( $location ) {
+				throw new Exception( 'redirect:' . $location );
+			}
+		);
+
+		$_POST    = array(
+			'action'                 => 'wc_io_po_save',
+			'po_id'                  => '0',
+			'wc_io_po_save_nonce'    => wp_create_nonce( 'wc_io_po_save_0' ),
+			'wc_io_po_request_token' => $token,
+			'po'                     => array(
+				'supplier_id' => (string) $po['supplier_id'],
+				'currency'    => 'EUR',
+			),
+			'lines'                  => array(
+				array(
+					'product_id'  => (string) $product->get_id(),
+					'qty_ordered' => '7',
+					'unit_cost'   => '3.25',
+				),
+			),
+		);
+		$_REQUEST = $_POST;
+
+		try {
+			WC_Inventory_Overview_PO_Admin::handle_save();
+			$this->fail( 'Expected redirect' );
+		} catch ( Exception $e ) {
+			$this->assertStringContainsString( 'wc_io_po=saved', $e->getMessage() );
+		}
+
+		$orders = WC_Inventory_Overview_Purchase_Orders::list( array( 'orderby' => 'id', 'order' => 'DESC', 'per_page' => 1 ) );
+		$this->assertCount( 1, $orders );
+		$created_po = $orders[0];
+		$this->assertSame( 'draft', $created_po['status'] );
+
+		$lines = WC_Inventory_Overview_Purchase_Order_Lines::list_by_po( (int) $created_po['id'] );
+		$this->assertCount( 1, $lines );
+		$this->assertSame( $product->get_id(), (int) $lines[0]['product_id'] );
+		$this->assertSame( 0, (int) $lines[0]['variation_id'] );
+		// Only what was actually typed into $_POST -- never a GET-smuggled value.
+		$this->assertSame( '7.0000', $lines[0]['qty_ordered'] );
+		$this->assertSame( '3.250000', $lines[0]['unit_cost'] );
+	}
 }
