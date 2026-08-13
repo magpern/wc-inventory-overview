@@ -142,4 +142,57 @@ class Test_WC_IO_Reorder_Signal_Architecture extends WP_UnitTestCase {
 	public function test_db_version_unchanged() {
 		$this->assertSame( '11', WC_Inventory_Overview_Install::DB_VERSION );
 	}
+
+	// -----------------------------------------------------------------
+	// WP-M21-6: consolidated capability-matrix static checks (BR-M21-4,
+	// INV-M21-5) -- every new capability-gated M21 surface uses
+	// manage_woocommerce, never a new capability constant. The behavioral
+	// proof (present/absent per viewer) lives in the integration test
+	// suites; these are a static defense-in-depth layer only.
+	// -----------------------------------------------------------------
+
+	/**
+	 * Overview_Controller::render_summary_cards()'s new capability check
+	 * (BR-M21-6) uses manage_woocommerce.
+	 */
+	public function test_overview_summary_cards_gate_uses_manage_woocommerce() {
+		$src = (string) file_get_contents( $this->includes_dir() . 'class-wc-inventory-overview-overview-controller.php' );
+		$this->assertStringContainsString(
+			"if ( current_user_can( 'manage_woocommerce' ) ) {\n\t\t\tarray_splice(",
+			$src,
+			'render_summary_cards() must gate the Needs Reorder card with manage_woocommerce.'
+		);
+	}
+
+	/**
+	 * Overview_Controller's inline-stock AJAX badge-refresh position_map
+	 * build (WP-M21-2) uses manage_woocommerce.
+	 */
+	public function test_ajax_badge_refresh_position_map_gate_uses_manage_woocommerce() {
+		$src = (string) file_get_contents( $this->includes_dir() . 'class-wc-inventory-overview-overview-controller.php' );
+		$this->assertStringContainsString(
+			"if ( current_user_can( 'manage_woocommerce' ) && \$product->managing_stock() ) {",
+			$src
+		);
+	}
+
+	/**
+	 * Dashboard_Controller's new KPI/table-column gates (BR-M21-9,
+	 * BR-M21-10) both check manage_woocommerce -- the table columns reuse
+	 * the pre-existing $can_shop variable (render_dashboard_operational_panels()),
+	 * and the KPI card checks the same capability directly (a separate
+	 * method, render(), so it cannot share that local variable) -- no new
+	 * capability constant is introduced anywhere in this file.
+	 */
+	public function test_dashboard_new_surfaces_use_manage_woocommerce_only() {
+		$src = (string) file_get_contents( $this->includes_dir() . 'class-wc-inventory-overview-dashboard-controller.php' );
+		$this->assertStringContainsString( "\$can_shop = current_user_can( 'manage_woocommerce' );", $src );
+		$this->assertStringContainsString( 'if ( $can_shop ) {', $src );
+		// The new KPI-card gate (render(), a separate method from $can_shop's
+		// scope) checks the same capability directly.
+		$this->assertStringContainsString(
+			"if ( current_user_can( 'manage_woocommerce' ) ) {\n\t\t\t\$kpis[] = array(",
+			$src
+		);
+	}
 }
