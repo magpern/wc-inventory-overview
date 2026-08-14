@@ -50,6 +50,7 @@ class WC_Inventory_Overview_Plugin {
 	public function init() {
 		WC_Inventory_Overview_Order_Item_Snapshots::register();
 		WC_Inventory_Overview_Order_Shipping_Admin::register();
+		WC_Inventory_Overview_Product_Replenishment_Admin::register();
 		WC_Inventory_Overview_Purchasing_Page::instance()->init();
 		WC_Inventory_Overview_Settings_Controller::instance()->init();
 		WC_Inventory_Overview_Reporting_Controller::instance()->init();
