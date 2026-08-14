@@ -52,6 +52,39 @@ class WC_Inventory_Overview_Replenishment_Defaults {
 	}
 
 	/**
+	 * Bulk sibling of get_preferred_supplier_id()/get_default_qty() (M24
+	 * WP-M24-4, §21): both values for MANY items in one pass. Primes
+	 * WordPress's own post-meta object cache for the whole id list with
+	 * update_meta_cache() (1 query total, WordPress core's own bulk-postmeta
+	 * primitive -- the same mechanism WP_Query's own postmeta priming uses),
+	 * then reads through the unmodified single-item getters above so there
+	 * is exactly one meta-reading code path in this class, never a second,
+	 * bulk-only reimplementation (the two single-item getters remain
+	 * byte-for-byte unmodified, INV-M24-8) -- the subsequent get_post_meta()
+	 * calls are served entirely from the primed cache, 0 additional queries.
+	 *
+	 * @param int[] $item_post_ids Simple product/variation post ids.
+	 * @return array<int,array{preferred_supplier_id:int,default_qty:float}> Keyed by item post id.
+	 */
+	public static function get_bulk( array $item_post_ids ): array {
+		$item_post_ids = array_values( array_unique( array_filter( array_map( 'absint', $item_post_ids ) ) ) );
+		if ( empty( $item_post_ids ) ) {
+			return array();
+		}
+
+		update_meta_cache( 'post', $item_post_ids );
+
+		$result = array();
+		foreach ( $item_post_ids as $item_post_id ) {
+			$result[ $item_post_id ] = array(
+				'preferred_supplier_id' => self::get_preferred_supplier_id( $item_post_id ),
+				'default_qty'           => self::get_default_qty( $item_post_id ),
+			);
+		}
+		return $result;
+	}
+
+	/**
 	 * Save (or clear) the preferred supplier for an item.
 	 *
 	 * BR-M23-6: a newly chosen id must resolve to a currently eligible
