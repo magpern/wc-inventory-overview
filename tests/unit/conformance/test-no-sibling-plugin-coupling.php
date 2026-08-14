@@ -44,6 +44,7 @@ class Test_WC_IO_No_Sibling_Plugin_Coupling extends WP_UnitTestCase {
 			'mb_strtolower',
 			'Automattic\\WooCommerce\\Utilities\\OrderUtil',
 			'Automattic\\WooCommerce\\Internal\\DataStores\\Orders\\OrdersTableDataStore',
+			'WC_Admin_Meta_Boxes',
 		);
 	}
 

@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Install {
 
-	const DB_VERSION = '11'; // Unchanged in M18/M19/M20/M21/M22
+	const DB_VERSION = '11'; // Unchanged in M18/M19/M20/M21/M22/M23
 
 	/**
 	 * Register activation hook target.

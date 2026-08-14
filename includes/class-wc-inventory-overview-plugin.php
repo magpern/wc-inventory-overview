@@ -374,7 +374,6 @@ class WC_Inventory_Overview_Plugin {
 	/**
 	 * AJAX: lookup FX to EUR for Batch Intake prefill (history only; no Settings fallback).
 	 */
-
 	public function enqueue_assets( $hook ) {
 		if ( 'woocommerce_page_' . self::PAGE_SLUG !== $hook ) {
 			return;
@@ -407,5 +406,4 @@ class WC_Inventory_Overview_Plugin {
 			true
 		);
 	}
-
 }

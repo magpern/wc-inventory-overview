@@ -73,7 +73,7 @@ class WC_Inventory_Overview_Replenishment_Defaults {
 			return true;
 		}
 
-		if ( $supplier_id === self::get_preferred_supplier_id( $item_post_id ) ) {
+		if ( self::get_preferred_supplier_id( $item_post_id ) === $supplier_id ) {
 			return true;
 		}
 
@@ -99,7 +99,7 @@ class WC_Inventory_Overview_Replenishment_Defaults {
 	 * render_line_row()'s value="…" slot is exact and free of locale/float
 	 * noise.
 	 *
-	 * @param int        $item_post_id Simple product's own post id, or a variation's own post id.
+	 * @param int                   $item_post_id Simple product's own post id, or a variation's own post id.
 	 * @param string|int|float|null $raw Raw submitted value.
 	 * @return true|WP_Error
 	 */

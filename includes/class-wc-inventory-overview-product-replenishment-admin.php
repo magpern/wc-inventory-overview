@@ -137,10 +137,16 @@ class WC_Inventory_Overview_Product_Replenishment_Admin {
 	// Shared rendering / saving.
 	// ---------------------------------------------------------------
 
+	/**
+	 * Preferred-supplier field id/name base.
+	 */
 	private static function field_name_supplier(): string {
 		return WC_Inventory_Overview_Replenishment_Defaults::META_PREFERRED_SUPPLIER;
 	}
 
+	/**
+	 * Default-quantity field id/name base.
+	 */
 	private static function field_name_qty(): string {
 		return WC_Inventory_Overview_Replenishment_Defaults::META_DEFAULT_QTY;
 	}
@@ -151,9 +157,9 @@ class WC_Inventory_Overview_Product_Replenishment_Admin {
 	 * genuine product/variation save, but defensive); an empty-string raw
 	 * value is a deliberate clear.
 	 *
-	 * @param int                    $item_post_id  Simple product's own post id, or a variation's own post id.
-	 * @param string|array|null      $supplier_raw  Raw submitted supplier id.
-	 * @param string|array|null      $qty_raw       Raw submitted quantity.
+	 * @param int               $item_post_id  Simple product's own post id, or a variation's own post id.
+	 * @param string|array|null $supplier_raw  Raw submitted supplier id.
+	 * @param string|array|null $qty_raw       Raw submitted quantity.
 	 */
 	private static function save_fields( int $item_post_id, $supplier_raw, $qty_raw ): void {
 		if ( null !== $supplier_raw ) {
@@ -210,18 +216,18 @@ class WC_Inventory_Overview_Product_Replenishment_Admin {
 		// clearly-labeled option so an unrelated field save never
 		// silently resets the preference to 0 (§8 of the M23 plan).
 		if ( $preferred_id > 0 && ! $found_preferred ) {
-			$stale = WC_Inventory_Overview_Suppliers::get( $preferred_id );
+			$stale                    = WC_Inventory_Overview_Suppliers::get( $preferred_id );
 			$options[ $preferred_id ] = is_wp_error( $stale )
 				? __( '(unavailable)', 'wc-inventory-overview' )
 				/* translators: %s: supplier name */
 				: sprintf( __( '%s (unavailable)', 'wc-inventory-overview' ), $stale['name'] );
 		}
 
-		$field_id_supplier    = self::field_name_supplier() . $loop_suffix;
-		$field_id_qty         = self::field_name_qty() . $loop_suffix;
-		$field_name_supplier  = '' === $loop_suffix ? self::field_name_supplier() : self::field_name_supplier() . '[' . $loop_suffix . ']';
-		$field_name_qty       = '' === $loop_suffix ? self::field_name_qty() : self::field_name_qty() . '[' . $loop_suffix . ']';
-		$qty_value            = $default_qty > 0 ? wc_format_decimal( $default_qty, 4, true ) : '';
+		$field_id_supplier   = self::field_name_supplier() . $loop_suffix;
+		$field_id_qty        = self::field_name_qty() . $loop_suffix;
+		$field_name_supplier = '' === $loop_suffix ? self::field_name_supplier() : self::field_name_supplier() . '[' . $loop_suffix . ']';
+		$field_name_qty      = '' === $loop_suffix ? self::field_name_qty() : self::field_name_qty() . '[' . $loop_suffix . ']';
+		$qty_value           = $default_qty > 0 ? wc_format_decimal( $default_qty, 4, true ) : '';
 
 		// Hand-rolled markup (matching PO_Admin's own established pattern,
 		// e.g. render_header_fields()'s supplier <select>) rather than
