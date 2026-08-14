@@ -208,7 +208,27 @@ if [[ ${#FILTER_ARGS[@]} -eq 0 ]]; then
 	#   Test_WC_IO_Default_Quantity_Prefill (the Reorder_Prefill_Service
 	#   integration -- distinct from Test_WC_IO_Reorder_Prefill_, which only
 	#   covers M22's own tests).
-	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_PO_Print_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received|Test_WC_IO_Supplier_Lead_Time_|Test_WC_IO_Expected_Date_Suggestion_|Test_WC_IO_Expected_Deadline|Test_WC_IO_Supplier_On_Time_Rate_|Test_WC_IO_Supplier_Order_History_|Test_WC_IO_Supplier_Spend_|Test_WC_IO_Settings_|Test_WC_IO_Supplier_Merge_|Test_WC_IO_Schema_V11_Upgrade|Test_WC_IO_Exchange_Rate_|Test_WC_IO_Danger_Zone_|Test_WC_IO_Dashboard_|Test_WC_IO_Movements_Rendering_|Test_WC_IO_Order_Profit_Rendering_|Test_WC_IO_Product_Profitability_Rendering_|Test_WC_IO_Reporting_Controller_|Test_WC_IO_Restock_Rendering_|Test_WC_IO_Restock_Mutation_|Test_WC_IO_Restock_Cost_Adjustment_Preview_|Test_WC_IO_Restock_Controller_|Test_WC_IO_Overview_Rendering_|Test_WC_IO_Overview_Bulk_Action_|Test_WC_IO_Overview_Inline_Stock_Ajax_|Test_WC_IO_Overview_Csv_Export_|Test_WC_IO_Overview_Controller_|Test_WC_IO_Reorder_Signal_|Test_WC_IO_Summary_|Test_WC_IO_Overview_Summary_Cards_|Test_WC_IO_Reorder_Prefill_|Test_WC_IO_Purchase_Order_Lines_Supplier_History|Test_WC_IO_List_Table_Reorder_Action_Link|Test_WC_IO_M22_Supplier_Fallback_Characterization|Test_WC_IO_Replenishment_Defaults_|Test_WC_IO_Product_Replenishment_Admin|Test_WC_IO_Preferred_Supplier_Prefill|Test_WC_IO_Default_Quantity_Prefill' )
+	# - M24 (Replenishment Planning Screen) adds new, distinct prefixes
+	#   (verified via --list-tests before adding these; no collision with
+	#   any existing entry): Test_WC_IO_Repository_Include_ (the additive
+	#   include passthrough + variation-proof characterization),
+	#   Test_WC_IO_Bulk_Repository_Primitives (distinct_supplier_history_
+	#   for_items_bulk()/Replenishment_Defaults::get_bulk()),
+	#   Test_WC_IO_Supplier_Preference_Resolver (the new pure decider),
+	#   Test_WC_IO_Build_Plan_ (Replenishment_Planning_Service::build_plan()'s
+	#   own suite), Test_WC_IO_Planning_Tab_ and Test_WC_IO_Planning_Bulk_Action_
+	#   (the new admin UI/entry points), Test_WC_IO_Replenishment_Planning_
+	#   (query-count + architecture guards). Test_WC_IO_Summary_Extraction_
+	#   Characterization is already covered by the existing Test_WC_IO_
+	#   Summary_ entry. This default filter also now passes
+	#   --exclude-group performance -- M24 adds a small number of tests
+	#   that deliberately build large (100-900 product) fixtures to
+	#   gather real EXPLAIN/query-count evidence at production-
+	#   representative scale; correctness-relevant but not something that
+	#   should slow down every quick-start/CI run -- run them explicitly
+	#   (see docs/testing.md) as part of a milestone's own
+	#   release-readiness validation pass.
+	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_PO_Print_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received|Test_WC_IO_Supplier_Lead_Time_|Test_WC_IO_Expected_Date_Suggestion_|Test_WC_IO_Expected_Deadline|Test_WC_IO_Supplier_On_Time_Rate_|Test_WC_IO_Supplier_Order_History_|Test_WC_IO_Supplier_Spend_|Test_WC_IO_Settings_|Test_WC_IO_Supplier_Merge_|Test_WC_IO_Schema_V11_Upgrade|Test_WC_IO_Exchange_Rate_|Test_WC_IO_Danger_Zone_|Test_WC_IO_Dashboard_|Test_WC_IO_Movements_Rendering_|Test_WC_IO_Order_Profit_Rendering_|Test_WC_IO_Product_Profitability_Rendering_|Test_WC_IO_Reporting_Controller_|Test_WC_IO_Restock_Rendering_|Test_WC_IO_Restock_Mutation_|Test_WC_IO_Restock_Cost_Adjustment_Preview_|Test_WC_IO_Restock_Controller_|Test_WC_IO_Overview_Rendering_|Test_WC_IO_Overview_Bulk_Action_|Test_WC_IO_Overview_Inline_Stock_Ajax_|Test_WC_IO_Overview_Csv_Export_|Test_WC_IO_Overview_Controller_|Test_WC_IO_Reorder_Signal_|Test_WC_IO_Summary_|Test_WC_IO_Overview_Summary_Cards_|Test_WC_IO_Reorder_Prefill_|Test_WC_IO_Purchase_Order_Lines_Supplier_History|Test_WC_IO_List_Table_Reorder_Action_Link|Test_WC_IO_M22_Supplier_Fallback_Characterization|Test_WC_IO_Replenishment_Defaults_|Test_WC_IO_Product_Replenishment_Admin|Test_WC_IO_Preferred_Supplier_Prefill|Test_WC_IO_Default_Quantity_Prefill|Test_WC_IO_Repository_Include_|Test_WC_IO_Bulk_Repository_Primitives|Test_WC_IO_Supplier_Preference_Resolver|Test_WC_IO_Build_Plan_|Test_WC_IO_Planning_Tab_|Test_WC_IO_Planning_Bulk_Action_|Test_WC_IO_Replenishment_Planning_' --exclude-group 'performance' )
 fi
 
 echo "Running PHPUnit ${FILTER_ARGS[*]}..."

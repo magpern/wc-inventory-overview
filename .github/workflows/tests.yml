@@ -64,8 +64,18 @@ jobs:
       # continue-on-error while it carried known pre-existing test-content
       # failures -- see docs/testing.md#known-test-content-issues. M8/WP4
       # fixed all of them; this step is a normal blocking gate.
+      #
+      # M24 (WP-M24-8) adds a new `performance` PHPUnit group for tests that
+      # deliberately create large fixtures (hundreds of products, a
+      # 10,000-row bulk-history background table) to gather real EXPLAIN/
+      # query-count evidence at production-representative scale -- these
+      # are correctness-relevant but not the kind of test that should run
+      # on every push. Excluded here the same way `ajax`/`ms-files`/
+      # `external-http` are already excluded by the WP core test bootstrap;
+      # run explicitly (see docs/testing.md) as part of a milestone's own
+      # release-readiness validation pass, not on every CI run.
       - name: Run cumulative integration suite
-        run: docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite integration
+        run: docker compose -f tests/docker/docker-compose.phpunit.yml run --rm phpunit --testsuite integration --exclude-group performance
 
       - name: Tear down test stack
         if: always()

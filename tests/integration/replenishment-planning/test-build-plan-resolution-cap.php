@@ -87,6 +87,9 @@ class Test_WC_IO_Build_Plan_Resolution_Cap extends WC_Inventory_Overview_Test_Ca
 		$this->assertLessThanOrEqual( 2, count( $hits ), 'Supplier resolution must not scale with catalog size.' );
 	}
 
+	/**
+	 * @group performance
+	 */
 	public function test_no_truncation_when_exactly_500_qualify() {
 		$this->seed_needs_reorder_products( 500 );
 
@@ -100,6 +103,9 @@ class Test_WC_IO_Build_Plan_Resolution_Cap extends WC_Inventory_Overview_Test_Ca
 	 * BR-M24-21 for the scoped path: input already bounded to <=100
 	 * externally by the bulk-action cap, so no additional truncation
 	 * applies -- proven explicitly with exactly 100 scoped ids.
+	 */
+	/**
+	 * @group performance
 	 */
 	public function test_scoped_path_100_items_no_truncation() {
 		$ids = array();

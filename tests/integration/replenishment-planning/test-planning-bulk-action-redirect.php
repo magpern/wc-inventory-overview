@@ -78,7 +78,12 @@ class Test_WC_IO_Planning_Bulk_Action_Redirect extends WC_Inventory_Overview_Tes
 	}
 
 	/**
-	 * Multiple selected ids are comma-joined in item_ids.
+	 * Multiple selected ids are comma-joined in item_ids. Order is derived
+	 * from Repository::query_products()'s own default ordering (not
+	 * necessarily the input selection order) -- harmless, since both the
+	 * scoped discovery pass and the Planning tab's own §10.3 display sort
+	 * re-derive everything fresh regardless of item_ids order; this test
+	 * asserts set-equality, not sequence.
 	 */
 	public function test_multiple_ids_comma_joined() {
 		$p1 = $this->create_simple_product( array( 'stock_qty' => 1 ) );
@@ -97,7 +102,12 @@ class Test_WC_IO_Planning_Bulk_Action_Redirect extends WC_Inventory_Overview_Tes
 			}
 		);
 
-		$this->assertMatchesRegularExpression( '/item_ids=' . $p1->get_id() . ',' . $p2->get_id() . '/', $location );
+		$this->assertMatchesRegularExpression( '/item_ids=[0-9]+,[0-9]+/', $location, 'item_ids must be comma-joined.' );
+		$ids = array();
+		if ( preg_match( '/item_ids=([0-9,]+)/', $location, $m ) ) {
+			$ids = array_map( 'intval', explode( ',', $m[1] ) );
+		}
+		$this->assertEqualsCanonicalizing( array( $p1->get_id(), $p2->get_id() ), $ids );
 	}
 
 	/**

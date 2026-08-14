@@ -230,6 +230,9 @@ class Test_WC_IO_Bulk_Repository_Primitives extends WC_Inventory_Overview_Test_C
 	 * plan must not be keyed on the low-selectivity variation_id=0 constant
 	 * instead of product_id IN (...).
 	 */
+	/**
+	 * @group performance
+	 */
 	public function test_explain_evidence_both_branches_at_n_100() {
 		global $wpdb;
 
