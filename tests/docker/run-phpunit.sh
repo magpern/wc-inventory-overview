@@ -180,7 +180,35 @@ if [[ ${#FILTER_ARGS[@]} -eq 0 ]]; then
 	#   Test_WC_IO_Overview_Summary_Cards_Reorder is a new, distinct prefix
 	#   (does not start with Test_WC_IO_Overview_Controller_) -- added
 	#   explicitly below as Test_WC_IO_Overview_Summary_Cards_.
-	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_PO_Print_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received|Test_WC_IO_Supplier_Lead_Time_|Test_WC_IO_Expected_Date_Suggestion_|Test_WC_IO_Expected_Deadline|Test_WC_IO_Supplier_On_Time_Rate_|Test_WC_IO_Supplier_Order_History_|Test_WC_IO_Supplier_Spend_|Test_WC_IO_Settings_|Test_WC_IO_Supplier_Merge_|Test_WC_IO_Schema_V11_Upgrade|Test_WC_IO_Exchange_Rate_|Test_WC_IO_Danger_Zone_|Test_WC_IO_Dashboard_|Test_WC_IO_Movements_Rendering_|Test_WC_IO_Order_Profit_Rendering_|Test_WC_IO_Product_Profitability_Rendering_|Test_WC_IO_Reporting_Controller_|Test_WC_IO_Restock_Rendering_|Test_WC_IO_Restock_Mutation_|Test_WC_IO_Restock_Cost_Adjustment_Preview_|Test_WC_IO_Restock_Controller_|Test_WC_IO_Overview_Rendering_|Test_WC_IO_Overview_Bulk_Action_|Test_WC_IO_Overview_Inline_Stock_Ajax_|Test_WC_IO_Overview_Csv_Export_|Test_WC_IO_Overview_Controller_|Test_WC_IO_Reorder_Signal_|Test_WC_IO_Summary_|Test_WC_IO_Overview_Summary_Cards_' )
+	# - M22 (Reorder → Draft PO Quick Action) adds three new, distinct
+	#   prefixes (verified via --list-tests before adding these; no
+	#   collision with any existing entry): Test_WC_IO_Reorder_Prefill_
+	#   (Reorder_Prefill_Service, architecture guards, capability matrix,
+	#   security/TOCTOU), Test_WC_IO_Purchase_Order_Lines_Supplier_History
+	#   (the new supplier-history repository query -- distinct from
+	#   Test_WC_IO_PO_, which doesn't cover this class name), and
+	#   Test_WC_IO_List_Table_Reorder_Action_Link (the new quick-action
+	#   link -- distinct from Test_WC_IO_Reorder_Signal_, which only covers
+	#   M21's own badge/rollup tests). Test_WC_IO_PO_Admin_Reorder_Prefill_Rendering
+	#   is already covered by the existing Test_WC_IO_PO_ entry.
+	#   Test_WC_IO_Suppliers_Eligibility_And_Bulk_Fetch is already covered
+	#   by the existing Test_WC_IO_Suppliers_ entry.
+	# - M23 (Replenishment Defaults) adds new, distinct prefixes (verified
+	#   via --list-tests before adding these; no collision with any existing
+	#   entry): Test_WC_IO_M22_Supplier_Fallback_Characterization (WP-M23-1
+	#   characterization of M22's own resolve_supplier()/render_line_row()
+	#   behavior, written before any M23 production change),
+	#   Test_WC_IO_Replenishment_Defaults_ (the new persistence class,
+	#   architecture guards, validation, edge cases, and query-count
+	#   performance matrix -- covers Test_WC_IO_Replenishment_Defaults_Architecture,
+	#   _Validation, _Persistence, _Capability, _Edge_Cases, _Performance),
+	#   Test_WC_IO_Product_Replenishment_Admin (the new product/variation
+	#   configuration UI -- distinct from Test_WC_IO_PO_, which doesn't cover
+	#   this class name), Test_WC_IO_Preferred_Supplier_Prefill and
+	#   Test_WC_IO_Default_Quantity_Prefill (the Reorder_Prefill_Service
+	#   integration -- distinct from Test_WC_IO_Reorder_Prefill_, which only
+	#   covers M22's own tests).
+	FILTER_ARGS=( --filter 'Test_WC_IO_Schema_Assertion|Test_WC_IO_PO_|Test_WC_IO_PO_Print_|Test_WC_IO_Suppliers_|Test_DB_Transaction|Test_WC_IO_Inventory_Position_|Test_WC_IO_Goods_Receipt_|Test_WC_IO_Goods_Receipts_|Test_WC_IO_Receipt_Lines_|Test_WC_IO_Restock_Service_Reversal|Test_WC_IO_Batch_Migration_|Test_WC_IO_Landed_Cost_Types_|Test_WC_IO_Expected_Delivery_|Test_WC_IO_No_Sibling_Plugin_Coupling|Test_WC_IO_Close_Short_With_Qty_Received|Test_WC_IO_Supplier_Lead_Time_|Test_WC_IO_Expected_Date_Suggestion_|Test_WC_IO_Expected_Deadline|Test_WC_IO_Supplier_On_Time_Rate_|Test_WC_IO_Supplier_Order_History_|Test_WC_IO_Supplier_Spend_|Test_WC_IO_Settings_|Test_WC_IO_Supplier_Merge_|Test_WC_IO_Schema_V11_Upgrade|Test_WC_IO_Exchange_Rate_|Test_WC_IO_Danger_Zone_|Test_WC_IO_Dashboard_|Test_WC_IO_Movements_Rendering_|Test_WC_IO_Order_Profit_Rendering_|Test_WC_IO_Product_Profitability_Rendering_|Test_WC_IO_Reporting_Controller_|Test_WC_IO_Restock_Rendering_|Test_WC_IO_Restock_Mutation_|Test_WC_IO_Restock_Cost_Adjustment_Preview_|Test_WC_IO_Restock_Controller_|Test_WC_IO_Overview_Rendering_|Test_WC_IO_Overview_Bulk_Action_|Test_WC_IO_Overview_Inline_Stock_Ajax_|Test_WC_IO_Overview_Csv_Export_|Test_WC_IO_Overview_Controller_|Test_WC_IO_Reorder_Signal_|Test_WC_IO_Summary_|Test_WC_IO_Overview_Summary_Cards_|Test_WC_IO_Reorder_Prefill_|Test_WC_IO_Purchase_Order_Lines_Supplier_History|Test_WC_IO_List_Table_Reorder_Action_Link|Test_WC_IO_M22_Supplier_Fallback_Characterization|Test_WC_IO_Replenishment_Defaults_|Test_WC_IO_Product_Replenishment_Admin|Test_WC_IO_Preferred_Supplier_Prefill|Test_WC_IO_Default_Quantity_Prefill' )
 fi
 
 echo "Running PHPUnit ${FILTER_ARGS[*]}..."

@@ -399,6 +399,62 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	}
 
 	/**
+	 * Distinct supplier IDs with committed (non-draft, non-cancelled)
+	 * purchase history for one purchasable item, most-recent order first
+	 * (M22). No eligibility filtering here — that is
+	 * Suppliers::is_eligible_for_selection()'s job, applied by the caller.
+	 *
+	 * "Committed" = po.status IN (placed, partially_received, received,
+	 * closed_short) — draft and cancelled POs are excluded, matching the
+	 * same status set WC_Inventory_Overview_Supplier_Spend_Service (M15)
+	 * already uses for "committed spend." A draft PO is not a committed
+	 * purchasing relationship and must never be the sole basis for
+	 * auto-preselecting a supplier on a new draft.
+	 *
+	 * Deliberately mirrors list_open_lines_for_product_ids()/
+	 * list_open_lines_for_variation_ids()'s dual-path shape: filters on
+	 * whichever single-column index (product_id or variation_id) is most
+	 * selective for the given identity, rather than a combined predicate
+	 * with no supporting composite index.
+	 *
+	 * @param int $product_id   Parent id for a variation, own id for a simple product.
+	 * @param int $variation_id Variation id, or 0 for a simple product.
+	 * @return int[] Supplier IDs, ordered by most-recent po.order_date DESC.
+	 */
+	public static function distinct_supplier_history_for_item( int $product_id, int $variation_id = 0 ): array {
+		global $wpdb;
+
+		$lines  = self::table_name();
+		$orders = WC_Inventory_Overview_Purchase_Orders::table_name();
+
+		if ( $variation_id > 0 ) {
+			$qualifier_sql = 'pol.variation_id = %d';
+			$qualifier_arg = $variation_id;
+		} else {
+			if ( $product_id <= 0 ) {
+				return array();
+			}
+			$qualifier_sql = 'pol.variation_id = 0 AND pol.product_id = %d';
+			$qualifier_arg = $product_id;
+		}
+
+		$sql = "SELECT po.supplier_id AS supplier_id, MAX(po.order_date) AS latest_order_date
+			FROM {$lines} pol
+			INNER JOIN {$orders} po ON po.id = pol.po_id
+			WHERE po.status IN ('placed', 'partially_received', 'received', 'closed_short')
+				AND {$qualifier_sql}
+			GROUP BY po.supplier_id
+			ORDER BY latest_order_date DESC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $qualifier_arg ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+		return array_map( 'absint', wp_list_pluck( $rows, 'supplier_id' ) );
+	}
+
+	/**
 	 * Shared open-line SELECT for the two M3 bulk methods above.
 	 *
 	 * @param string $qualifier_sql Additional WHERE fragment (product_id/variation_id IN (...)) with %d placeholders.

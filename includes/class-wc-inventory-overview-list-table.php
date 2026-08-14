@@ -421,7 +421,7 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 		}
 		if ( $low ) {
 			$html = '<span class="wc-io-badge wc-io-badge-low">' . esc_html__( 'Low stock', 'wc-inventory-overview' ) . '</span>';
-			$html .= self::render_reorder_signal_badge( $item->get_id(), (float) $low_amt, $position_map );
+			$html .= self::render_reorder_signal_badge( $item, (float) $low_amt, $position_map );
 			return $html;
 		}
 
@@ -433,26 +433,63 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 	 * item, or '' when no Position result is available for it (viewer lacks
 	 * manage_woocommerce, or the item is absent from the map). The sole
 	 * caller of WC_Inventory_Overview_Reorder_Signal_Resolver::resolve() on
-	 * this class's behalf (INV-M21-2).
+	 * this class's behalf (INV-M21-2). M22: also renders the "Create Draft
+	 * PO" quick-action link in the needs_reorder branch (BR-M22-1) -- never
+	 * for covered_by_incoming, never for a variable-parent rollup row
+	 * (structural: this method is never called for that row, M22 plan §3).
 	 *
-	 * @param int                               $item_id      Product or variation ID.
-	 * @param float                             $threshold    The same effective low-stock threshold already used for this item's Low-stock determination (BR-M21-2).
-	 * @param array<int, array<string, mixed>>   $position_map Inventory Position results keyed by item ID.
+	 * @param WC_Product                       $item         Product or variation this row represents (M22: needed for the action link's identity/type).
+	 * @param float                            $threshold    The same effective low-stock threshold already used for this item's Low-stock determination (BR-M21-2).
+	 * @param array<int, array<string, mixed>> $position_map Inventory Position results keyed by item ID.
 	 * @return string
 	 */
-	protected static function render_reorder_signal_badge( int $item_id, float $threshold, array $position_map ) {
+	protected static function render_reorder_signal_badge( WC_Product $item, float $threshold, array $position_map ) {
+		$item_id = $item->get_id();
 		if ( ! isset( $position_map[ $item_id ] ) ) {
 			return '';
 		}
 
-		$position    = (float) $position_map[ $item_id ]['position'];
-		$signal      = WC_Inventory_Overview_Reorder_Signal_Resolver::resolve( $position, $threshold );
+		$position = (float) $position_map[ $item_id ]['position'];
+		$signal   = WC_Inventory_Overview_Reorder_Signal_Resolver::resolve( $position, $threshold );
 
 		if ( $signal['needs_reorder'] ) {
-			return ' <span class="wc-io-badge wc-io-badge-needs-reorder">' . esc_html__( 'Needs reorder', 'wc-inventory-overview' ) . '</span>';
+			$html  = ' <span class="wc-io-badge wc-io-badge-needs-reorder">' . esc_html__( 'Needs reorder', 'wc-inventory-overview' ) . '</span>';
+			$html .= self::render_reorder_action_link( $item );
+			return $html;
 		}
 
 		return ' <span class="wc-io-badge wc-io-badge-covered-incoming">' . esc_html__( 'Covered by incoming', 'wc-inventory-overview' ) . '</span>';
+	}
+
+	/**
+	 * M22 (BR-M22-1, BR-M22-2, BR-M22-3): "Create Draft PO" quick-action
+	 * link for a needs_reorder item. Gated by Purchasing_Caps::EDIT_PO --
+	 * the same capability WC_Inventory_Overview_PO_Admin::handle_save()
+	 * itself requires to complete the action -- independent of, and in
+	 * addition to, the manage_woocommerce gate already applied by
+	 * prepare_items() to $this->position_map (M21). Zero new queries:
+	 * derives everything from the already-loaded $item object, so this
+	 * link adds no per-row or per-page SQL (INV-M22-13).
+	 *
+	 * @param WC_Product $item Product or variation this row represents.
+	 * @return string
+	 */
+	protected static function render_reorder_action_link( WC_Product $item ): string {
+		if ( ! WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::EDIT_PO ) ) {
+			return '';
+		}
+
+		if ( $item->is_type( 'variation' ) ) {
+			$product_id   = (int) $item->get_parent_id();
+			$variation_id = (int) $item->get_id();
+		} else {
+			$product_id   = (int) $item->get_id();
+			$variation_id = 0;
+		}
+
+		$url = WC_Inventory_Overview_PO_Admin::reorder_prefill_url( $product_id, $variation_id );
+
+		return ' <a href="' . esc_url( $url ) . '" class="button button-small wc-io-reorder-action">' . esc_html__( 'Create Draft PO', 'wc-inventory-overview' ) . '</a>';
 	}
 
 	/**

@@ -148,6 +148,11 @@ class Test_WC_IO_Expected_Delivery_Architecture extends WP_UnitTestCase {
 	 *   ajax_save_inline_stock()'s badge-refresh response builds a single-item,
 	 *   manage_woocommerce-gated Position lookup so the AJAX response can
 	 *   include the same Reorder Signal badge the list table shows.
+	 * - class-wc-inventory-overview-reorder-prefill-service.php (M22):
+	 *   resolve()'s TOCTOU re-evaluation (§4) obtains On Hand + Incoming
+	 *   for exactly one item via the single-item get_position() variant --
+	 *   never a second calculator, consumes the same D12 result shape
+	 *   every other caller here does.
 	 */
 	public function test_only_list_table_and_expected_delivery_service_call_position_service() {
 		$callers = array();
@@ -171,10 +176,11 @@ class Test_WC_IO_Expected_Delivery_Architecture extends WP_UnitTestCase {
 				'class-wc-inventory-overview-expected-delivery-service.php',
 				'class-wc-inventory-overview-list-table.php',
 				'class-wc-inventory-overview-overview-controller.php',
+				'class-wc-inventory-overview-reorder-prefill-service.php',
 				'class-wc-inventory-overview-summary.php',
 			),
 			$callers,
-			'Only the list table, the Expected Delivery Service, Summary (M21), and Overview_Controller (M21) may call Inventory_Position_Service:: (D12 sole-calculator discipline, extended to M7/M21).'
+			'Only the list table, the Expected Delivery Service, Summary (M21), Overview_Controller (M21), and Reorder_Prefill_Service (M22) may call Inventory_Position_Service:: (D12 sole-calculator discipline, extended to M7/M21/M22).'
 		);
 	}
 
