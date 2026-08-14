@@ -109,6 +109,21 @@ class WC_Inventory_Overview_Repository {
 			$args['order']    = isset( $params['order'] ) && 'ASC' === strtoupper( (string) $params['order'] ) ? 'ASC' : 'DESC';
 		}
 
+		// M24 (§9.2): additive bounded-include passthrough. When present,
+		// overrides pagination entirely with a single bounded result set
+		// sized exactly to the include list -- no page math, no per-ID
+		// fallback. Does not alter the 'type'/'status' filtering already
+		// established above, so callers that also pass
+		// sellable_stock_lines_only=>true (M24's own discovery path) still
+		// get the simple+variation type scoping, just resolved to a fixed
+		// id list instead of a page.
+		if ( ! empty( $params['include'] ) && is_array( $params['include'] ) ) {
+			$args['include']  = array_map( 'absint', $params['include'] );
+			$args['limit']    = count( $args['include'] );
+			$args['paginate'] = false;
+			unset( $args['page'] );
+		}
+
 		if ( ! empty( $params['stock_status'] ) && is_array( $params['stock_status'] ) ) {
 			$args['stock_status'] = array_map( 'sanitize_key', $params['stock_status'] );
 		}
