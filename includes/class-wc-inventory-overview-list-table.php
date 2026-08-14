@@ -122,12 +122,23 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 	}
 
 	protected function get_bulk_actions() {
-		return array(
+		$actions = array(
 			'wc_io_set_draft'       => __( 'Set to draft', 'wc-inventory-overview' ),
 			'wc_io_hide_catalog'    => __( 'Hide from catalog', 'wc-inventory-overview' ),
 			'wc_io_mark_instock'    => __( 'Mark in stock', 'wc-inventory-overview' ),
 			'wc_io_mark_outofstock' => __( 'Mark out of stock', 'wc-inventory-overview' ),
 		);
+
+		// M24 (§10): a viewer who can never reach the Planning tab never
+		// sees the action offered -- UX-only visibility gating. The bulk
+		// POST handler re-checks VIEW_PO independently and unconditionally
+		// (mandatory, BR-M24-14) -- this list table stays unaware of that
+		// handler, called not coupled (INV-M20-18 precedent).
+		if ( WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::VIEW_PO ) ) {
+			$actions['wc_io_plan_replenishment'] = __( 'Plan replenishment', 'wc-inventory-overview' );
+		}
+
+		return $actions;
 	}
 
 	public function has_items() {

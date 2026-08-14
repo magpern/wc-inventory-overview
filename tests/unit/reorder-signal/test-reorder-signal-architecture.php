@@ -58,6 +58,12 @@ class Test_WC_IO_Reorder_Signal_Architecture extends WP_UnitTestCase {
 			// keys to decide the reorder-prefill 'stale' vs 'prefilled'
 			// outcome -- calls through the Resolver, never reimplements it.
 			'class-wc-inventory-overview-reorder-prefill-service.php',
+			// M24: calls Summary::get_needs_reorder_items() (itself a
+			// caller-through-Summary of classify_needs_reorder_bulk() /
+			// the Resolver, already allowed above) to discover/resolve the
+			// bulk replenishment worklist -- never reimplements the
+			// position<=threshold comparison itself (INV-M24-2/3).
+			'class-wc-inventory-overview-replenishment-planning-service.php',
 		);
 
 		$offenders = array();

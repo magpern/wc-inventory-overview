@@ -16,6 +16,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 	const TAB_SUPPLIERS = 'suppliers';
 	const TAB_ORDERS    = 'orders';
 	const TAB_RECEIPTS  = 'receipts';
+	const TAB_PLANNING  = 'planning';
 
 	/**
 	 * Singleton instance.
@@ -167,6 +168,22 @@ class WC_Inventory_Overview_Purchasing_Page {
 							" class="nav-tab <?php echo self::TAB_SUPPLIERS === $tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Suppliers', 'wc-inventory-overview' ); ?>
 				</a>
+				<?php if ( WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::VIEW_PO ) ) : ?>
+				<a href="
+				<?php
+				echo esc_url(
+					add_query_arg(
+						array(
+							'tab' => self::TAB_PLANNING,
+						),
+						admin_url( 'admin.php?page=' . self::PAGE_SLUG )
+					)
+				);
+				?>
+							" class="nav-tab <?php echo self::TAB_PLANNING === $tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Planning', 'wc-inventory-overview' ); ?>
+				</a>
+				<?php endif; ?>
 			</nav>
 
 			<?php $this->render_notices(); ?>
@@ -184,10 +201,139 @@ class WC_Inventory_Overview_Purchasing_Page {
 				case self::TAB_SUPPLIERS:
 					$this->render_suppliers_panel( $action );
 					break;
+				case self::TAB_PLANNING:
+					$this->render_planning_tab();
+					break;
 			}
 			?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * M24: read-only Replenishment Planning tab (§10/§21). Requires
+	 * Purchasing_Caps::VIEW_PO independently of render_page()'s own
+	 * manage_woocommerce gate (both currently resolve to the same
+	 * capability by default, but this re-check is the actual contract --
+	 * BR-M24-14 -- and matches the pattern already used for other
+	 * capability-specific sections on this page, e.g.
+	 * render_supplier_merge_section()'s MERGE_SUPPLIER re-check). No
+	 * commit/create button anywhere on this tab -- M25 owns bulk Draft PO
+	 * creation (§18/INV-M24-1).
+	 */
+	private function render_planning_tab() {
+		if ( ! WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::VIEW_PO ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'wc-inventory-overview' ), 403 );
+		}
+
+		// GET-untrusted item_ids -- never trusted, always re-resolved fresh
+		// by build_plan()'s own live scan (§11, "never trusts a stale badge
+		// or stale item_ids selection"). Malformed/non-numeric fragments are
+		// silently dropped by absint()/array_filter(), never fatal.
+		$item_ids_raw = isset( $_GET['item_ids'] ) ? sanitize_text_field( wp_unslash( $_GET['item_ids'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET, no state change.
+		$item_ids     = array();
+		if ( '' !== $item_ids_raw ) {
+			$item_ids = array_values( array_unique( array_filter( array_map( 'absint', explode( ',', $item_ids_raw ) ) ) ) );
+		}
+
+		$skipped    = isset( $_GET['wc_io_plan_skipped'] ) ? absint( $_GET['wc_io_plan_skipped'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$plan_error = isset( $_GET['wc_io_plan_error'] ) ? sanitize_key( $_GET['wc_io_plan_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		echo '<h2 class="wp-heading-inline wc-io-tab-panel-title">' . esc_html__( 'Replenishment Planning', 'wc-inventory-overview' ) . '</h2>';
+		echo '<hr class="wp-header-end" />';
+
+		if ( 'too_many' === $plan_error ) {
+			echo '<div class="notice notice-error"><p>' . esc_html(
+				sprintf(
+					/* translators: %d: maximum bulk-action selection count. */
+					__( 'You selected more than %1$d items. Please select %1$d or fewer, or use this catalog-wide Planning view instead (no selection needed).', 'wc-inventory-overview' ),
+					WC_Inventory_Overview_Replenishment_Planning_Service::MAX_BULK_ACTION_SELECTION
+				)
+			) . '</p></div>';
+			return;
+		}
+
+		if ( 'all_filtered' === $plan_error ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'All selected items were variable parent products and were skipped -- a variable parent can never itself be a purchasable line. Expand it in Inventory Overview and select specific variations instead.', 'wc-inventory-overview' ) . '</p></div>';
+			return;
+		}
+
+		if ( $skipped > 0 ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html(
+				sprintf(
+					/* translators: %d: number of skipped variable-parent selections. */
+					_n(
+						'%d selected item was skipped because it is a variable parent product -- expand it in Inventory Overview and select specific variations instead.',
+						'%d selected items were skipped because they are variable parent products -- expand them in Inventory Overview and select specific variations instead.',
+						$skipped,
+						'wc-inventory-overview'
+					),
+					$skipped
+				)
+			) . '</p></div>';
+		}
+
+		$plan = WC_Inventory_Overview_Replenishment_Planning_Service::build_plan( array(), $item_ids );
+
+		if ( $plan['truncated'] ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html(
+				sprintf(
+					/* translators: %d: maximum resolved/displayed line count. */
+					__( 'Showing the first %d needs-reorder items in catalog order. More items currently need reordering beyond this limit.', 'wc-inventory-overview' ),
+					WC_Inventory_Overview_Replenishment_Planning_Service::MAX_LINES
+				)
+			) . '</p></div>';
+		}
+
+		if ( empty( $plan['groups'] ) && empty( $plan['unresolved'] ) ) {
+			echo '<p>' . esc_html__( 'No items currently need reordering.', 'wc-inventory-overview' ) . '</p>';
+			return;
+		}
+
+		foreach ( $plan['groups'] as $group ) {
+			echo '<h3>' . esc_html( $group['supplier_name'] ) . ' <span class="description">(' . esc_html( $group['currency'] ) . ')</span></h3>';
+			echo '<table class="widefat striped wc-io-mini-table"><thead><tr>';
+			echo '<th>' . esc_html__( 'Product', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'SKU', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'On Hand', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'Incoming', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'Position', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'Threshold', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'Suggested Qty', 'wc-inventory-overview' ) . '</th>';
+			echo '</tr></thead><tbody>';
+			foreach ( $group['lines'] as $line ) {
+				echo '<tr>';
+				echo '<td>' . esc_html( $line['name'] );
+				if ( ! empty( $line['preferred_supplier_stale'] ) ) {
+					echo ' <span class="wc-io-badge wc-io-badge-warning">' . esc_html__( 'Preferred supplier unavailable — using purchase history', 'wc-inventory-overview' ) . '</span>';
+				}
+				echo '</td>';
+				echo '<td>' . esc_html( $line['sku'] ) . '</td>';
+				echo '<td>' . esc_html( (string) wc_stock_amount( $line['on_hand'] ) ) . '</td>';
+				echo '<td>' . esc_html( (string) wc_stock_amount( $line['incoming'] ) ) . '</td>';
+				echo '<td>' . esc_html( (string) wc_stock_amount( $line['position'] ) ) . '</td>';
+				echo '<td>' . esc_html( (string) wc_stock_amount( $line['threshold'] ) ) . '</td>';
+				echo '<td>' . esc_html( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '</td>';
+				echo '</tr>';
+			}
+			echo '</tbody></table>';
+		}
+
+		if ( ! empty( $plan['unresolved'] ) ) {
+			echo '<h3>' . esc_html__( 'Unresolved (no supplier chosen)', 'wc-inventory-overview' ) . '</h3>';
+			echo '<table class="widefat striped wc-io-mini-table"><thead><tr>';
+			echo '<th>' . esc_html__( 'Product', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'SKU', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'Reason', 'wc-inventory-overview' ) . '</th>';
+			echo '</tr></thead><tbody>';
+			foreach ( $plan['unresolved'] as $u ) {
+				$reason_label = 'multiple_suppliers' === $u['reason']
+					? __( 'Multiple possible suppliers — choose manually', 'wc-inventory-overview' )
+					: __( 'No eligible supplier found in purchase history', 'wc-inventory-overview' );
+				echo '<tr><td>' . esc_html( $u['name'] ) . '</td><td>' . esc_html( $u['sku'] ) . '</td><td>' . esc_html( $reason_label ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
 	}
 
 	/**
