@@ -1,15 +1,17 @@
 <?php
 /**
- * Reorder → Draft PO Quick Action prefill resolution (M22).
+ * Reorder → Draft PO Quick Action prefill resolution (M22; supplier
+ * precedence + quantity default extension in M23).
  *
  * Read-only orchestrator for the New PO screen's reorder-prefill GET
  * parameters. Composes existing, unmodified owners only — never
  * reimplements product/variation identity validation (delegates to
  * WC_Inventory_Overview_PO_Product_Validator), Position calculation
- * (delegates to WC_Inventory_Overview_Inventory_Position_Service), or the
+ * (delegates to WC_Inventory_Overview_Inventory_Position_Service), the
  * needs_reorder comparison (delegates to
- * WC_Inventory_Overview_Reorder_Signal_Resolver). Performs zero mutation
- * and issues no admin_post/AJAX handler of its own.
+ * WC_Inventory_Overview_Reorder_Signal_Resolver), or replenishment-default
+ * reads (delegates to WC_Inventory_Overview_Replenishment_Defaults).
+ * Performs zero mutation and issues no admin_post/AJAX handler of its own.
  *
  * @package WC_Inventory_Overview
  */
@@ -42,7 +44,7 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 	 * @param int $variation_id Variation id, or 0 for a simple product.
 	 * @return array{
 	 *   status: 'prefilled'|'stale'|'invalid'|'malformed',
-	 *   line: array{product_id:int, variation_id:int, name_snapshot:string, sku_snapshot:string}|null,
+	 *   line: array{product_id:int, variation_id:int, name_snapshot:string, sku_snapshot:string, qty_ordered?:string}|null,
 	 *   supplier_id: int,
 	 *   notices: array<int, array{type:'info'|'warning', message:string}>,
 	 * }
@@ -82,22 +84,62 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 
 		list( $supplier_id, $supplier_notices ) = self::resolve_supplier(
 			(int) $resolved['product_id'],
-			(int) $resolved['variation_id']
+			(int) $resolved['variation_id'],
+			$item_id
 		);
+
+		$default_qty = WC_Inventory_Overview_Replenishment_Defaults::get_default_qty( $item_id );
+		if ( $default_qty > 0 ) {
+			$line['qty_ordered'] = (string) $default_qty;
+		}
 
 		return self::result( 'prefilled', $line, $supplier_id, $supplier_notices );
 	}
 
 	/**
-	 * Supplier resolution (§5): exactly 2 queries regardless of how many
-	 * distinct suppliers have ever sold this item (INV-M22-16) — 1 history
-	 * query + 1 bulk fetch, never a per-supplier Suppliers::get() loop.
+	 * Supplier resolution (M23 §10): a configured, currently eligible
+	 * preferred supplier (WC_Inventory_Overview_Replenishment_Defaults) is
+	 * used directly and the committed-history heuristic is not run at all.
+	 * A configured but ineligible (archived/merged/deleted) preferred
+	 * supplier falls back to the unchanged M22 history algorithm, plus a
+	 * distinct notice (BR-M23-2/3/4). No preference configured -> byte-for-
+	 * byte M22 behavior (BR-M23-3, INV-M23-7/18), including its fixed
+	 * 2-query bound (INV-M22-16, unchanged).
+	 *
+	 * @param int $product_id    Parent id for a variation, own id for a simple product.
+	 * @param int $variation_id  Variation id, or 0.
+	 * @param int $item_post_id  Concrete purchasable item's own post id (§7): the variation's own id, or the simple product's own id.
+	 * @return array{0:int,1:array<int,array{type:string,message:string}>}
+	 */
+	private static function resolve_supplier( int $product_id, int $variation_id, int $item_post_id ): array {
+		$preferred_supplier_id = WC_Inventory_Overview_Replenishment_Defaults::get_preferred_supplier_id( $item_post_id );
+
+		if ( $preferred_supplier_id > 0 ) {
+			$supplier_row = WC_Inventory_Overview_Suppliers::get( $preferred_supplier_id );
+			if ( ! is_wp_error( $supplier_row ) && WC_Inventory_Overview_Suppliers::is_eligible_for_selection( $supplier_row ) ) {
+				// Happy path: no notice, matching M22's existing pattern of
+				// only surfacing notices for imperfect/ambiguous states.
+				return array( $preferred_supplier_id, array() );
+			}
+
+			list( $supplier_id, $history_notices ) = self::resolve_supplier_from_history( $product_id, $variation_id );
+			return array( $supplier_id, array_merge( array( self::notice_preferred_supplier_stale() ), $history_notices ) );
+		}
+
+		return self::resolve_supplier_from_history( $product_id, $variation_id );
+	}
+
+	/**
+	 * M22's original committed-history heuristic (§5), byte-for-byte
+	 * unchanged: exactly 2 queries regardless of how many distinct
+	 * suppliers have ever sold this item (INV-M22-16) — 1 history query +
+	 * 1 bulk fetch, never a per-supplier Suppliers::get() loop.
 	 *
 	 * @param int $product_id   Parent id for a variation, own id for a simple product.
 	 * @param int $variation_id Variation id, or 0.
 	 * @return array{0:int,1:array<int,array{type:string,message:string}>}
 	 */
-	private static function resolve_supplier( int $product_id, int $variation_id ): array {
+	private static function resolve_supplier_from_history( int $product_id, int $variation_id ): array {
 		$supplier_ids = WC_Inventory_Overview_Purchase_Order_Lines::distinct_supplier_history_for_item( $product_id, $variation_id );
 		if ( empty( $supplier_ids ) ) {
 			return array( 0, array( self::notice_no_supplier() ) );
@@ -186,6 +228,18 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 		return array(
 			'type'    => 'info',
 			'message' => __( 'This item has purchase history with more than one supplier — choose one below.', 'wc-inventory-overview' ),
+		);
+	}
+
+	/**
+	 * Notice (M23 BR-M23-4) for a configured preferred supplier that is no
+	 * longer eligible (archived, merged, or deleted) — falls back to the
+	 * committed-history heuristic.
+	 */
+	private static function notice_preferred_supplier_stale(): array {
+		return array(
+			'type'    => 'warning',
+			'message' => __( "This item's preferred supplier is no longer available — showing a suggestion based on purchase history instead.", 'wc-inventory-overview' ),
 		);
 	}
 }
