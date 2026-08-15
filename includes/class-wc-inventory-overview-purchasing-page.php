@@ -50,6 +50,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 		add_action( 'wp_ajax_wc_io_search_merge_targets', array( $this, 'ajax_search_merge_targets' ) );
 		WC_Inventory_Overview_PO_Admin::init();
 		WC_Inventory_Overview_Goods_Receipt_Admin::init();
+		WC_Inventory_Overview_Replenishment_Commit_Admin::init();
 	}
 
 	/**
@@ -226,6 +227,9 @@ class WC_Inventory_Overview_Purchasing_Page {
 			wp_die( esc_html__( 'Insufficient permissions.', 'wc-inventory-overview' ), 403 );
 		}
 
+		$this->render_commit_result_summary();
+		$this->render_commit_validation_notice();
+
 		// GET-untrusted item_ids -- never trusted, always re-resolved fresh
 		// by build_plan()'s own live scan (§11, "never trusts a stale badge
 		// or stale item_ids selection"). Malformed/non-numeric fragments are
@@ -290,33 +294,152 @@ class WC_Inventory_Overview_Purchasing_Page {
 			return;
 		}
 
-		foreach ( $plan['groups'] as $group ) {
-			echo '<h3>' . esc_html( $group['supplier_name'] ) . ' <span class="description">(' . esc_html( $group['currency'] ) . ')</span></h3>';
-			echo '<table class="widefat striped wc-io-mini-table"><thead><tr>';
-			echo '<th>' . esc_html__( 'Product', 'wc-inventory-overview' ) . '</th>';
-			echo '<th>' . esc_html__( 'SKU', 'wc-inventory-overview' ) . '</th>';
-			echo '<th>' . esc_html__( 'On Hand', 'wc-inventory-overview' ) . '</th>';
-			echo '<th>' . esc_html__( 'Incoming', 'wc-inventory-overview' ) . '</th>';
-			echo '<th>' . esc_html__( 'Position', 'wc-inventory-overview' ) . '</th>';
-			echo '<th>' . esc_html__( 'Threshold', 'wc-inventory-overview' ) . '</th>';
-			echo '<th>' . esc_html__( 'Suggested Qty', 'wc-inventory-overview' ) . '</th>';
-			echo '</tr></thead><tbody>';
-			foreach ( $group['lines'] as $line ) {
-				echo '<tr>';
-				echo '<td>' . esc_html( $line['name'] );
-				if ( ! empty( $line['preferred_supplier_stale'] ) ) {
-					echo ' <span class="wc-io-badge wc-io-badge-warning">' . esc_html__( 'Preferred supplier unavailable — using purchase history', 'wc-inventory-overview' ) . '</span>';
-				}
-				echo '</td>';
-				echo '<td>' . esc_html( $line['sku'] ) . '</td>';
-				echo '<td>' . esc_html( (string) wc_stock_amount( $line['on_hand'] ) ) . '</td>';
-				echo '<td>' . esc_html( (string) wc_stock_amount( $line['incoming'] ) ) . '</td>';
-				echo '<td>' . esc_html( (string) wc_stock_amount( $line['position'] ) ) . '</td>';
-				echo '<td>' . esc_html( (string) wc_stock_amount( $line['threshold'] ) ) . '</td>';
-				echo '<td>' . esc_html( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '</td>';
-				echo '</tr>';
+		// M25: the commit form (checkboxes, editable quantities, submit) is
+		// additive-only on top of M24's read-only rendering, and only ever
+		// rendered for EDIT_PO -- a VIEW_PO-only viewer sees exactly M24's
+		// original non-interactive table (BR-M25-18).
+		$can_commit = WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::EDIT_PO ) && ! empty( $plan['groups'] );
+
+		if ( $can_commit ) {
+			$fields = WC_Inventory_Overview_Replenishment_Commit_Admin::form_fields();
+			?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="wc-io-replen-commit-form">
+				<input type="hidden" name="action" value="wc_io_replenishment_commit" />
+				<input type="hidden" name="<?php echo esc_attr( $fields['token_field'] ); ?>" value="<?php echo esc_attr( $fields['token'] ); ?>" />
+				<?php wp_nonce_field( $fields['nonce_action'], $fields['nonce_field'] ); ?>
+				<p class="wc-io-replen-commit-count" id="wc-io-replen-commit-count">
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: 1: number of currently selected lines, 2: maximum selectable lines. */
+							__( '%1$d of %2$d selected', 'wc-inventory-overview' ),
+							0,
+							WC_Inventory_Overview_Replenishment_Commit_Service::MAX_COMMIT_LINES
+						)
+					);
+					?>
+				</p>
+				<?php
 			}
-			echo '</tbody></table>';
+
+			$line_index = 0;
+			foreach ( $plan['groups'] as $group ) {
+				echo '<h3>' . esc_html( $group['supplier_name'] ) . ' <span class="description">(' . esc_html( $group['currency'] ) . ')</span></h3>';
+				if ( $can_commit ) {
+					echo '<p><label><input type="checkbox" class="wc-io-replen-select-all" data-group="' . esc_attr( (string) $group['supplier_id'] ) . '" /> ' . esc_html__( 'Select all in this group', 'wc-inventory-overview' ) . '</label></p>';
+				}
+				echo '<table class="widefat striped wc-io-mini-table"><thead><tr>';
+				if ( $can_commit ) {
+					echo '<th></th>';
+				}
+				echo '<th>' . esc_html__( 'Product', 'wc-inventory-overview' ) . '</th>';
+				echo '<th>' . esc_html__( 'SKU', 'wc-inventory-overview' ) . '</th>';
+				echo '<th>' . esc_html__( 'On Hand', 'wc-inventory-overview' ) . '</th>';
+				echo '<th>' . esc_html__( 'Incoming', 'wc-inventory-overview' ) . '</th>';
+				echo '<th>' . esc_html__( 'Position', 'wc-inventory-overview' ) . '</th>';
+				echo '<th>' . esc_html__( 'Threshold', 'wc-inventory-overview' ) . '</th>';
+				echo '<th>' . esc_html( $can_commit ? __( 'Quantity', 'wc-inventory-overview' ) : __( 'Suggested Qty', 'wc-inventory-overview' ) ) . '</th>';
+				echo '</tr></thead><tbody>';
+				foreach ( $group['lines'] as $line ) {
+					echo '<tr>';
+					if ( $can_commit ) {
+						echo '<td>';
+						echo '<input type="checkbox" class="wc-io-replen-select" data-group="' . esc_attr( (string) $group['supplier_id'] ) . '" name="items[' . esc_attr( (string) $line_index ) . '][selected]" value="1" />';
+						echo '<input type="hidden" name="items[' . esc_attr( (string) $line_index ) . '][product_id]" value="' . esc_attr( (string) $line['product_id'] ) . '" />';
+						echo '<input type="hidden" name="items[' . esc_attr( (string) $line_index ) . '][variation_id]" value="' . esc_attr( (string) $line['variation_id'] ) . '" />';
+						echo '</td>';
+					}
+					echo '<td>' . esc_html( $line['name'] );
+					if ( ! empty( $line['preferred_supplier_stale'] ) ) {
+						echo ' <span class="wc-io-badge wc-io-badge-warning">' . esc_html__( 'Preferred supplier unavailable — using purchase history', 'wc-inventory-overview' ) . '</span>';
+					}
+					echo '</td>';
+					echo '<td>' . esc_html( $line['sku'] ) . '</td>';
+					echo '<td>' . esc_html( (string) wc_stock_amount( $line['on_hand'] ) ) . '</td>';
+					echo '<td>' . esc_html( (string) wc_stock_amount( $line['incoming'] ) ) . '</td>';
+					echo '<td>' . esc_html( (string) wc_stock_amount( $line['position'] ) ) . '</td>';
+					echo '<td>' . esc_html( (string) wc_stock_amount( $line['threshold'] ) ) . '</td>';
+					if ( $can_commit ) {
+						echo '<td><input type="number" class="wc-io-replen-qty" min="0" step="0.0001" name="items[' . esc_attr( (string) $line_index ) . '][qty]" value="' . esc_attr( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '" /></td>';
+					} else {
+						echo '<td>' . esc_html( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '</td>';
+					}
+					echo '</tr>';
+					++$line_index;
+				}
+				echo '</tbody></table>';
+			}
+
+			if ( $can_commit ) {
+				?>
+				<p class="submit">
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Create Draft Purchase Orders', 'wc-inventory-overview' ); ?></button>
+				</p>
+			</form>
+			<script type="text/javascript">
+			( function() {
+				var MAX = <?php echo (int) WC_Inventory_Overview_Replenishment_Commit_Service::MAX_COMMIT_LINES; ?>;
+				var form = document.getElementById( 'wc-io-replen-commit-form' );
+				if ( ! form ) {
+					return;
+				}
+				var counter = document.getElementById( 'wc-io-replen-commit-count' );
+				var boxes = function() {
+					return Array.prototype.slice.call( form.querySelectorAll( '.wc-io-replen-select' ) );
+				};
+				var updateCount = function() {
+					var checked = boxes().filter( function( b ) { return b.checked; } ).length;
+					if ( counter ) {
+						counter.textContent = checked + ' <?php echo esc_js( __( 'of', 'wc-inventory-overview' ) ); ?> ' + MAX + ' <?php echo esc_js( __( 'selected', 'wc-inventory-overview' ) ); ?>';
+					}
+					boxes().forEach( function( b ) {
+						if ( ! b.checked ) {
+							b.disabled = checked >= MAX;
+						}
+					} );
+				};
+				form.addEventListener( 'change', function( e ) {
+					if ( e.target && e.target.classList && e.target.classList.contains( 'wc-io-replen-select-all' ) ) {
+						var group = e.target.getAttribute( 'data-group' );
+						var groupBoxes = boxes().filter( function( b ) {
+							return b.getAttribute( 'data-group' ) === group;
+						} );
+						if ( e.target.checked ) {
+							// Remaining global capacity excludes boxes already
+							// checked outside this group. Select at most that
+							// many in-group lines so select-all cannot push
+							// the global count past MAX (WP2 F-04).
+							var outsideChecked = boxes().filter( function( b ) {
+								return b.checked && b.getAttribute( 'data-group' ) !== group;
+							} ).length;
+							var remaining = Math.max( 0, MAX - outsideChecked );
+							var selectedInGroup = 0;
+							groupBoxes.forEach( function( b ) {
+								if ( selectedInGroup < remaining ) {
+									b.checked = true;
+									b.disabled = false;
+									selectedInGroup++;
+								} else {
+									b.checked = false;
+								}
+							} );
+							e.target.checked = selectedInGroup === groupBoxes.length && groupBoxes.length > 0;
+						} else {
+							groupBoxes.forEach( function( b ) {
+								b.checked = false;
+							} );
+						}
+						updateCount();
+						return;
+					}
+					if ( e.target && e.target.classList && e.target.classList.contains( 'wc-io-replen-select' ) ) {
+						updateCount();
+					}
+				} );
+				updateCount();
+			} )();
+			</script>
+			<?php
 		}
 
 		if ( ! empty( $plan['unresolved'] ) ) {
@@ -333,6 +456,100 @@ class WC_Inventory_Overview_Purchasing_Page {
 				echo '<tr><td>' . esc_html( $u['name'] ) . '</td><td>' . esc_html( $u['sku'] ) . '</td><td>' . esc_html( $reason_label ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
+		}
+	}
+
+	/**
+	 * M25 §21: read (and delete) the opaque per-user commit-result transient
+	 * named by ?wc_io_commit_result=<result_id>, rendering a created/failed/
+	 * skipped summary. The transient key is always built from the CURRENT
+	 * user's own id -- never a user id sourced from the URL -- so a user
+	 * cannot view another user's result even by guessing a result_id.
+	 */
+	private function render_commit_result_summary() {
+		if ( ! isset( $_GET[ WC_Inventory_Overview_Replenishment_Commit_Admin::RESULT_QUERY_ARG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET, no state change.
+			return;
+		}
+		$result_id = sanitize_text_field( wp_unslash( $_GET[ WC_Inventory_Overview_Replenishment_Commit_Admin::RESULT_QUERY_ARG ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! preg_match( '/^[0-9a-f]{12}$/', $result_id ) ) {
+			// Malformed shape -- silently ignored, never fatal (a stray or
+			// tampered query arg is not an error condition worth surfacing).
+			return;
+		}
+
+		$key    = WC_Inventory_Overview_Replenishment_Commit_Admin::RESULT_TRANSIENT_PREFIX . get_current_user_id() . '_' . $result_id;
+		$result = get_transient( $key );
+		if ( ! is_array( $result ) ) {
+			return;
+		}
+		delete_transient( $key );
+
+		$created = isset( $result['created'] ) && is_array( $result['created'] ) ? $result['created'] : array();
+		$failed  = isset( $result['failed'] ) && is_array( $result['failed'] ) ? $result['failed'] : array();
+		$skipped = isset( $result['skipped'] ) && is_array( $result['skipped'] ) ? $result['skipped'] : array();
+
+		$reason_labels = array(
+			'not_found'                    => __( 'Product or variation could no longer be found', 'wc-inventory-overview' ),
+			'no_supplier'                  => __( 'No eligible supplier found in purchase history', 'wc-inventory-overview' ),
+			'multiple_suppliers'           => __( 'Multiple possible suppliers — choose manually', 'wc-inventory-overview' ),
+			'no_longer_needs_reorder'      => __( 'No longer needs reordering', 'wc-inventory-overview' ),
+			'concurrent_commit_in_progress' => __( 'Another commit for this item was in progress — please try again', 'wc-inventory-overview' ),
+			'already_has_open_po_line'     => __( 'Already included in a recently created purchase order', 'wc-inventory-overview' ),
+		);
+
+		echo '<div class="notice notice-' . ( empty( $failed ) ? 'success' : 'warning' ) . ' is-dismissible"><p>';
+		echo esc_html(
+			sprintf(
+				/* translators: 1: created count, 2: failed count, 3: skipped count. */
+				__( 'Replenishment commit finished: %1$d purchase order(s) created, %2$d failed, %3$d skipped.', 'wc-inventory-overview' ),
+				count( array_unique( wp_list_pluck( $created, 'po_id' ) ) ),
+				count( $failed ),
+				count( $skipped )
+			)
+		);
+		echo '</p>';
+
+		if ( ! empty( $created ) ) {
+			echo '<ul>';
+			foreach ( $created as $entry ) {
+				$po_id = isset( $entry['po_id'] ) ? (int) $entry['po_id'] : 0;
+				echo '<li>' . esc_html( (string) ( $entry['name'] ?? '' ) ) . ' — <a href="' . esc_url( WC_Inventory_Overview_PO_Admin::detail_url( $po_id ) ) . '">' . esc_html( (string) ( $entry['supplier_name'] ?? '' ) ) . '</a></li>';
+			}
+			echo '</ul>';
+		}
+		if ( ! empty( $failed ) ) {
+			echo '<p><strong>' . esc_html__( 'Failed:', 'wc-inventory-overview' ) . '</strong></p><ul>';
+			foreach ( $failed as $entry ) {
+				echo '<li>' . esc_html( (string) ( $entry['name'] ?? '' ) ) . ' — ' . esc_html( (string) ( $entry['error_message'] ?? '' ) ) . '</li>';
+			}
+			echo '</ul>';
+		}
+		if ( ! empty( $skipped ) ) {
+			echo '<p><strong>' . esc_html__( 'Skipped:', 'wc-inventory-overview' ) . '</strong></p><ul>';
+			foreach ( $skipped as $entry ) {
+				$reason = (string) ( $entry['reason'] ?? '' );
+				$label  = $reason_labels[ $reason ] ?? $reason;
+				$item_label = 0 !== (int) ( $entry['variation_id'] ?? 0 ) ? (string) $entry['variation_id'] : (string) ( $entry['product_id'] ?? '' );
+				echo '<li>' . esc_html( sprintf( '#%s', $item_label ) ) . ' — ' . esc_html( $label ) . '</li>';
+			}
+			echo '</ul>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * M25 §7/§11: PRG notice for a selected-row validation failure
+	 * (invalid/missing quantity), as opposed to a structurally malformed
+	 * request (which wp_die()s instead of reaching this page at all).
+	 */
+	private function render_commit_validation_notice() {
+		if ( ! isset( $_GET[ WC_Inventory_Overview_Replenishment_Commit_Admin::VALIDATION_ERR_ARG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+		$message = get_transient( WC_Inventory_Overview_Replenishment_Commit_Admin::VALIDATION_ERR_TRANSIENT_PREFIX . get_current_user_id() );
+		if ( $message ) {
+			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( (string) $message ) . '</p></div>';
+			delete_transient( WC_Inventory_Overview_Replenishment_Commit_Admin::VALIDATION_ERR_TRANSIENT_PREFIX . get_current_user_id() );
 		}
 	}
 
