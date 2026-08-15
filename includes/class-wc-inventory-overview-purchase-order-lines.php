@@ -586,6 +586,94 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	}
 
 	/**
+	 * Bulk conflicting-open/draft-line detector (M25 §16/§48 Amendment A).
+	 *
+	 * Returns item_post_ids that currently have at least one PO line whose PO
+	 * status is in the exact, frozen conflict-status set: draft, placed,
+	 * partially_received -- deliberately INCLUDING 'draft', unlike
+	 * list_open_lines_for_product_ids()/list_open_lines_for_variation_ids()
+	 * (M3, which intentionally exclude drafts -- those answer "what is
+	 * physically incoming," not "does a commitment already exist"). Reuses
+	 * the plugin's own WC_Inventory_Overview_PO_Statuses constants rather
+	 * than hardcoding the three status strings.
+	 *
+	 * Same dual-branch SQL shape as distinct_supplier_history_for_items_bulk()
+	 * immediately above: one branch on `variation_id IN (...)`, one on
+	 * `variation_id = 0 AND product_id IN (...)` -- one bulk query per
+	 * non-empty branch, never a per-item query loop.
+	 *
+	 * @param int[] $product_ids   Product ids (simple products; variation_id = 0 rows only).
+	 * @param int[] $variation_ids Variation ids.
+	 * @return int[] item_post_ids currently carrying a conflicting line, no particular order.
+	 */
+	public static function list_open_or_draft_item_ids_bulk( array $product_ids, array $variation_ids ): array {
+		$product_ids   = self::normalize_ids( $product_ids );
+		$variation_ids = self::normalize_ids( $variation_ids );
+
+		$result = array();
+
+		if ( ! empty( $variation_ids ) ) {
+			$result = array_merge(
+				$result,
+				self::query_conflicting_item_ids(
+					'pol.variation_id IN (' . self::placeholders( $variation_ids ) . ')',
+					$variation_ids,
+					'pol.variation_id'
+				)
+			);
+		}
+
+		if ( ! empty( $product_ids ) ) {
+			$result = array_merge(
+				$result,
+				self::query_conflicting_item_ids(
+					'pol.variation_id = 0 AND pol.product_id IN (' . self::placeholders( $product_ids ) . ')',
+					$product_ids,
+					'pol.product_id'
+				)
+			);
+		}
+
+		return array_values( array_unique( $result ) );
+	}
+
+	/**
+	 * Shared conflict-status SELECT for list_open_or_draft_item_ids_bulk()'s
+	 * two branches. One query per call.
+	 *
+	 * @param string $qualifier_sql WHERE fragment with %d placeholders (the caller's IN (...) list).
+	 * @param int[]  $ids           IDs to bind into the qualifier's placeholders, in order.
+	 * @param string $group_column  Fully-qualified column this branch keys results by (pol.variation_id or pol.product_id).
+	 * @return int[] Distinct item_post_ids with a conflicting line.
+	 */
+	private static function query_conflicting_item_ids( string $qualifier_sql, array $ids, string $group_column ): array {
+		global $wpdb;
+
+		$lines  = self::table_name();
+		$orders = WC_Inventory_Overview_Purchase_Orders::table_name();
+
+		$status_list = "'" . implode(
+			"','",
+			array(
+				WC_Inventory_Overview_PO_Statuses::DRAFT,
+				WC_Inventory_Overview_PO_Statuses::PLACED,
+				WC_Inventory_Overview_PO_Statuses::PARTIALLY_RECEIVED,
+			)
+		) . "'";
+
+		$sql = "SELECT DISTINCT {$group_column} AS item_id
+			FROM {$lines} pol
+			INNER JOIN {$orders} po ON po.id = pol.po_id
+			WHERE po.status IN ({$status_list})
+				AND {$qualifier_sql}"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_list is built entirely from this class's own fixed status constants, never user input.
+
+		$prepared = $wpdb->prepare( $sql, $ids ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is built entirely from %d placeholders plus fixed literals, no interpolated user values.
+		$rows     = $wpdb->get_col( $prepared ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared is the $wpdb->prepare() result from the line above.
+
+		return array_map( 'absint', (array) $rows );
+	}
+
+	/**
 	 * Sanitize a list of IDs to positive unique integers.
 	 *
 	 * @param array $ids Raw IDs.
