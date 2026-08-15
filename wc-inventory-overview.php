@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WC Inventory Overview
  * Description:       Operational inventory dashboard for WooCommerce products and variations (HPOS-compatible).
- * Version:           1.42.0
+ * Version:           1.43.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            WC Inventory Overview
@@ -15,7 +15,7 @@
 defined( 'ABSPATH' ) || exit;
 
 if ( ! defined( 'WC_INVENTORY_OVERVIEW_VERSION' ) ) {
-	define( 'WC_INVENTORY_OVERVIEW_VERSION', '1.42.0' );
+	define( 'WC_INVENTORY_OVERVIEW_VERSION', '1.43.0' );
 }
 
 if ( ! defined( 'WC_INVENTORY_OVERVIEW_FILE' ) ) {
