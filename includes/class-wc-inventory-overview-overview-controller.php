@@ -213,6 +213,14 @@ class WC_Inventory_Overview_Overview_Controller {
 			return;
 		}
 
+		// M24 (§10): read-only, no mutation loop -- handled entirely
+		// separately from the mutating bulk actions below. Always exits
+		// internally (redirect or wp_die()).
+		if ( 'wc_io_plan_replenishment' === $action ) {
+			$this->handle_plan_replenishment_bulk_action( $ids );
+			return;
+		}
+
 		$updated = 0;
 		foreach ( $ids as $id ) {
 			$product = wc_get_product( $id );
@@ -268,8 +276,94 @@ class WC_Inventory_Overview_Overview_Controller {
 		if ( '' === $a ) {
 			return null;
 		}
-		$valid = array( 'wc_io_set_draft', 'wc_io_hide_catalog', 'wc_io_mark_instock', 'wc_io_mark_outofstock' );
+		$valid = array( 'wc_io_set_draft', 'wc_io_hide_catalog', 'wc_io_mark_instock', 'wc_io_mark_outofstock', 'wc_io_plan_replenishment' );
 		return in_array( $a, $valid, true ) ? $a : null;
+	}
+
+	/**
+	 * M24 (§10/§10.1/§10.2): "Plan replenishment" bulk-action handler.
+	 * Reuses the existing bulk-wc-inventory-items nonce (already verified by
+	 * the caller before this method runs) -- no new nonce. Zero mutation.
+	 * No `product[]`/wc_get_product() per-selected-id loop anywhere in this
+	 * method (INV-M24-15, BR-M24-23) -- the variable-parent filter uses the
+	 * same bounded `include`-based Repository lookup as scoped discovery
+	 * (§9.2/§9.4).
+	 *
+	 * Always exits internally: either wp_die() (capability failure),
+	 * wp_safe_redirect() back to Inventory Overview with an explanatory
+	 * failure notice (over-cap selection, or every selected id filtered
+	 * out), or wp_safe_redirect() (PRG, plain GET, no state persisted
+	 * beyond this one redirect) to the Planning tab with the surviving,
+	 * comma-separated item_ids.
+	 *
+	 * @param int[] $ids Selected post ids from the Inventory Overview list table (post[]).
+	 */
+	protected function handle_plan_replenishment_bulk_action( array $ids ) {
+		// Independent, mandatory server-side re-check of VIEW_PO (BR-M24-14) --
+		// the List_Table::get_bulk_actions() visibility gate is UX-only and
+		// must never be the sole enforcement point.
+		if ( ! WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::VIEW_PO ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'wc-inventory-overview' ), 403 );
+		}
+
+		// §10.1: reject over-cap selections outright -- never silently
+		// truncate the selection.
+		if ( count( $ids ) > WC_Inventory_Overview_Replenishment_Planning_Service::MAX_BULK_ACTION_SELECTION ) {
+			$this->redirect_to_overview_with_plan_error( 'too_many' );
+		}
+
+		// §10.2/§9.4 (Design A, proven at WP-M24-1): one bounded `include`
+		// lookup, not sellable-stock-scoped (deliberately omits
+		// sellable_stock_lines_only so the default type array -- which
+		// includes 'variable' -- lets a variable parent's own row be
+		// returned here specifically so it CAN be identified and filtered,
+		// unlike the scoped-discovery path in Summary which relies on the
+		// type array to exclude it outright). Never a per-selected-id
+		// wc_get_product() loop.
+		$r        = WC_Inventory_Overview_Repository::query_products( array( 'include' => $ids ) );
+		$products = isset( $r['products'] ) && is_array( $r['products'] ) ? $r['products'] : array();
+
+		$surviving_ids = array();
+		$skipped       = 0;
+		foreach ( $products as $p ) {
+			if ( ! $p instanceof WC_Product ) {
+				continue;
+			}
+			if ( $p->is_type( 'variable' ) ) {
+				++$skipped;
+				continue;
+			}
+			$surviving_ids[] = $p->get_id();
+		}
+
+		if ( empty( $surviving_ids ) ) {
+			$this->redirect_to_overview_with_plan_error( 'all_filtered' );
+		}
+
+		$target = admin_url(
+			'admin.php?page=' . WC_Inventory_Overview_Purchasing_Page::PAGE_SLUG
+			. '&tab=' . WC_Inventory_Overview_Purchasing_Page::TAB_PLANNING
+			. '&item_ids=' . implode( ',', $surviving_ids )
+		);
+		if ( $skipped > 0 ) {
+			$target = add_query_arg( 'wc_io_plan_skipped', $skipped, $target );
+		}
+
+		wp_safe_redirect( $target );
+		exit;
+	}
+
+	/**
+	 * @param string $reason 'too_many'|'all_filtered'.
+	 */
+	private function redirect_to_overview_with_plan_error( string $reason ): void {
+		$sendback = remove_query_arg(
+			array( 'wc_io_export', '_wc_io_export_nonce', 'action', 'action2', '_wpnonce' ),
+			wp_get_referer() ? wp_get_referer() : WC_Inventory_Overview_Plugin::instance()->admin_url_tab( WC_Inventory_Overview_Plugin::TAB_OVERVIEW )
+		);
+		$sendback = add_query_arg( 'wc_io_plan_error', $reason, $sendback );
+		wp_safe_redirect( $sendback );
+		exit;
 	}
 
 	public function ajax_save_inline_stock() {
@@ -485,6 +579,24 @@ class WC_Inventory_Overview_Overview_Controller {
 				)
 			);
 			echo '</p></div>';
+		}
+
+		// M24 (§10.1/§10.2): "Plan replenishment" bulk-action failure
+		// notices -- over-cap selection, or every selected id was a
+		// variable parent and got filtered out.
+		if ( ! empty( $_GET['wc_io_plan_error'] ) ) {
+			$reason = sanitize_key( wp_unslash( $_GET['wc_io_plan_error'] ) );
+			if ( 'too_many' === $reason ) {
+				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html(
+					sprintf(
+						/* translators: %d: maximum bulk-action selection count. */
+						__( 'You selected more than %1$d items. Please select %1$d or fewer, or use the catalog-wide Planning view under Purchasing instead.', 'wc-inventory-overview' ),
+						WC_Inventory_Overview_Replenishment_Planning_Service::MAX_BULK_ACTION_SELECTION
+					)
+				) . '</p></div>';
+			} elseif ( 'all_filtered' === $reason ) {
+				echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__( 'All selected items were variable parent products and were skipped -- a variable parent can never itself be a purchasable line. Expand it and select specific variations instead.', 'wc-inventory-overview' ) . '</p></div>';
+			}
 		}
 
 		echo '<h2 class="wp-heading-inline wc-io-tab-panel-title">' . esc_html__( 'Inventory Overview', 'wc-inventory-overview' ) . '</h2>';

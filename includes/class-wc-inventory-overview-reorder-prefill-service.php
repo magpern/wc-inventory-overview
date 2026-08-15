@@ -97,14 +97,18 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 	}
 
 	/**
-	 * Supplier resolution (M23 §10): a configured, currently eligible
+	 * Supplier resolution (M23 §10; delegated to the shared, pure
+	 * WC_Inventory_Overview_Supplier_Preference_Resolver::decide() as of
+	 * M24 §9.6/INV-M24-4 -- same precedence, same external behavior,
+	 * notices/query-shape unchanged): a configured, currently eligible
 	 * preferred supplier (WC_Inventory_Overview_Replenishment_Defaults) is
 	 * used directly and the committed-history heuristic is not run at all.
 	 * A configured but ineligible (archived/merged/deleted) preferred
 	 * supplier falls back to the unchanged M22 history algorithm, plus a
 	 * distinct notice (BR-M23-2/3/4). No preference configured -> byte-for-
 	 * byte M22 behavior (BR-M23-3, INV-M23-7/18), including its fixed
-	 * 2-query bound (INV-M22-16, unchanged).
+	 * 2-query bound (INV-M22-16, unchanged) once history is actually
+	 * consulted.
 	 *
 	 * @param int $product_id    Parent id for a variation, own id for a simple product.
 	 * @param int $variation_id  Variation id, or 0.
@@ -114,35 +118,59 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 	private static function resolve_supplier( int $product_id, int $variation_id, int $item_post_id ): array {
 		$preferred_supplier_id = WC_Inventory_Overview_Replenishment_Defaults::get_preferred_supplier_id( $item_post_id );
 
+		$preferred_eligible = false;
 		if ( $preferred_supplier_id > 0 ) {
-			$supplier_row = WC_Inventory_Overview_Suppliers::get( $preferred_supplier_id );
-			if ( ! is_wp_error( $supplier_row ) && WC_Inventory_Overview_Suppliers::is_eligible_for_selection( $supplier_row ) ) {
-				// Happy path: no notice, matching M22's existing pattern of
-				// only surfacing notices for imperfect/ambiguous states.
-				return array( $preferred_supplier_id, array() );
-			}
-
-			list( $supplier_id, $history_notices ) = self::resolve_supplier_from_history( $product_id, $variation_id );
-			return array( $supplier_id, array_merge( array( self::notice_preferred_supplier_stale() ), $history_notices ) );
+			$supplier_row        = WC_Inventory_Overview_Suppliers::get( $preferred_supplier_id );
+			$preferred_eligible  = ! is_wp_error( $supplier_row ) && WC_Inventory_Overview_Suppliers::is_eligible_for_selection( $supplier_row );
 		}
 
-		return self::resolve_supplier_from_history( $product_id, $variation_id );
+		// Committed history only needs to be queried when the preferred
+		// supplier isn't a currently-eligible direct hit -- identical to
+		// M22/M23's original short-circuit (a currently-eligible preferred
+		// supplier never issues a history query).
+		$eligible_history_ids = array();
+		if ( ! ( $preferred_supplier_id > 0 && $preferred_eligible ) ) {
+			$eligible_history_ids = self::eligible_history_supplier_ids( $product_id, $variation_id );
+		}
+
+		$decision = WC_Inventory_Overview_Supplier_Preference_Resolver::decide(
+			$preferred_supplier_id,
+			$preferred_eligible,
+			$eligible_history_ids
+		);
+
+		$notices = array();
+		if ( $decision['preferred_was_stale'] ) {
+			$notices[] = self::notice_preferred_supplier_stale();
+		}
+		if ( 'none' === $decision['history_outcome'] ) {
+			$notices[] = self::notice_no_supplier();
+		} elseif ( 'ambiguous' === $decision['history_outcome'] ) {
+			$notices[] = self::notice_multiple_suppliers();
+		}
+
+		return array( $decision['supplier_id'], $notices );
 	}
 
 	/**
 	 * M22's original committed-history heuristic (§5), byte-for-byte
-	 * unchanged: exactly 2 queries regardless of how many distinct
+	 * unchanged in shape: exactly 2 queries regardless of how many distinct
 	 * suppliers have ever sold this item (INV-M22-16) — 1 history query +
-	 * 1 bulk fetch, never a per-supplier Suppliers::get() loop.
+	 * 1 bulk fetch, never a per-supplier Suppliers::get() loop. Returns the
+	 * eligible subset only (order preserved from the history query's own
+	 * most-recent-first ordering) for WC_Inventory_Overview_Supplier_Preference_Resolver::decide()
+	 * to interpret (M24 extraction) -- no notice text here, that lives in
+	 * resolve_supplier() (§12 MEDIUM fix: decide() is a pure decider, never
+	 * a notice owner).
 	 *
 	 * @param int $product_id   Parent id for a variation, own id for a simple product.
 	 * @param int $variation_id Variation id, or 0.
-	 * @return array{0:int,1:array<int,array{type:string,message:string}>}
+	 * @return int[] Eligible supplier ids, most-recent-order-first.
 	 */
-	private static function resolve_supplier_from_history( int $product_id, int $variation_id ): array {
+	private static function eligible_history_supplier_ids( int $product_id, int $variation_id ): array {
 		$supplier_ids = WC_Inventory_Overview_Purchase_Order_Lines::distinct_supplier_history_for_item( $product_id, $variation_id );
 		if ( empty( $supplier_ids ) ) {
-			return array( 0, array( self::notice_no_supplier() ) );
+			return array();
 		}
 
 		$supplier_rows = WC_Inventory_Overview_Suppliers::list_by_ids( $supplier_ids );
@@ -154,13 +182,7 @@ class WC_Inventory_Overview_Reorder_Prefill_Service {
 			}
 		}
 
-		if ( empty( $eligible ) ) {
-			return array( 0, array( self::notice_no_supplier() ) );
-		}
-		if ( 1 === count( $eligible ) ) {
-			return array( $eligible[0], array() );
-		}
-		return array( 0, array( self::notice_multiple_suppliers() ) );
+		return $eligible;
 	}
 
 	/**

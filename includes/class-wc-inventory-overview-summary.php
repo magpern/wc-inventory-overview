@@ -71,34 +71,77 @@ class WC_Inventory_Overview_Summary {
 	 * after the scan completes, never inside the loop or once per candidate
 	 * (INV-M21-4, BR-M21-12).
 	 *
+	 * M24 (WP-M24-3, BR-M24-17): the scan itself is now the shared
+	 * gather_low_stock_candidates() helper (no item_ids, catalog-wide) --
+	 * output/query-count byte-identical to the pre-M24 inline implementation
+	 * (characterization-proven). low_stock counts every qualifying candidate
+	 * ENCOUNTERED (gather order), matching the pre-M24 unconditional
+	 * per-candidate increment exactly -- not a deduplicated id count (the two
+	 * only differ if the same id is somehow encountered twice across pages,
+	 * which never happens under normal pagination, but this preserves the
+	 * original counting semantics exactly regardless).
+	 *
 	 * @param array<string, mixed> $base_params Base filters.
 	 * @return array{low_stock: int, needs_reorder: int}
 	 */
 	protected static function scan_low_stock_and_needs_reorder( array $base_params ) {
-		$page     = 1;
-		$per_page = 200;
-		$max_page = 40;
-		$low_total = 0;
+		$gathered  = self::gather_low_stock_candidates( $base_params );
+		$low_total = count( $gathered['order'] );
 
+		$needs_reorder = 0;
+		foreach ( self::classify_needs_reorder_bulk( $gathered['product_candidates'], $gathered['variation_candidates'] ) as $classification ) {
+			if ( ! empty( $classification['needs_reorder'] ) ) {
+				++$needs_reorder;
+			}
+		}
+
+		return array(
+			'low_stock'     => $low_total,
+			'needs_reorder' => $needs_reorder,
+		);
+	}
+
+	/**
+	 * M24 (WP-M24-3, §9.4/§9.5): shared low-stock/managing-stock/in-stock
+	 * candidate gather, extracted from the pre-M24 body of
+	 * scan_low_stock_and_needs_reorder() so both that method (catalog-wide,
+	 * no item_ids, unchanged 40-page/200-per-page ceiling) and the new
+	 * get_needs_reorder_items() (catalog-wide OR item_ids-scoped) share one
+	 * gather implementation (INV-M24-11: Summary remains the sole
+	 * full-catalog/scoped low-stock/needs-reorder scanner).
+	 *
+	 * Scoped path (non-empty $item_ids, BR-M24-2/BR-M24-22): one bounded
+	 * `include`-based Repository::query_products() call (Design A, proven
+	 * sufficient by test-repository-include-variation-proof.php, WP-M24-1 --
+	 * no per-ID fallback loop, §9.4). An id that no longer qualifies (wrong
+	 * type, stock unmanaged, out of stock, no threshold, above threshold) or
+	 * no longer exists is simply absent from the returned candidate set --
+	 * silently dropped, not surfaced as an error (BR-M24-3).
+	 *
+	 * Catalog-wide path (empty $item_ids): unchanged inherited 40-page loop.
+	 *
+	 * Captures name/sku/parent_id directly from the already-loaded
+	 * WC_Product during this single pass (§9.3/§9.4) -- no second
+	 * wc_get_product()/PO_Product_Validator::validate() call anywhere
+	 * downstream needs to re-fetch identity.
+	 *
+	 * @param array<string, mixed> $base_params Base filters (search, category, stock_status, exclude_private).
+	 * @param int[]                $item_ids    Scoped item (product/variation) ids, or empty for catalog-wide.
+	 * @return array{
+	 *   product_candidates: array<int, array{on_hand:float, threshold:float}>,
+	 *   variation_candidates: array<int, array{on_hand:float, threshold:float}>,
+	 *   meta: array<int, array{name:string, sku:string, parent_id:int, is_variation:bool, on_hand:float, threshold:float}>,
+	 *   order: array<int>,
+	 * }
+	 */
+	private static function gather_low_stock_candidates( array $base_params, array $item_ids = array() ) {
 		$product_candidates   = array();
 		$variation_candidates = array();
+		$meta                 = array();
+		$order                = array();
 
-		$params = array_merge(
-			$base_params,
-			array(
-				'sellable_stock_lines_only' => true,
-				'stock_status'              => array( \Automattic\WooCommerce\Enums\ProductStockStatus::IN_STOCK ),
-				'per_page'                  => $per_page,
-			)
-		);
-
-		while ( $page <= $max_page ) {
-			$params['paged'] = $page;
-			$r               = WC_Inventory_Overview_Repository::query_products( $params );
-			if ( empty( $r['products'] ) ) {
-				break;
-			}
-			foreach ( $r['products'] as $p ) {
+		$consume = static function ( array $products ) use ( &$product_candidates, &$variation_candidates, &$meta, &$order ) {
+			foreach ( $products as $p ) {
 				if ( ! $p instanceof WC_Product || ! $p->managing_stock() || ! $p->is_in_stock() ) {
 					continue;
 				}
@@ -111,34 +154,137 @@ class WC_Inventory_Overview_Summary {
 					continue;
 				}
 
-				++$low_total;
+				$id           = (int) $p->get_id();
+				$is_variation = $p->is_type( 'variation' );
 
 				$candidate = array(
 					'on_hand'   => (float) $qty,
 					'threshold' => (float) $low,
 				);
-				if ( $p->is_type( 'variation' ) ) {
-					$variation_candidates[ $p->get_id() ] = $candidate;
+				if ( $is_variation ) {
+					$variation_candidates[ $id ] = $candidate;
 				} else {
-					$product_candidates[ $p->get_id() ] = $candidate;
+					$product_candidates[ $id ] = $candidate;
 				}
-			}
-			if ( $page >= ( $r['max_num_pages'] ?? 1 ) ) {
-				break;
-			}
-			++$page;
-		}
 
-		$needs_reorder = 0;
-		foreach ( self::classify_needs_reorder_bulk( $product_candidates, $variation_candidates ) as $classification ) {
-			if ( ! empty( $classification['needs_reorder'] ) ) {
-				++$needs_reorder;
+				$meta[ $id ] = array(
+					'name'         => (string) $p->get_name(),
+					'sku'          => (string) $p->get_sku(),
+					'parent_id'    => $is_variation ? (int) $p->get_parent_id() : 0,
+					'is_variation' => $is_variation,
+					'on_hand'      => (float) $qty,
+					'threshold'    => (float) $low,
+				);
+				$order[] = $id;
+			}
+		};
+
+		if ( ! empty( $item_ids ) ) {
+			$params = array_merge(
+				$base_params,
+				array(
+					'sellable_stock_lines_only' => true,
+					'stock_status'              => array( \Automattic\WooCommerce\Enums\ProductStockStatus::IN_STOCK ),
+					'include'                   => array_map( 'absint', $item_ids ),
+				)
+			);
+			$r = WC_Inventory_Overview_Repository::query_products( $params );
+			$consume( isset( $r['products'] ) && is_array( $r['products'] ) ? $r['products'] : array() );
+		} else {
+			$page     = 1;
+			$per_page = 200;
+			$max_page = 40;
+
+			$params = array_merge(
+				$base_params,
+				array(
+					'sellable_stock_lines_only' => true,
+					'stock_status'              => array( \Automattic\WooCommerce\Enums\ProductStockStatus::IN_STOCK ),
+					'per_page'                  => $per_page,
+				)
+			);
+
+			while ( $page <= $max_page ) {
+				$params['paged'] = $page;
+				$r               = WC_Inventory_Overview_Repository::query_products( $params );
+				if ( empty( $r['products'] ) ) {
+					break;
+				}
+				$consume( $r['products'] );
+				if ( $page >= ( $r['max_num_pages'] ?? 1 ) ) {
+					break;
+				}
+				++$page;
 			}
 		}
 
 		return array(
-			'low_stock'     => $low_total,
-			'needs_reorder' => $needs_reorder,
+			'product_candidates'   => $product_candidates,
+			'variation_candidates' => $variation_candidates,
+			'meta'                 => $meta,
+			'order'                => $order,
+		);
+	}
+
+	/**
+	 * M24 (WP-M24-3, §9.5/§21): itemized sibling of
+	 * scan_low_stock_and_needs_reorder(). Same gather + classify pipeline
+	 * (gather_low_stock_candidates(), then one classify_needs_reorder_bulk()
+	 * call over the FULL gathered set -- never stopped early, so the
+	 * catalog-wide inherited ~8,000-candidate ceiling is unaffected by
+	 * $limit). $limit, when > 0, truncates the CLASSIFIED needs-reorder
+	 * result to its first $limit members in the SAME order the candidates
+	 * were gathered (Repository::query_products()'s own ordering) -- never
+	 * re-sorted before truncation, since sorting the full up-to-8000-item
+	 * set first would defeat the resolution-cost bound this truncation
+	 * exists to provide (§9.5). $limit = 0 means unbounded (the item_ids-
+	 * scoped path only ever passes 0, since that input is already bounded to
+	 * <=100 externally by the bulk-action cap, BR-M24-21).
+	 *
+	 * Captures name/sku/parent_id from the already-loaded WC_Product during
+	 * the gather pass (no re-fetch, §9.3) -- callers must never re-run
+	 * PO_Product_Validator::validate() or a second wc_get_product() for an
+	 * item already present in this result (INV-M24-12).
+	 *
+	 * @param array<string, mixed> $base_params Base filters, same shape as scan_low_stock_and_needs_reorder().
+	 * @param int[]                $item_ids    Scoped item ids (BR-M24-2), or empty for catalog-wide (BR-M24-1).
+	 * @param int                  $limit       Max items to return (0 = unbounded).
+	 * @return array{
+	 *   items: array<int, array{product_id:int, variation_id:int, name:string, sku:string, on_hand:float, threshold:float, position:float}>,
+	 *   truncated: bool,
+	 * }
+	 */
+	public static function get_needs_reorder_items( array $base_params, array $item_ids = array(), int $limit = 0 ) {
+		$gathered   = self::gather_low_stock_candidates( $base_params, $item_ids );
+		$classified = self::classify_needs_reorder_bulk( $gathered['product_candidates'], $gathered['variation_candidates'] );
+
+		$items = array();
+		foreach ( $gathered['order'] as $id ) {
+			$c = $classified[ $id ] ?? null;
+			if ( null === $c || empty( $c['needs_reorder'] ) ) {
+				continue;
+			}
+			$meta      = $gathered['meta'][ $id ];
+			$items[] = array(
+				'product_id'   => $meta['is_variation'] ? $meta['parent_id'] : $id,
+				'variation_id' => $meta['is_variation'] ? $id : 0,
+				'name'         => $meta['name'],
+				'sku'          => $meta['sku'],
+				'on_hand'      => $meta['on_hand'],
+				'threshold'    => $meta['threshold'],
+				'position'     => (float) $c['position'],
+			);
+		}
+
+		$truncated = false;
+		if ( $limit > 0 && count( $items ) > $limit ) {
+			$truncated = true;
+			$items     = array_slice( $items, 0, $limit );
+		}
+
+		return array(
+			'items'     => $items,
+			'truncated' => $truncated,
 		);
 	}
 

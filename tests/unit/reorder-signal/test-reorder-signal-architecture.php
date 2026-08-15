@@ -58,6 +58,23 @@ class Test_WC_IO_Reorder_Signal_Architecture extends WP_UnitTestCase {
 			// keys to decide the reorder-prefill 'stale' vs 'prefilled'
 			// outcome -- calls through the Resolver, never reimplements it.
 			'class-wc-inventory-overview-reorder-prefill-service.php',
+			// M24: calls Summary::get_needs_reorder_items() (itself a
+			// caller-through-Summary of classify_needs_reorder_bulk() /
+			// the Resolver, already allowed above) to discover/resolve the
+			// bulk replenishment worklist -- never reimplements the
+			// position<=threshold comparison itself (INV-M24-2/3).
+			'class-wc-inventory-overview-replenishment-planning-service.php',
+			// M25: neither file reimplements the classification -- both
+			// merely reference the literal skip-reason label
+			// 'no_longer_needs_reorder' (an item present in the submitted
+			// commit that no longer appears in build_plan()'s fresh,
+			// scoped rebuild, BR-M25-7), which coincidentally contains the
+			// substring "needs_reorder". Replenishment_Commit_Service calls
+			// through the already-allowlisted build_plan() (never a raw
+			// $position/$threshold comparison of its own); Purchasing_Page
+			// only displays that same label in the commit-result summary.
+			'class-wc-inventory-overview-replenishment-commit-service.php',
+			'class-wc-inventory-overview-purchasing-page.php',
 		);
 
 		$offenders = array();

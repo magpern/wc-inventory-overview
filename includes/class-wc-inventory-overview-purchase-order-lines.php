@@ -455,6 +455,91 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 	}
 
 	/**
+	 * Bulk sibling of distinct_supplier_history_for_item() (M24 WP-M24-4,
+	 * §14.1/§21): distinct eligible-history-candidate supplier ids for MANY
+	 * purchasable items in one pass, at most 2 queries total regardless of
+	 * how many ids are requested (1 variation-scoped branch + 1
+	 * product-scoped branch -- 1 query total if only one id type is
+	 * non-empty, 0 if both are empty). Same "committed" status set as the
+	 * single-item method, byte-for-byte unchanged there (INV-M24-9). No
+	 * eligibility filtering here -- that remains the caller's job
+	 * (WC_Inventory_Overview_Suppliers::is_eligible_for_selection()), same
+	 * division of responsibility as the single-item method.
+	 *
+	 * Dual-path shape mirrors list_open_lines_for_product_ids()/
+	 * list_open_lines_for_variation_ids() and the single-item method above
+	 * (§14.1): a variation-scoped branch (`variation_id IN (...)`) and a
+	 * product-scoped branch (`variation_id = 0 AND product_id IN (...)`),
+	 * each grouped by its own qualifying column plus supplier_id so every
+	 * item's supplier list is independently aggregated in one GROUP BY pass
+	 * -- never a per-item query loop.
+	 *
+	 * @param int[] $product_ids   Product ids (simple products; variation_id = 0 rows only).
+	 * @param int[] $variation_ids Variation ids.
+	 * @return array<int,int[]> item_id => distinct eligible-candidate supplier ids, most-recent-order-date first.
+	 */
+	public static function distinct_supplier_history_for_items_bulk( array $product_ids, array $variation_ids ): array {
+		$product_ids   = self::normalize_ids( $product_ids );
+		$variation_ids = self::normalize_ids( $variation_ids );
+
+		$result = array();
+
+		if ( ! empty( $variation_ids ) ) {
+			$result += self::query_supplier_history_bulk(
+				'pol.variation_id IN (' . self::placeholders( $variation_ids ) . ')',
+				$variation_ids,
+				'pol.variation_id'
+			);
+		}
+
+		if ( ! empty( $product_ids ) ) {
+			$result += self::query_supplier_history_bulk(
+				'pol.variation_id = 0 AND pol.product_id IN (' . self::placeholders( $product_ids ) . ')',
+				$product_ids,
+				'pol.product_id'
+			);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Shared aggregate SELECT for distinct_supplier_history_for_items_bulk()'s
+	 * two branches (M24 §14.1). One query per call.
+	 *
+	 * @param string $qualifier_sql WHERE fragment with %d placeholders (the caller's IN (...) list).
+	 * @param int[]  $ids           IDs to bind into the qualifier's placeholders, in order.
+	 * @param string $group_column  Fully-qualified column this branch groups/keys results by (pol.variation_id or pol.product_id).
+	 * @return array<int,int[]> item_id => supplier ids, most-recent-order-date first within each item.
+	 */
+	private static function query_supplier_history_bulk( string $qualifier_sql, array $ids, string $group_column ): array {
+		global $wpdb;
+
+		$lines  = self::table_name();
+		$orders = WC_Inventory_Overview_Purchase_Orders::table_name();
+
+		$sql = "SELECT {$group_column} AS item_id, po.supplier_id AS supplier_id, MAX(po.order_date) AS latest_order_date
+			FROM {$lines} pol
+			INNER JOIN {$orders} po ON po.id = pol.po_id
+			WHERE po.status IN ('placed', 'partially_received', 'received', 'closed_short')
+				AND {$qualifier_sql}
+			GROUP BY {$group_column}, po.supplier_id
+			ORDER BY {$group_column} ASC, latest_order_date DESC"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $ids ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$result = array();
+		foreach ( (array) $rows as $row ) {
+			$item_id = (int) $row['item_id'];
+			if ( ! isset( $result[ $item_id ] ) ) {
+				$result[ $item_id ] = array();
+			}
+			$result[ $item_id ][] = (int) $row['supplier_id'];
+		}
+		return $result;
+	}
+
+	/**
 	 * Shared open-line SELECT for the two M3 bulk methods above.
 	 *
 	 * @param string $qualifier_sql Additional WHERE fragment (product_id/variation_id IN (...)) with %d placeholders.
@@ -498,6 +583,94 @@ class WC_Inventory_Overview_Purchase_Order_Lines {
 		$rows     = $wpdb->get_results( $prepared, ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared is the $wpdb->prepare() result from the line above.
 
 		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Bulk conflicting-open/draft-line detector (M25 §16/§48 Amendment A).
+	 *
+	 * Returns item_post_ids that currently have at least one PO line whose PO
+	 * status is in the exact, frozen conflict-status set: draft, placed,
+	 * partially_received -- deliberately INCLUDING 'draft', unlike
+	 * list_open_lines_for_product_ids()/list_open_lines_for_variation_ids()
+	 * (M3, which intentionally exclude drafts -- those answer "what is
+	 * physically incoming," not "does a commitment already exist"). Reuses
+	 * the plugin's own WC_Inventory_Overview_PO_Statuses constants rather
+	 * than hardcoding the three status strings.
+	 *
+	 * Same dual-branch SQL shape as distinct_supplier_history_for_items_bulk()
+	 * immediately above: one branch on `variation_id IN (...)`, one on
+	 * `variation_id = 0 AND product_id IN (...)` -- one bulk query per
+	 * non-empty branch, never a per-item query loop.
+	 *
+	 * @param int[] $product_ids   Product ids (simple products; variation_id = 0 rows only).
+	 * @param int[] $variation_ids Variation ids.
+	 * @return int[] item_post_ids currently carrying a conflicting line, no particular order.
+	 */
+	public static function list_open_or_draft_item_ids_bulk( array $product_ids, array $variation_ids ): array {
+		$product_ids   = self::normalize_ids( $product_ids );
+		$variation_ids = self::normalize_ids( $variation_ids );
+
+		$result = array();
+
+		if ( ! empty( $variation_ids ) ) {
+			$result = array_merge(
+				$result,
+				self::query_conflicting_item_ids(
+					'pol.variation_id IN (' . self::placeholders( $variation_ids ) . ')',
+					$variation_ids,
+					'pol.variation_id'
+				)
+			);
+		}
+
+		if ( ! empty( $product_ids ) ) {
+			$result = array_merge(
+				$result,
+				self::query_conflicting_item_ids(
+					'pol.variation_id = 0 AND pol.product_id IN (' . self::placeholders( $product_ids ) . ')',
+					$product_ids,
+					'pol.product_id'
+				)
+			);
+		}
+
+		return array_values( array_unique( $result ) );
+	}
+
+	/**
+	 * Shared conflict-status SELECT for list_open_or_draft_item_ids_bulk()'s
+	 * two branches. One query per call.
+	 *
+	 * @param string $qualifier_sql WHERE fragment with %d placeholders (the caller's IN (...) list).
+	 * @param int[]  $ids           IDs to bind into the qualifier's placeholders, in order.
+	 * @param string $group_column  Fully-qualified column this branch keys results by (pol.variation_id or pol.product_id).
+	 * @return int[] Distinct item_post_ids with a conflicting line.
+	 */
+	private static function query_conflicting_item_ids( string $qualifier_sql, array $ids, string $group_column ): array {
+		global $wpdb;
+
+		$lines  = self::table_name();
+		$orders = WC_Inventory_Overview_Purchase_Orders::table_name();
+
+		$status_list = "'" . implode(
+			"','",
+			array(
+				WC_Inventory_Overview_PO_Statuses::DRAFT,
+				WC_Inventory_Overview_PO_Statuses::PLACED,
+				WC_Inventory_Overview_PO_Statuses::PARTIALLY_RECEIVED,
+			)
+		) . "'";
+
+		$sql = "SELECT DISTINCT {$group_column} AS item_id
+			FROM {$lines} pol
+			INNER JOIN {$orders} po ON po.id = pol.po_id
+			WHERE po.status IN ({$status_list})
+				AND {$qualifier_sql}"; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_list is built entirely from this class's own fixed status constants, never user input.
+
+		$prepared = $wpdb->prepare( $sql, $ids ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is built entirely from %d placeholders plus fixed literals, no interpolated user values.
+		$rows     = $wpdb->get_col( $prepared ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $prepared is the $wpdb->prepare() result from the line above.
+
+		return array_map( 'absint', (array) $rows );
 	}
 
 	/**

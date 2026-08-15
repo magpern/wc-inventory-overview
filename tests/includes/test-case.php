@@ -477,6 +477,40 @@ abstract class WC_Inventory_Overview_Test_Case extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Open a genuine second, independent MySQL/MariaDB connection, distinct
+	 * from the shared $wpdb connection this PHP process's own request uses.
+	 *
+	 * Used by M25 lock-serialization tests to prove GET_LOCK()/RELEASE_LOCK()
+	 * blocking behavior empirically rather than only by sequential
+	 * simulation -- a real second session is required because a single
+	 * MySQL/MariaDB connection can re-acquire its own already-held named
+	 * lock without blocking (session-reentrant since MySQL 5.7), so a
+	 * same-connection "simulation" of a held lock would not actually
+	 * exercise GET_LOCK()'s blocking/timeout path at all.
+	 *
+	 * @return mysqli|null A connected mysqli instance, or null if the DB_*
+	 *                      constants required to open one are unavailable
+	 *                      (test harness limitation -- callers should mark
+	 *                      the test skipped in that case, never fail).
+	 */
+	protected function open_second_db_connection() {
+		if ( ! defined( 'DB_HOST' ) || ! defined( 'DB_USER' ) || ! defined( 'DB_PASSWORD' ) || ! defined( 'DB_NAME' ) ) {
+			return null;
+		}
+		if ( ! class_exists( 'mysqli' ) ) {
+			return null;
+		}
+		$host = DB_HOST;
+		$port = 3306;
+		if ( false !== strpos( $host, ':' ) ) {
+			list( $host, $port_raw ) = explode( ':', $host, 2 );
+			$port = (int) $port_raw;
+		}
+		$mysqli = @mysqli_connect( $host, DB_USER, DB_PASSWORD, DB_NAME, $port ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- deliberately non-fatal; caller treats a failed connection as "harness doesn't support this," not a test failure.
+		return $mysqli instanceof mysqli ? $mysqli : null;
+	}
+
+	/**
 	 * Backdate a legacy batch's created_at (direct SQL — simulates a batch
 	 * genuinely applied in a prior year, for receipt-numbering-year tests).
 	 *
