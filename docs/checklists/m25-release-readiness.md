@@ -32,7 +32,7 @@
 | `a566466` | test(m25): add replenishment-commit suite and CI filter |
 | `9e557ac` | docs(m25): record bulk draft PO creation changelog and status |
 | `cfd60d7` | fix(m25): apply PHPCS autofixes and record measured 100/100 timing |
-| *(this commit)* | docs(m25): Level A release-readiness checklist and freeze evidence |
+| `ca8e805` | docs(m25): Level A release-readiness checklist and freeze evidence |
 
 ## WP2 Findings → WP3 Remediation
 
