@@ -52,7 +52,19 @@ class Test_WC_IO_Replenishment_Planning_Architecture extends WP_UnitTestCase {
 		}
 	}
 
-	public function test_purchasing_page_planning_tab_contains_no_write_capable_calls() {
+	/**
+	 * M25 WP-M25-5 update: render_planning_tab() now legitimately renders a
+	 * commit <form> (POSTing to admin_post_wc_io_replenishment_commit,
+	 * handled entirely by the separate Replenishment_Commit_Admin class) --
+	 * M24's original "zero <form anywhere" placeholder assertion is
+	 * superseded by design, per the M25 plan's explicit WP-M25-5 scope. What
+	 * remains true, and is still asserted here, is that render_planning_tab()
+	 * itself never directly performs a mutation or calls
+	 * PO_Service::create_draft() -- it only renders markup; the actual
+	 * mutation happens in Replenishment_Commit_Admin/Replenishment_Commit_Service
+	 * after a real POST round-trip.
+	 */
+	public function test_purchasing_page_planning_tab_contains_no_direct_mutation_calls() {
 		$src = $this->strip_comments( $this->read( 'class-wc-inventory-overview-purchasing-page.php' ) );
 
 		$pos = strpos( $src, 'function render_planning_tab' );
@@ -60,10 +72,14 @@ class Test_WC_IO_Replenishment_Planning_Architecture extends WP_UnitTestCase {
 		$end  = strpos( $src, "\n\tprivate function ", $pos + 10 );
 		$body = substr( $src, $pos, ( false !== $end ? $end : strlen( $src ) ) - $pos );
 
-		$forbidden = array( '->save(', 'update_post_meta', 'wp_insert_post', 'PO_Service::create_draft', '<form' );
+		$forbidden = array( '->save(', 'update_post_meta', 'wp_insert_post', 'PO_Service::create_draft', 'Purchase_Order_Lines::create', 'wpdb->insert', 'wpdb->update' );
 		foreach ( $forbidden as $needle ) {
 			$this->assertStringNotContainsString( $needle, $body, 'render_planning_tab() must not contain: ' . $needle );
 		}
+
+		// The form that IS now present must post to the dedicated M25 admin-post
+		// action, never directly to a mutation method.
+		$this->assertStringContainsString( 'wc_io_replenishment_commit', $body, 'The commit form must post to the dedicated admin_post_wc_io_replenishment_commit action.' );
 	}
 
 	public function test_bulk_action_handler_contains_no_product_mutation() {

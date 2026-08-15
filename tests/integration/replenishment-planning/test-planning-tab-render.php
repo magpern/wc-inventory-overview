@@ -54,7 +54,13 @@ class Test_WC_IO_Planning_Tab_Render extends WC_Inventory_Overview_Test_Case {
 		$this->assertStringContainsString( 'RENDER-SKU-1', $output );
 	}
 
-	public function test_no_commit_or_create_button_anywhere() {
+	/**
+	 * Superseded by M25 (BR-M25-18): M24 was read-only by design and had no
+	 * commit form. M25 adds exactly one, gated on EDIT_PO. This test now
+	 * asserts the M25 contract directly: an EDIT_PO user sees the commit
+	 * form/button; a VIEW_PO-only user does not.
+	 */
+	public function test_commit_form_gated_on_edit_po() {
 		$supplier = $this->create_supplier();
 		$product  = $this->create_simple_product( array( 'stock_qty' => 1 ) );
 		$product->set_low_stock_amount( 5 );
@@ -64,9 +70,9 @@ class Test_WC_IO_Planning_Tab_Render extends WC_Inventory_Overview_Test_Case {
 		$_GET['tab'] = WC_Inventory_Overview_Purchasing_Page::TAB_PLANNING;
 		$output      = $this->render();
 
-		$this->assertStringNotContainsString( 'Create Draft', $output );
-		$this->assertStringNotContainsString( 'wc_io_po_create', $output );
-		$this->assertStringNotContainsString( '<form', $output, 'M24 is read-only -- no mutating form anywhere on the Planning tab.' );
+		$this->assertStringContainsString( 'Create Draft', $output, 'An EDIT_PO user must see the M25 commit button.' );
+		$this->assertStringContainsString( '<form', $output, 'An EDIT_PO user must see the M25 commit form.' );
+		$this->assertStringContainsString( 'wc_io_replenishment_commit', $output );
 	}
 
 	/**
