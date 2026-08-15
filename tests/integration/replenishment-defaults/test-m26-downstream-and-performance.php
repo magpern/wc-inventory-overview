@@ -19,6 +19,7 @@ class Test_WC_IO_M26_Downstream_And_Performance extends WC_Inventory_Overview_Te
 
 	public function tearDown(): void {
 		WC_Inventory_Overview_Replenishment_Defaults::reset_test_write_fail();
+		WC_Inventory_Overview_Replenishment_Commit_Service::reset_test_seams();
 		parent::tearDown();
 	}
 
@@ -143,6 +144,8 @@ class Test_WC_IO_M26_Downstream_And_Performance extends WC_Inventory_Overview_Te
 			)
 		);
 		$this->assertIsArray( $commit );
+		$this->assertSame( array(), $commit['failed'], 'Commit failed: ' . wp_json_encode( $commit['failed'] ) );
+		$this->assertSame( array(), $commit['skipped'], 'Commit skipped: ' . wp_json_encode( $commit['skipped'] ) );
 		$this->assertSame( 1, count( $commit['created'] ) );
 		$po_id = (int) $commit['created'][0]['po_id'];
 		$lines = WC_Inventory_Overview_Purchase_Order_Lines::list_for_po( $po_id );
