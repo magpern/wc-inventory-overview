@@ -199,6 +199,8 @@ class WC_Inventory_Overview_Replenishment_Defaults {
 	 * @param int   $parent_product_id Variable parent product post id.
 	 * @param int[] $variation_ids     Target variation post ids.
 	 * @param array $changes {
+	 *     Field update flags and values for the bulk apply.
+	 *
 	 *     @type bool                  $update_preferred_supplier Whether to touch supplier.
 	 *     @type int                   $preferred_supplier_id     Required if update; 0 = clear.
 	 *     @type bool                  $update_default_qty        Whether to touch qty.
@@ -303,8 +305,8 @@ class WC_Inventory_Overview_Replenishment_Defaults {
 
 		foreach ( $variation_ids as $variation_id ) {
 			if ( $update_supplier ) {
-				$op     = ( 'clear' === $supplier_norm['action'] ) ? 'clear' : 'set';
-				$sid    = ( 'set' === $op ) ? (int) $supplier_norm['supplier_id'] : 0;
+				$op      = ( 'clear' === $supplier_norm['action'] ) ? 'clear' : 'set';
+				$sid     = ( 'set' === $op ) ? (int) $supplier_norm['supplier_id'] : 0;
 				$written = self::write_preferred_supplier_for_bulk( $variation_id, $op, $sid );
 				if ( is_wp_error( $written ) ) {
 					$written->add_data(
@@ -368,7 +370,7 @@ class WC_Inventory_Overview_Replenishment_Defaults {
 	 * Test-only: disarm mid-write failure injection.
 	 */
 	public static function reset_test_write_fail(): void {
-		self::$test_write_fail = null;
+		self::$test_write_fail  = null;
 		self::$test_success_ops = 0;
 	}
 
@@ -509,6 +511,8 @@ class WC_Inventory_Overview_Replenishment_Defaults {
 	}
 
 	/**
+	 * Optional PHPUnit-only write-failure injection seam.
+	 *
 	 * @param int    $variation_id Variation about to be written.
 	 * @param string $field        preferred_supplier|default_qty.
 	 * @param string $operation    set|clear.
