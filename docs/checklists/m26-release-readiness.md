@@ -1,6 +1,6 @@
 # M26 Release Readiness Checklist
 
-**Status:** Level A freeze preparation — **Unreleased** (do not merge/tag/deploy from this checklist alone)  
+**Status:** Frozen and CI-Green (verified) — **Unreleased** (do not merge/tag/deploy from this checklist alone)  
 **Date:** 2026-08-15  
 **Version:** 1.43.0 (development target — not tagged)  
 **DB_VERSION:** 11 (unchanged — no schema, no new table/column/index)  
@@ -10,7 +10,9 @@
 
 **Branch:** `feature/m26-apply-replenishment-defaults-to-variations`  
 **Plan:** `docs/milestones/m26-implementation-plan.md` (immutable; WP-M26-0 commit `677a108`)  
-**PR:** draft (opened at WP-M26-7; not merged)
+**PR:** draft [#35](https://github.com/magpern/wc-inventory-overview/pull/35), opened at freeze, not merged  
+**Freeze tip (pre-evidence):** `d0f63f6`  
+**GitHub Actions:** CI + Tests **pass** on PR #35 (PHP Parallel Lint, PHP lint and build ZIP, PHPUnit)
 
 ### Work Packages Completed
 
@@ -34,7 +36,10 @@
 | `30939b8` | feat(m26): add variation bulk-apply UI and AJAX wrapper |
 | `b12c30b` | test(m26): cover bulk-apply security at owner hook and AJAX boundaries |
 | `4cbbbda` | test(m26): prove downstream consumption and record bulk-apply timings |
-| *(freeze)* | docs(m26): bump 1.43.0 and Level A release-readiness checklist |
+| `81ccf46` | docs(m26): bump 1.43.0 and Level A release-readiness checklist |
+| `8158115` | fix(m26): allowlist get_current_screen and clean PHPCS on M26 files |
+| `d0f63f6` | test(m26): reset commit seams and assert commit failure details |
+| *(this)* | docs(m26): record Level A freeze evidence and CI-green draft PR #35 |
 
 ## Mandatory freeze documentation
 
@@ -95,7 +100,7 @@ No M22/M24/M25 business-logic edits required.
 
 ### 10. Schema-diff result
 
-**PASS.** `DB_VERSION` remains `'11'`. `git diff b603907..HEAD -- includes/class-wc-inventory-overview-install.php` expected empty / comment-only (no CREATE/ALTER). No new tables/columns/indexes.
+**PASS.** `DB_VERSION` remains `'11'`. Diff vs canonical base on `includes/class-wc-inventory-overview-install.php` is **comment-only** (appends `/M26.` to the unchanged-version annotation). No CREATE/ALTER; no new tables/columns/indexes.
 
 ### 11. Version / DB_VERSION
 
