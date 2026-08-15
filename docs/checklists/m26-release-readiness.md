@@ -1,18 +1,19 @@
 # M26 Release Readiness Checklist
 
-**Status:** Frozen and CI-Green (verified) — **Unreleased** (do not merge/tag/deploy from this checklist alone)  
+**Status:** **Published as v1.43.0** (2026-08-15) — tag + GitHub Release; roadmap complete after M26  
 **Date:** 2026-08-15  
-**Version:** 1.43.0 (development target — not tagged)  
+**Version:** 1.43.0  
 **DB_VERSION:** 11 (unchanged — no schema, no new table/column/index)  
-**Canonical base:** `main` / `origin/main` @ `b603907c37242e66610a7abad9fcb98c5ae0689a` (released baseline `v1.42.0` → `9b7e2e83b832426296f3026334e223de403c43e0`)
+**Canonical base:** `main` / `origin/main` merge `6b75903d549df66cad9b4f391665636318af3b10` (PR #35); release-source / tag peel `96ff98956fb5e655905c286de5ef36fca8a5c052`  
+**Released baseline superseded:** `v1.42.0` → `9b7e2e83b832426296f3026334e223de403c43e0`
 
 ## Implementation Summary
 
-**Branch:** `feature/m26-apply-replenishment-defaults-to-variations`  
+**Branch:** `feature/m26-apply-replenishment-defaults-to-variations` (merged)  
 **Plan:** `docs/milestones/m26-implementation-plan.md` (immutable; WP-M26-0 commit `677a108`)  
-**PR:** draft [#35](https://github.com/magpern/wc-inventory-overview/pull/35), opened at freeze, not merged  
-**Freeze tip (pre-evidence):** `d0f63f6`  
-**GitHub Actions:** CI + Tests **pass** on PR #35 (PHP Parallel Lint, PHP lint and build ZIP, PHPUnit)
+**PR:** [#35](https://github.com/magpern/wc-inventory-overview/pull/35) **merged**  
+**GitHub Release:** [v1.43.0](https://github.com/magpern/wc-inventory-overview/releases/tag/v1.43.0) (published, not draft/prerelease)  
+**GitHub Actions:** CI + Tests green on freeze tip; Release workflow green on tag push
 
 ### Work Packages Completed
 

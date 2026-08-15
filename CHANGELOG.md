@@ -1,8 +1,8 @@
 # Changelog — WC Inventory Overview
 
-## [1.43.0] - Unreleased
+## [1.43.0] - 2026-08-15
 
-**Milestone M26 — Apply Replenishment Defaults to Variations.** Final currently scheduled roadmap milestone (unreleased; no tag, no GitHub Release, no deploy until a separate release decision). Adds COPY/APPLY NOW bulk operations that set or clear preferred supplier and/or default replenishment quantity across all child variations of a variable product via WooCommerce's classic variation bulk-edit UI. **Zero schema change (`DB_VERSION` stays 11), zero inheritance, zero parent-meta writes, zero PO/stock/cost mutation, zero new public API, zero new capability** (reuses WooCommerce `edit_product`). `Replenishment_Defaults` remains the sole writer of both meta keys; M22/M24/M25 business logic is unmodified and consumes variation defaults through existing paths.
+**Milestone M26 — Apply Replenishment Defaults to Variations.** Final currently scheduled roadmap milestone. Adds COPY/APPLY NOW bulk operations that set or clear preferred supplier and/or default replenishment quantity across all child variations of a variable product via WooCommerce's classic variation bulk-edit UI. **Zero schema change (`DB_VERSION` stays 11), zero inheritance, zero parent-meta writes, zero PO/stock/cost mutation, zero new public API, zero new capability** (reuses WooCommerce `edit_product`). `Replenishment_Defaults` remains the sole writer of both meta keys; M22/M24/M25 business logic is unmodified and consumes variation defaults through existing paths.
 
 ### Added
 
@@ -16,7 +16,7 @@
 
 ### Notes
 
-- Level A freeze: `docs/checklists/m26-release-readiness.md`. **Frozen, CI-green, unreleased.** **ROADMAP COMPLETE AFTER M26** — M27 is not started; former M27 remains unnumbered evidence-gated backlog only.
+- Level A freeze: `docs/checklists/m26-release-readiness.md`. **Released as `v1.43.0`.** **ROADMAP COMPLETE AFTER M26** — M27 is not started; former M27 remains unnumbered evidence-gated backlog only.
 
 ## [1.42.0] - Unreleased
 
