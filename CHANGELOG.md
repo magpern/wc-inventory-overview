@@ -1,5 +1,23 @@
 # Changelog — WC Inventory Overview
 
+## [1.43.0] - Unreleased
+
+**Milestone M26 — Apply Replenishment Defaults to Variations.** Final currently scheduled roadmap milestone (unreleased; no tag, no GitHub Release, no deploy until a separate release decision). Adds COPY/APPLY NOW bulk operations that set or clear preferred supplier and/or default replenishment quantity across all child variations of a variable product via WooCommerce's classic variation bulk-edit UI. **Zero schema change (`DB_VERSION` stays 11), zero inheritance, zero parent-meta writes, zero PO/stock/cost mutation, zero new public API, zero new capability** (reuses WooCommerce `edit_product`). `Replenishment_Defaults` remains the sole writer of both meta keys; M22/M24/M25 business logic is unmodified and consumes variation defaults through existing paths.
+
+### Added
+
+- **`WC_Inventory_Overview_Replenishment_Defaults::apply_to_variations()`** — owner bulk writer with frozen return contract `{variations_updated, supplier_updates, qty_updates}|WP_Error`, hard `MAX_APPLY_VARIATIONS = 100`, shared non-mutating `normalize_default_qty`, validation-before-mutate (not write atomicity / no compensating rollback), and successful-operation counter semantics including idempotent Set/Clear no-ops.
+- **Four classic WC variation bulk actions** — `wc_io_variable_preferred_supplier`, `wc_io_variable_preferred_supplier_clear`, `wc_io_variable_default_qty`, `wc_io_variable_default_qty_clear` — wired through `woocommerce_variable_product_bulk_edit_actions` / `woocommerce_bulk_edit_variations`, with plugin-owned AJAX error exit (`wp_send_json({error})`) and success fall-through to WC sync.
+- **Plugin-owned admin UX** — `assets/product-replenishment-bulk.js` (+ CSS): supplier Set uses a real `<select>` modal (not `prompt()` / not WCBackboneModal); Clear/qty flows use confirm/prompt; all four actions intercept `{action}_ajax_data`, cancel WC's default AJAX, and complete via a plugin-owned request wrapper that surfaces server errors without a silent reload. Client `data-total > 100` preflight matches the server cap.
+
+### Testing
+
+- Characterization suite pinning pre-M26 M23 behavior (green before the bulk writer), layered security tests (owner / hook / WC AJAX nonce boundary), idempotency AH–AL scenarios, mid-write `WP_Error` error_data shape, field isolation, parent-meta absence, downstream M22/M24/M25 consumption proofs, and full-path performance matrix at 1/10/50/100 variations (supplier-only and qty-only; tagged `performance`).
+
+### Notes
+
+- Level A freeze: `docs/checklists/m26-release-readiness.md`. **Frozen, CI-green, unreleased.** **ROADMAP COMPLETE AFTER M26** — M27 is not started; former M27 remains unnumbered evidence-gated backlog only.
+
 ## [1.42.0] - Unreleased
 
 **Milestone M25 — Bulk Draft PO Creation.** Second and final milestone of the M24+M25 feature train (unreleased; joins a combined release once a post-freeze M24+M25 review authorizes it — no tag, no GitHub Release, no deploy for M25 standalone). Closes the loop M24 deliberately left open: an operator reviews the Replenishment Planning screen, edits/selects quantities, and creates one Draft PO per supplier group in a single confirm action. The plugin's first multi-record mutation milestone, and its first use of MariaDB advisory locks (`GET_LOCK`/`RELEASE_LOCK`) — a new, schema-free, item-level locking primitive that, combined with a new bulk conflicting-open-line check, genuinely serializes concurrent commits and prevents an immediate retry from duplicating a line. **Zero schema change (`DB_VERSION` stays 11), zero new public API, zero new capability** (reuses `Purchasing_Caps::EDIT_PO`, the same one `PO_Service::create_draft()`'s own submission handler already requires). `Replenishment_Planning_Service`, `Supplier_Preference_Resolver`, `PO_Service`, `Purchase_Orders`, `PO_Events`, `PO_Product_Validator`, and `DB_Transaction` all remain byte-identical to the M24 frozen tip.

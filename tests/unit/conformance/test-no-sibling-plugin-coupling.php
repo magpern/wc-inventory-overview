@@ -42,6 +42,7 @@ class Test_WC_IO_No_Sibling_Plugin_Coupling extends WP_UnitTestCase {
 			'wp_get_environment_type',
 			'wp_cache_flush_group',
 			'mb_strtolower',
+			'get_current_screen',
 			'Automattic\\WooCommerce\\Utilities\\OrderUtil',
 			'Automattic\\WooCommerce\\Internal\\DataStores\\Orders\\OrdersTableDataStore',
 			'WC_Admin_Meta_Boxes',

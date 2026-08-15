@@ -1,19 +1,23 @@
 <?php
 /**
- * Product/variation configuration UI for replenishment defaults (M23).
+ * Product/variation configuration UI for replenishment defaults (M23 + M26).
  *
  * Wires two standard, unmodified WooCommerce extension hook pairs: the
  * Product Data → Inventory tab (simple products) and the variation panel
- * (variations). Renders no SQL of its own -- reads/writes route through
+ * (variations). M26 additionally extends WooCommerce's variation bulk-edit
+ * select + woocommerce_bulk_edit_variations AJAX hook. Renders no SQL of
+ * its own -- reads/writes route through
  * WC_Inventory_Overview_Replenishment_Defaults (the sole owner of the two
  * meta keys) and WC_Inventory_Overview_Suppliers (eligibility/listing).
  *
  * No new nonce: WooCommerce's own product-save nonce
  * ('woocommerce_meta_nonce'/'woocommerce_save_data', verified by
  * WC_Admin_Meta_Boxes::save_meta_boxes() before woocommerce_process_product_meta
- * fires) and its own variation-save AJAX nonce (verified by
+ * fires), its own variation-save AJAX nonce (verified by
  * WC_AJAX::save_variations() before woocommerce_save_product_variation
- * fires) already cover both hooks. Capability is WooCommerce core's own
+ * fires), and its bulk-edit-variations nonce (verified by
+ * WC_AJAX::bulk_edit_variations() before woocommerce_bulk_edit_variations
+ * fires) already cover these hooks. Capability is WooCommerce core's own
  * product-edit gate (current_user_can('edit_product', $id)), identical at
  * render and save -- not Purchasing_Caps (§16 of the M23 plan).
  *
@@ -24,15 +28,21 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Renders and saves the "Preferred supplier" / "Default replenishment
- * quantity" fields on the WooCommerce product edit screen.
+ * quantity" fields on the WooCommerce product edit screen, and M26
+ * variation bulk-apply actions.
  */
 class WC_Inventory_Overview_Product_Replenishment_Admin {
 
+	const BULK_ACTION_SET_SUPPLIER   = 'wc_io_variable_preferred_supplier';
+	const BULK_ACTION_CLEAR_SUPPLIER = 'wc_io_variable_preferred_supplier_clear';
+	const BULK_ACTION_SET_QTY        = 'wc_io_variable_default_qty';
+	const BULK_ACTION_CLEAR_QTY      = 'wc_io_variable_default_qty_clear';
+
 	/**
-	 * Register the four WooCommerce hooks this class wires. Registered
-	 * behind is_admin() -- these hooks are admin-only anyway, but this
-	 * makes the boundary explicit rather than relying only on the hook
-	 * names themselves never firing on the frontend.
+	 * Register the WooCommerce hooks this class wires. Registered behind
+	 * is_admin() -- these hooks are admin-only anyway, but this makes the
+	 * boundary explicit rather than relying only on the hook names
+	 * themselves never firing on the frontend.
 	 */
 	public static function register(): void {
 		if ( ! is_admin() ) {
@@ -43,6 +53,25 @@ class WC_Inventory_Overview_Product_Replenishment_Admin {
 		add_action( 'woocommerce_process_product_meta', array( __CLASS__, 'save_simple_fields' ), 10, 2 );
 		add_action( 'woocommerce_product_after_variable_attributes', array( __CLASS__, 'render_variation_fields' ), 10, 3 );
 		add_action( 'woocommerce_save_product_variation', array( __CLASS__, 'save_variation_fields' ), 10, 2 );
+
+		add_action( 'woocommerce_variable_product_bulk_edit_actions', array( __CLASS__, 'render_bulk_edit_actions' ) );
+		add_action( 'woocommerce_bulk_edit_variations', array( __CLASS__, 'handle_bulk_edit_variations' ), 10, 4 );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_bulk_assets' ) );
+		add_action( 'admin_footer', array( __CLASS__, 'print_bulk_supplier_modal' ) );
+	}
+
+	/**
+	 * M26 action slugs handled by this class.
+	 *
+	 * @return string[]
+	 */
+	public static function bulk_action_slugs(): array {
+		return array(
+			self::BULK_ACTION_SET_SUPPLIER,
+			self::BULK_ACTION_CLEAR_SUPPLIER,
+			self::BULK_ACTION_SET_QTY,
+			self::BULK_ACTION_CLEAR_QTY,
+		);
 	}
 
 	// ---------------------------------------------------------------
@@ -131,6 +160,228 @@ class WC_Inventory_Overview_Product_Replenishment_Admin {
 			isset( $_POST[ $supplier_key ][ $i ] ) ? wp_unslash( $_POST[ $supplier_key ][ $i ] ) : null, // phpcs:ignore WordPress.Security.NonceVerification.Missing -- WC core's own variation-save AJAX nonce already verified this request before woocommerce_save_product_variation fired.
 			isset( $_POST[ $qty_key ][ $i ] ) ? wp_unslash( $_POST[ $qty_key ][ $i ] ) : null // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		);
+	}
+
+	// ---------------------------------------------------------------
+	// M26: variation bulk-edit actions.
+	// ---------------------------------------------------------------
+
+	/**
+	 * Append four Replenishment options to WC's variation bulk-action select.
+	 */
+	public static function render_bulk_edit_actions(): void {
+		?>
+		<optgroup label="<?php echo esc_attr__( 'Replenishment', 'wc-inventory-overview' ); ?>">
+			<option value="<?php echo esc_attr( self::BULK_ACTION_SET_SUPPLIER ); ?>"><?php esc_html_e( 'Set preferred supplier', 'wc-inventory-overview' ); ?></option>
+			<option value="<?php echo esc_attr( self::BULK_ACTION_CLEAR_SUPPLIER ); ?>"><?php esc_html_e( 'Clear preferred supplier', 'wc-inventory-overview' ); ?></option>
+			<option value="<?php echo esc_attr( self::BULK_ACTION_SET_QTY ); ?>"><?php esc_html_e( 'Set default replenishment quantity', 'wc-inventory-overview' ); ?></option>
+			<option value="<?php echo esc_attr( self::BULK_ACTION_CLEAR_QTY ); ?>"><?php esc_html_e( 'Clear default replenishment quantity', 'wc-inventory-overview' ); ?></option>
+		</optgroup>
+		<?php
+	}
+
+	/**
+	 * Handle M26 bulk actions on woocommerce_bulk_edit_variations.
+	 *
+	 * On failure: wp_send_json({error}) and exit (skips WC sync/wp_die).
+	 * On success: fall through so WC still syncs + wp_die().
+	 *
+	 * @param string $bulk_action Action slug.
+	 * @param array  $data        Bulk payload from JS.
+	 * @param int    $product_id  Parent product id.
+	 * @param array  $variations  Variation post ids from WC.
+	 */
+	public static function handle_bulk_edit_variations( $bulk_action, $data, $product_id, $variations ): void {
+		$bulk_action = (string) $bulk_action;
+		if ( ! in_array( $bulk_action, self::bulk_action_slugs(), true ) ) {
+			return;
+		}
+
+		$product_id = absint( $product_id );
+		$variations = array_map( 'absint', (array) $variations );
+		$data       = is_array( $data ) ? $data : array();
+
+		$changes = self::map_bulk_action_to_changes( $bulk_action, $data );
+		if ( is_wp_error( $changes ) ) {
+			wp_send_json( array( 'error' => $changes->get_error_message() ) );
+		}
+
+		$result = WC_Inventory_Overview_Replenishment_Defaults::apply_to_variations(
+			$product_id,
+			$variations,
+			$changes
+		);
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json( array( 'error' => $result->get_error_message() ) );
+		}
+
+		// Success: fall through for WC_Product_Variable::sync + wp_die().
+	}
+
+	/**
+	 * Map a bulk action slug + JS data into apply_to_variations() $changes.
+	 *
+	 * @param string $bulk_action Action slug.
+	 * @param array  $data        Request data.
+	 * @return array|WP_Error
+	 */
+	private static function map_bulk_action_to_changes( string $bulk_action, array $data ) {
+		switch ( $bulk_action ) {
+			case self::BULK_ACTION_SET_SUPPLIER:
+				if ( ! isset( $data['preferred_supplier_id'] ) ) {
+					return new WP_Error(
+						'wc_io_replenishment_bulk_missing_supplier',
+						__( 'Please choose a preferred supplier.', 'wc-inventory-overview' )
+					);
+				}
+				return array(
+					'update_preferred_supplier' => true,
+					'preferred_supplier_id'     => absint( $data['preferred_supplier_id'] ),
+				);
+
+			case self::BULK_ACTION_CLEAR_SUPPLIER:
+				return array(
+					'update_preferred_supplier' => true,
+					'preferred_supplier_id'     => 0,
+				);
+
+			case self::BULK_ACTION_SET_QTY:
+				if ( ! array_key_exists( 'default_qty', $data ) ) {
+					return new WP_Error(
+						'wc_io_replenishment_bulk_missing_qty',
+						__( 'Please enter a default replenishment quantity.', 'wc-inventory-overview' )
+					);
+				}
+				return array(
+					'update_default_qty' => true,
+					'default_qty'        => $data['default_qty'],
+				);
+
+			case self::BULK_ACTION_CLEAR_QTY:
+				return array(
+					'update_default_qty' => true,
+					'default_qty'        => '',
+				);
+		}
+
+		return new WP_Error(
+			'wc_io_replenishment_bulk_unknown_action',
+			__( 'Unknown replenishment bulk action.', 'wc-inventory-overview' )
+		);
+	}
+
+	/**
+	 * Enqueue M26 bulk-apply JS/CSS on the classic product edit screen only.
+	 *
+	 * @param string $hook_suffix Current admin page hook.
+	 */
+	public static function enqueue_bulk_assets( $hook_suffix ): void {
+		if ( ! in_array( $hook_suffix, array( 'post.php', 'post-new.php' ), true ) ) {
+			return;
+		}
+
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || 'product' !== $screen->post_type ) {
+			return;
+		}
+
+		$suppliers = self::active_suppliers_for_bulk_modal();
+
+		wp_enqueue_style(
+			'wc-io-product-replenishment-bulk',
+			plugins_url( 'assets/product-replenishment-bulk.css', WC_INVENTORY_OVERVIEW_FILE ),
+			array(),
+			WC_INVENTORY_OVERVIEW_VERSION
+		);
+
+		wp_enqueue_script(
+			'wc-io-product-replenishment-bulk',
+			plugins_url( 'assets/product-replenishment-bulk.js', WC_INVENTORY_OVERVIEW_FILE ),
+			array( 'jquery', 'wc-admin-variation-meta-boxes' ),
+			WC_INVENTORY_OVERVIEW_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'wc-io-product-replenishment-bulk',
+			'wcIoReplenishmentBulk',
+			array(
+				'suppliers' => $suppliers,
+				'max'       => WC_Inventory_Overview_Replenishment_Defaults::MAX_APPLY_VARIATIONS,
+				'i18n'      => array(
+					'capExceeded'          => __( 'This product has {n} variations. Replenishment bulk apply supports at most 100 variations. Edit variation defaults individually, or reduce the number of variations.', 'wc-inventory-overview' ),
+					'supplierModalTitle'   => __( 'Set preferred supplier', 'wc-inventory-overview' ),
+					'supplierModalHelp'    => __( 'Applies the chosen preferred supplier to every variation of this product.', 'wc-inventory-overview' ),
+					'supplierApply'        => __( 'Apply', 'wc-inventory-overview' ),
+					'supplierCancel'       => __( 'Cancel', 'wc-inventory-overview' ),
+					'chooseSupplier'       => __( 'Choose a supplier…', 'wc-inventory-overview' ),
+					'enterQty'             => __( 'Enter a default replenishment quantity:', 'wc-inventory-overview' ),
+					'confirmClearSupplier' => __( 'Clear the preferred supplier on all variations?', 'wc-inventory-overview' ),
+					'confirmClearQty'      => __( 'Clear the default replenishment quantity on all variations?', 'wc-inventory-overview' ),
+					'genericError'         => __( 'Replenishment bulk apply failed.', 'wc-inventory-overview' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Print the plugin-owned preferred-supplier bulk modal once on product edit.
+	 */
+	public static function print_bulk_supplier_modal(): void {
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( ! $screen || 'product' !== $screen->post_type ) {
+			return;
+		}
+
+		$suppliers = self::active_suppliers_for_bulk_modal();
+		?>
+		<div id="wc-io-bulk-preferred-supplier-modal" class="wc-io-bulk-modal" hidden>
+			<div class="wc-io-bulk-modal__backdrop" data-wc-io-bulk-cancel></div>
+			<div class="wc-io-bulk-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="wc-io-bulk-preferred-supplier-title">
+				<h2 id="wc-io-bulk-preferred-supplier-title"><?php esc_html_e( 'Set preferred supplier', 'wc-inventory-overview' ); ?></h2>
+				<p class="wc-io-bulk-modal__help"><?php esc_html_e( 'Applies the chosen preferred supplier to every variation of this product.', 'wc-inventory-overview' ); ?></p>
+				<p>
+					<label for="wc_io_bulk_preferred_supplier"><?php esc_html_e( 'Preferred supplier', 'wc-inventory-overview' ); ?></label>
+					<select id="wc_io_bulk_preferred_supplier">
+						<option value=""><?php esc_html_e( 'Choose a supplier…', 'wc-inventory-overview' ); ?></option>
+						<?php foreach ( $suppliers as $supplier ) : ?>
+							<option value="<?php echo esc_attr( (string) $supplier['id'] ); ?>"><?php echo esc_html( (string) $supplier['name'] ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</p>
+				<p class="wc-io-bulk-modal__actions">
+					<button type="button" class="button button-primary" data-wc-io-bulk-apply><?php esc_html_e( 'Apply', 'wc-inventory-overview' ); ?></button>
+					<button type="button" class="button" data-wc-io-bulk-cancel><?php esc_html_e( 'Cancel', 'wc-inventory-overview' ); ?></button>
+				</p>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Active suppliers for the bulk modal — same ACTIVE list as M23 panels.
+	 *
+	 * @return array<int,array{id:int,name:string}>
+	 */
+	private static function active_suppliers_for_bulk_modal(): array {
+		$rows = WC_Inventory_Overview_Suppliers::list(
+			array(
+				'status'   => WC_Inventory_Overview_Suppliers::STATUS_ACTIVE,
+				'per_page' => 200,
+				'orderby'  => 'name',
+				'order'    => 'ASC',
+			)
+		);
+
+		$out = array();
+		foreach ( $rows as $row ) {
+			$out[] = array(
+				'id'   => (int) $row['id'],
+				'name' => (string) $row['name'],
+			);
+		}
+		return $out;
 	}
 
 	// ---------------------------------------------------------------

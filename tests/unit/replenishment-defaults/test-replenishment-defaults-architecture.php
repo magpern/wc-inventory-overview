@@ -140,9 +140,56 @@ class Test_WC_IO_Replenishment_Defaults_Architecture extends WP_UnitTestCase {
 	}
 
 	/**
-	 * INV-M23-19: DB_VERSION is unchanged by M23.
+	 * INV-M23-19 / INV-M26-7: DB_VERSION is unchanged by M23/M26.
 	 */
 	public function test_db_version_unchanged() {
 		$this->assertSame( '11', WC_Inventory_Overview_Install::DB_VERSION );
+	}
+
+	/**
+	 * INV-M26-1: apply_to_variations() lives on Replenishment_Defaults and is
+	 * the sole bulk writer path — Product_Replenishment_Admin delegates to it
+	 * and never writes the meta keys itself.
+	 */
+	public function test_apply_to_variations_sole_owner_of_bulk_writes() {
+		$defaults = $this->strip_comments(
+			(string) file_get_contents( $this->includes_dir() . 'class-wc-inventory-overview-replenishment-defaults.php' )
+		);
+		$admin = $this->strip_comments(
+			(string) file_get_contents( $this->includes_dir() . 'class-wc-inventory-overview-product-replenishment-admin.php' )
+		);
+
+		$this->assertMatchesRegularExpression(
+			'/function\s+apply_to_variations\s*\(/',
+			$defaults,
+			'Replenishment_Defaults must own apply_to_variations().'
+		);
+		$this->assertStringContainsString(
+			'WC_Inventory_Overview_Replenishment_Defaults::apply_to_variations(',
+			$admin,
+			'Product_Replenishment_Admin must delegate bulk writes to apply_to_variations().'
+		);
+		$this->assertStringNotContainsString( 'update_post_meta(', $admin );
+		$this->assertStringNotContainsString( 'delete_post_meta(', $admin );
+
+		foreach ( $this->all_include_files() as $file ) {
+			$basename = basename( $file );
+			if ( in_array(
+				$basename,
+				array(
+					'class-wc-inventory-overview-replenishment-defaults.php',
+					'class-wc-inventory-overview-product-replenishment-admin.php',
+				),
+				true
+			) ) {
+				continue;
+			}
+			$src = $this->strip_comments( (string) file_get_contents( $file ) );
+			$this->assertStringNotContainsString(
+				'apply_to_variations(',
+				$src,
+				"{$basename} must not call apply_to_variations() — only Product_Replenishment_Admin may."
+			);
+		}
 	}
 }
