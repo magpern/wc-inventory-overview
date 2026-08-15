@@ -1,0 +1,57 @@
+/**
+ * M26: simple overlay modal for bulk preferred-supplier selection.
+ */
+
+.wc-io-bulk-modal[hidden] {
+	display: none !important;
+}
+
+.wc-io-bulk-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100100;
+}
+
+.wc-io-bulk-modal__backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.wc-io-bulk-modal__dialog {
+	position: relative;
+	z-index: 1;
+	width: min(420px, calc(100% - 2rem));
+	margin: 12vh auto 0;
+	padding: 1.25rem 1.5rem;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.wc-io-bulk-modal__dialog h2 {
+	margin: 0 0 0.5rem;
+	font-size: 1.2em;
+}
+
+.wc-io-bulk-modal__help {
+	margin: 0 0 1rem;
+	color: #50575e;
+}
+
+.wc-io-bulk-modal__dialog label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.35rem;
+}
+
+.wc-io-bulk-modal__dialog select {
+	width: 100%;
+	max-width: 100%;
+}
+
+.wc-io-bulk-modal__actions {
+	margin: 1.25rem 0 0;
+	display: flex;
+	gap: 0.5rem;
+}
