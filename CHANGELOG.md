@@ -20,7 +20,7 @@
 
 ### Notes
 
-- Implementation (WP-M25-1 through WP-M25-8) complete on `feature/m25-bulk-draft-po-creation`. CI status and Level A freeze evidence live in `docs/checklists/m25-release-readiness.md` once WP2–WP4 complete. **Unreleased** — the M24+M25 train releases once, together, after a subsequent combined release-readiness review.
+- Implementation (WP-M25-1 through WP-M25-8) complete; WP2 audit remediated (WP3); Level A frozen and CI-green on `feature/m25-bulk-draft-po-creation`. See `docs/checklists/m25-release-readiness.md`. **Unreleased** — the M24+M25 train releases once, together, after a subsequent combined release-readiness review.
 
 ## [1.41.0] - Unreleased
 
