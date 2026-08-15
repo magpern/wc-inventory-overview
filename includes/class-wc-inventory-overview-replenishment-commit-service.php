@@ -165,7 +165,7 @@ class WC_Inventory_Overview_Replenishment_Commit_Service {
 			);
 		}
 
-		$acquired = WC_Inventory_Overview_Replenishment_Item_Lock::acquire( $item_post_ids );
+		$acquired     = WC_Inventory_Overview_Replenishment_Item_Lock::acquire( $item_post_ids );
 		$acquired_set = array_flip( $acquired );
 
 		foreach ( $item_post_ids as $item_post_id ) {
@@ -195,11 +195,11 @@ class WC_Inventory_Overview_Replenishment_Commit_Service {
 	 * for readability -- still a single call site, still inside commit()'s
 	 * own try/finally.
 	 *
-	 * @param int[]                            $acquired Lock-acquired canonical item ids.
-	 * @param array<int,array<string,mixed>>   $by_item  item_post_id => submitted {product_id, variation_id, qty}.
-	 * @param array<int,array<string,mixed>>   $created  By reference; appended to.
-	 * @param array<int,array<string,mixed>>   $failed   By reference; appended to.
-	 * @param array<int,array<string,mixed>>   $skipped  By reference; appended to.
+	 * @param int[]                          $acquired Lock-acquired canonical item ids.
+	 * @param array<int,array<string,mixed>> $by_item  item_post_id => submitted {product_id, variation_id, qty}.
+	 * @param array<int,array<string,mixed>> $created  By reference; appended to.
+	 * @param array<int,array<string,mixed>> $failed   By reference; appended to.
+	 * @param array<int,array<string,mixed>> $skipped  By reference; appended to.
 	 */
 	private static function process_locked_items( array $acquired, array $by_item, array &$created, array &$failed, array &$skipped ): void {
 		// INV-M25-13: exactly one build_plan() call per commit, scoped to
@@ -209,7 +209,7 @@ class WC_Inventory_Overview_Replenishment_Commit_Service {
 		$resolved = array();
 		foreach ( $plan['groups'] as $group ) {
 			foreach ( $group['lines'] as $line ) {
-				$item_post_id = $line['variation_id'] > 0 ? $line['variation_id'] : $line['product_id'];
+				$item_post_id              = $line['variation_id'] > 0 ? $line['variation_id'] : $line['product_id'];
 				$resolved[ $item_post_id ] = array(
 					'supplier_id'   => (int) $group['supplier_id'],
 					'supplier_name' => (string) $group['supplier_name'],
@@ -221,7 +221,7 @@ class WC_Inventory_Overview_Replenishment_Commit_Service {
 
 		$unresolved_reason = array();
 		foreach ( $plan['unresolved'] as $u ) {
-			$item_post_id = $u['variation_id'] > 0 ? $u['variation_id'] : $u['product_id'];
+			$item_post_id                       = $u['variation_id'] > 0 ? $u['variation_id'] : $u['product_id'];
 			$unresolved_reason[ $item_post_id ] = $u['reason'];
 		}
 
@@ -261,7 +261,7 @@ class WC_Inventory_Overview_Replenishment_Commit_Service {
 				$survivor_product_ids[] = $data['line']['product_id'];
 			}
 		}
-		$conflicting = WC_Inventory_Overview_Purchase_Order_Lines::list_open_or_draft_item_ids_bulk( $survivor_product_ids, $survivor_variation_ids );
+		$conflicting     = WC_Inventory_Overview_Purchase_Order_Lines::list_open_or_draft_item_ids_bulk( $survivor_product_ids, $survivor_variation_ids );
 		$conflicting_set = array_flip( $conflicting );
 
 		$eligible = array();

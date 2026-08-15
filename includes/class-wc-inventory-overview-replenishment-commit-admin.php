@@ -23,15 +23,15 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Replenishment_Commit_Admin {
 
-	const NONCE_ACTION      = 'wc_io_replenishment_commit';
-	const NONCE_FIELD       = 'wc_io_replenishment_commit_nonce';
-	const TOKEN_FIELD       = 'wc_io_replenishment_commit_request_token';
-	const TOKEN_CONTEXT     = 'replenishment_commit';
-	const RESULT_QUERY_ARG  = 'wc_io_commit_result';
-	const VALIDATION_ERR_ARG = 'wc_io_commit_validation_err';
-	const RESULT_TRANSIENT_PREFIX     = 'wc_io_replen_result_';
+	const NONCE_ACTION                    = 'wc_io_replenishment_commit';
+	const NONCE_FIELD                     = 'wc_io_replenishment_commit_nonce';
+	const TOKEN_FIELD                     = 'wc_io_replenishment_commit_request_token';
+	const TOKEN_CONTEXT                   = 'replenishment_commit';
+	const RESULT_QUERY_ARG                = 'wc_io_commit_result';
+	const VALIDATION_ERR_ARG              = 'wc_io_commit_validation_err';
+	const RESULT_TRANSIENT_PREFIX         = 'wc_io_replen_result_';
 	const VALIDATION_ERR_TRANSIENT_PREFIX = 'wc_io_replen_commit_validation_err_';
-	const RESULT_TTL     = 120;
+	const RESULT_TTL                      = 120;
 
 	/**
 	 * Register the admin-post handler.
@@ -55,7 +55,7 @@ class WC_Inventory_Overview_Replenishment_Commit_Admin {
 	}
 
 	/**
-	 * admin_post_wc_io_replenishment_commit handler.
+	 * Handle admin_post_wc_io_replenishment_commit.
 	 */
 	public static function handle_commit() {
 		// §11 step 1: capability, independently of the Planning tab's own
@@ -123,8 +123,8 @@ class WC_Inventory_Overview_Replenishment_Commit_Admin {
 			$variation_id_raw = $row['variation_id'];
 			$qty_raw          = $row['qty'];
 
-			$ids_numeric = is_numeric( $product_id_raw ) && is_numeric( $variation_id_raw );
-			$product_id  = $ids_numeric ? (int) $product_id_raw : -1;
+			$ids_numeric  = is_numeric( $product_id_raw ) && is_numeric( $variation_id_raw );
+			$product_id   = $ids_numeric ? (int) $product_id_raw : -1;
 			$variation_id = $ids_numeric ? (int) $variation_id_raw : -1;
 			$valid_ids    = $ids_numeric && $product_id >= 0 && $variation_id >= 0 && ( $product_id > 0 || $variation_id > 0 );
 
@@ -185,9 +185,9 @@ class WC_Inventory_Overview_Replenishment_Commit_Admin {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'page'                        => WC_Inventory_Overview_Purchasing_Page::PAGE_SLUG,
-					'tab'                         => WC_Inventory_Overview_Purchasing_Page::TAB_PLANNING,
-					self::VALIDATION_ERR_ARG      => '1',
+					'page'                   => WC_Inventory_Overview_Purchasing_Page::PAGE_SLUG,
+					'tab'                    => WC_Inventory_Overview_Purchasing_Page::TAB_PLANNING,
+					self::VALIDATION_ERR_ARG => '1',
 				),
 				admin_url( 'admin.php' )
 			)

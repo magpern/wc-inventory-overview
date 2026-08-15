@@ -171,16 +171,16 @@ class WC_Inventory_Overview_Purchasing_Page {
 				</a>
 				<?php if ( WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::VIEW_PO ) ) : ?>
 				<a href="
-				<?php
-				echo esc_url(
-					add_query_arg(
-						array(
-							'tab' => self::TAB_PLANNING,
-						),
-						admin_url( 'admin.php?page=' . self::PAGE_SLUG )
-					)
-				);
-				?>
+					<?php
+					echo esc_url(
+						add_query_arg(
+							array(
+								'tab' => self::TAB_PLANNING,
+							),
+							admin_url( 'admin.php?page=' . self::PAGE_SLUG )
+						)
+					);
+					?>
 							" class="nav-tab <?php echo self::TAB_PLANNING === $tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Planning', 'wc-inventory-overview' ); ?>
 				</a>
@@ -320,58 +320,58 @@ class WC_Inventory_Overview_Purchasing_Page {
 					?>
 				</p>
 				<?php
-			}
+		}
 
 			$line_index = 0;
-			foreach ( $plan['groups'] as $group ) {
-				echo '<h3>' . esc_html( $group['supplier_name'] ) . ' <span class="description">(' . esc_html( $group['currency'] ) . ')</span></h3>';
-				if ( $can_commit ) {
-					echo '<p><label><input type="checkbox" class="wc-io-replen-select-all" data-group="' . esc_attr( (string) $group['supplier_id'] ) . '" /> ' . esc_html__( 'Select all in this group', 'wc-inventory-overview' ) . '</label></p>';
-				}
-				echo '<table class="widefat striped wc-io-mini-table"><thead><tr>';
-				if ( $can_commit ) {
-					echo '<th></th>';
-				}
-				echo '<th>' . esc_html__( 'Product', 'wc-inventory-overview' ) . '</th>';
-				echo '<th>' . esc_html__( 'SKU', 'wc-inventory-overview' ) . '</th>';
-				echo '<th>' . esc_html__( 'On Hand', 'wc-inventory-overview' ) . '</th>';
-				echo '<th>' . esc_html__( 'Incoming', 'wc-inventory-overview' ) . '</th>';
-				echo '<th>' . esc_html__( 'Position', 'wc-inventory-overview' ) . '</th>';
-				echo '<th>' . esc_html__( 'Threshold', 'wc-inventory-overview' ) . '</th>';
-				echo '<th>' . esc_html( $can_commit ? __( 'Quantity', 'wc-inventory-overview' ) : __( 'Suggested Qty', 'wc-inventory-overview' ) ) . '</th>';
-				echo '</tr></thead><tbody>';
-				foreach ( $group['lines'] as $line ) {
-					echo '<tr>';
-					if ( $can_commit ) {
-						echo '<td>';
-						echo '<input type="checkbox" class="wc-io-replen-select" data-group="' . esc_attr( (string) $group['supplier_id'] ) . '" name="items[' . esc_attr( (string) $line_index ) . '][selected]" value="1" />';
-						echo '<input type="hidden" name="items[' . esc_attr( (string) $line_index ) . '][product_id]" value="' . esc_attr( (string) $line['product_id'] ) . '" />';
-						echo '<input type="hidden" name="items[' . esc_attr( (string) $line_index ) . '][variation_id]" value="' . esc_attr( (string) $line['variation_id'] ) . '" />';
-						echo '</td>';
-					}
-					echo '<td>' . esc_html( $line['name'] );
-					if ( ! empty( $line['preferred_supplier_stale'] ) ) {
-						echo ' <span class="wc-io-badge wc-io-badge-warning">' . esc_html__( 'Preferred supplier unavailable — using purchase history', 'wc-inventory-overview' ) . '</span>';
-					}
-					echo '</td>';
-					echo '<td>' . esc_html( $line['sku'] ) . '</td>';
-					echo '<td>' . esc_html( (string) wc_stock_amount( $line['on_hand'] ) ) . '</td>';
-					echo '<td>' . esc_html( (string) wc_stock_amount( $line['incoming'] ) ) . '</td>';
-					echo '<td>' . esc_html( (string) wc_stock_amount( $line['position'] ) ) . '</td>';
-					echo '<td>' . esc_html( (string) wc_stock_amount( $line['threshold'] ) ) . '</td>';
-					if ( $can_commit ) {
-						echo '<td><input type="number" class="wc-io-replen-qty" min="0" step="0.0001" name="items[' . esc_attr( (string) $line_index ) . '][qty]" value="' . esc_attr( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '" /></td>';
-					} else {
-						echo '<td>' . esc_html( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '</td>';
-					}
-					echo '</tr>';
-					++$line_index;
-				}
-				echo '</tbody></table>';
-			}
-
+		foreach ( $plan['groups'] as $group ) {
+			echo '<h3>' . esc_html( $group['supplier_name'] ) . ' <span class="description">(' . esc_html( $group['currency'] ) . ')</span></h3>';
 			if ( $can_commit ) {
-				?>
+				echo '<p><label><input type="checkbox" class="wc-io-replen-select-all" data-group="' . esc_attr( (string) $group['supplier_id'] ) . '" /> ' . esc_html__( 'Select all in this group', 'wc-inventory-overview' ) . '</label></p>';
+			}
+			echo '<table class="widefat striped wc-io-mini-table"><thead><tr>';
+			if ( $can_commit ) {
+				echo '<th></th>';
+			}
+			echo '<th>' . esc_html__( 'Product', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'SKU', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'On Hand', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'Incoming', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'Position', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html__( 'Threshold', 'wc-inventory-overview' ) . '</th>';
+			echo '<th>' . esc_html( $can_commit ? __( 'Quantity', 'wc-inventory-overview' ) : __( 'Suggested Qty', 'wc-inventory-overview' ) ) . '</th>';
+			echo '</tr></thead><tbody>';
+			foreach ( $group['lines'] as $line ) {
+				echo '<tr>';
+				if ( $can_commit ) {
+					echo '<td>';
+					echo '<input type="checkbox" class="wc-io-replen-select" data-group="' . esc_attr( (string) $group['supplier_id'] ) . '" name="items[' . esc_attr( (string) $line_index ) . '][selected]" value="1" />';
+					echo '<input type="hidden" name="items[' . esc_attr( (string) $line_index ) . '][product_id]" value="' . esc_attr( (string) $line['product_id'] ) . '" />';
+					echo '<input type="hidden" name="items[' . esc_attr( (string) $line_index ) . '][variation_id]" value="' . esc_attr( (string) $line['variation_id'] ) . '" />';
+					echo '</td>';
+				}
+				echo '<td>' . esc_html( $line['name'] );
+				if ( ! empty( $line['preferred_supplier_stale'] ) ) {
+					echo ' <span class="wc-io-badge wc-io-badge-warning">' . esc_html__( 'Preferred supplier unavailable — using purchase history', 'wc-inventory-overview' ) . '</span>';
+				}
+				echo '</td>';
+				echo '<td>' . esc_html( $line['sku'] ) . '</td>';
+				echo '<td>' . esc_html( (string) wc_stock_amount( $line['on_hand'] ) ) . '</td>';
+				echo '<td>' . esc_html( (string) wc_stock_amount( $line['incoming'] ) ) . '</td>';
+				echo '<td>' . esc_html( (string) wc_stock_amount( $line['position'] ) ) . '</td>';
+				echo '<td>' . esc_html( (string) wc_stock_amount( $line['threshold'] ) ) . '</td>';
+				if ( $can_commit ) {
+					echo '<td><input type="number" class="wc-io-replen-qty" min="0" step="0.0001" name="items[' . esc_attr( (string) $line_index ) . '][qty]" value="' . esc_attr( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '" /></td>';
+				} else {
+					echo '<td>' . esc_html( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '</td>';
+				}
+				echo '</tr>';
+				++$line_index;
+			}
+			echo '</tbody></table>';
+		}
+
+		if ( $can_commit ) {
+			?>
 				<p class="submit">
 					<button type="submit" class="button button-primary"><?php esc_html_e( 'Create Draft Purchase Orders', 'wc-inventory-overview' ); ?></button>
 				</p>
@@ -489,12 +489,12 @@ class WC_Inventory_Overview_Purchasing_Page {
 		$skipped = isset( $result['skipped'] ) && is_array( $result['skipped'] ) ? $result['skipped'] : array();
 
 		$reason_labels = array(
-			'not_found'                    => __( 'Product or variation could no longer be found', 'wc-inventory-overview' ),
-			'no_supplier'                  => __( 'No eligible supplier found in purchase history', 'wc-inventory-overview' ),
-			'multiple_suppliers'           => __( 'Multiple possible suppliers — choose manually', 'wc-inventory-overview' ),
-			'no_longer_needs_reorder'      => __( 'No longer needs reordering', 'wc-inventory-overview' ),
+			'not_found'                     => __( 'Product or variation could no longer be found', 'wc-inventory-overview' ),
+			'no_supplier'                   => __( 'No eligible supplier found in purchase history', 'wc-inventory-overview' ),
+			'multiple_suppliers'            => __( 'Multiple possible suppliers — choose manually', 'wc-inventory-overview' ),
+			'no_longer_needs_reorder'       => __( 'No longer needs reordering', 'wc-inventory-overview' ),
 			'concurrent_commit_in_progress' => __( 'Another commit for this item was in progress — please try again', 'wc-inventory-overview' ),
-			'already_has_open_po_line'     => __( 'Already included in a recently created purchase order', 'wc-inventory-overview' ),
+			'already_has_open_po_line'      => __( 'Already included in a recently created purchase order', 'wc-inventory-overview' ),
 		);
 
 		echo '<div class="notice notice-' . ( empty( $failed ) ? 'success' : 'warning' ) . ' is-dismissible"><p>';
@@ -527,8 +527,8 @@ class WC_Inventory_Overview_Purchasing_Page {
 		if ( ! empty( $skipped ) ) {
 			echo '<p><strong>' . esc_html__( 'Skipped:', 'wc-inventory-overview' ) . '</strong></p><ul>';
 			foreach ( $skipped as $entry ) {
-				$reason = (string) ( $entry['reason'] ?? '' );
-				$label  = $reason_labels[ $reason ] ?? $reason;
+				$reason     = (string) ( $entry['reason'] ?? '' );
+				$label      = $reason_labels[ $reason ] ?? $reason;
 				$item_label = 0 !== (int) ( $entry['variation_id'] ?? 0 ) ? (string) $entry['variation_id'] : (string) ( $entry['product_id'] ?? '' );
 				echo '<li>' . esc_html( sprintf( '#%s', $item_label ) ) . ' — ' . esc_html( $label ) . '</li>';
 			}
@@ -859,7 +859,18 @@ class WC_Inventory_Overview_Purchasing_Page {
 					</td>
 				</tr>
 			</table>
-			<?php submit_button( __( 'Merge Supplier', 'wc-inventory-overview' ), 'delete', 'submit', false, array( 'disabled' => 'disabled', 'id' => 'wc-io-supplier-merge-submit' ) ); ?>
+			<?php
+			submit_button(
+				__( 'Merge Supplier', 'wc-inventory-overview' ),
+				'delete',
+				'submit',
+				false,
+				array(
+					'disabled' => 'disabled',
+					'id'       => 'wc-io-supplier-merge-submit',
+				)
+			);
+			?>
 		</form>
 		<?php
 	}
@@ -1353,7 +1364,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 			wp_send_json_error( 'Insufficient permissions.' );
 		}
 
-		$term      = isset( $_POST['term'] ) ? sanitize_text_field( wp_unslash( $_POST['term'] ) ) : '';
+		$term       = isset( $_POST['term'] ) ? sanitize_text_field( wp_unslash( $_POST['term'] ) ) : '';
 		$exclude_id = isset( $_POST['exclude_supplier_id'] ) ? absint( $_POST['exclude_supplier_id'] ) : 0;
 
 		$suppliers = WC_Inventory_Overview_Suppliers::list(
