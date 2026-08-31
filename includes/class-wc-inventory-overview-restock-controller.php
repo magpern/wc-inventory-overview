@@ -285,6 +285,20 @@ class WC_Inventory_Overview_Restock_Controller {
 			)
 		) . '</strong></p></div>';
 
+		if ( WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::VIEW_STOCK_ADJUSTMENT ) ) {
+			$sa_url = WC_Inventory_Overview_Plugin::instance()->admin_url_tab( WC_Inventory_Overview_Plugin::TAB_STOCK_ADJUSTMENTS );
+			echo '<div class="notice notice-info inline wc-io-restock-sa-crosslink"><p>';
+			echo wp_kses(
+				sprintf(
+					/* translators: %s: Stock Adjustments tab URL */
+					__( 'To withdraw stock for personal use with cost tracking, use <a href="%s">Stock Adjustments</a>.', 'wc-inventory-overview' ),
+					esc_url( $sa_url )
+				),
+				array( 'a' => array( 'href' => true ) )
+			);
+			echo '</p></div>';
+		}
+
 		if ( isset( $_GET['wc_io_restock_msg'] ) ) {
 			$code = sanitize_key( wp_unslash( $_GET['wc_io_restock_msg'] ) );
 			if ( 'success' === $code ) {

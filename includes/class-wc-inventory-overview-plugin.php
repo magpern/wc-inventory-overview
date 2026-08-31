@@ -20,6 +20,8 @@ class WC_Inventory_Overview_Plugin {
 
 	public const TAB_RESTOCK = 'restock';
 
+	public const TAB_STOCK_ADJUSTMENTS = 'stock_adjustments';
+
 	public const RESTOCK_VIEW_QUICK = 'quick';
 
 	public const RESTOCK_VIEW_ADJUST = 'adjust';
@@ -55,6 +57,7 @@ class WC_Inventory_Overview_Plugin {
 		WC_Inventory_Overview_Settings_Controller::instance()->init();
 		WC_Inventory_Overview_Reporting_Controller::instance()->init();
 		WC_Inventory_Overview_Restock_Controller::instance()->init();
+		WC_Inventory_Overview_Stock_Adjustment_Controller::instance()->init();
 		WC_Inventory_Overview_Overview_Controller::instance()->init();
 		WC_Inventory_Overview_Expected_Delivery_Service::register();
 		WC_Inventory_Overview_Expected_Delivery_Renderer::register();
@@ -140,6 +143,10 @@ class WC_Inventory_Overview_Plugin {
 				'label' => __( 'Restock / Cost Adjustment', 'wc-inventory-overview' ),
 				'cap'   => 'manage_woocommerce',
 			),
+			self::TAB_STOCK_ADJUSTMENTS     => array(
+				'label' => __( 'Stock Adjustments', 'wc-inventory-overview' ),
+				'cap'   => 'manage_woocommerce',
+			),
 			self::TAB_MOVEMENTS             => array(
 				'label' => __( 'Inventory Movements', 'wc-inventory-overview' ),
 				'cap'   => 'manage_woocommerce',
@@ -212,6 +219,9 @@ class WC_Inventory_Overview_Plugin {
 		}
 		if ( self::TAB_RESTOCK === $tab && current_user_can( 'manage_woocommerce' ) ) {
 			WC_Inventory_Overview_Restock_Controller::instance()->on_load_restock_screen();
+		}
+		if ( self::TAB_STOCK_ADJUSTMENTS === $tab && current_user_can( 'manage_woocommerce' ) ) {
+			WC_Inventory_Overview_Stock_Adjustment_Controller::instance()->on_load_screen();
 		}
 		if ( self::TAB_MOVEMENTS === $tab && current_user_can( 'manage_woocommerce' ) ) {
 			WC_Inventory_Overview_Reporting_Controller::instance()->on_load_movements();
@@ -330,6 +340,13 @@ class WC_Inventory_Overview_Plugin {
 					break;
 				}
 				WC_Inventory_Overview_Restock_Controller::instance()->render();
+				break;
+			case self::TAB_STOCK_ADJUSTMENTS:
+				if ( ! current_user_can( 'manage_woocommerce' ) ) {
+					echo '<div class="notice notice-error"><p>' . esc_html__( 'You do not have permission to use Stock Adjustments.', 'wc-inventory-overview' ) . '</p></div>';
+					break;
+				}
+				WC_Inventory_Overview_Stock_Adjustment_Controller::instance()->render();
 				break;
 			case self::TAB_MOVEMENTS:
 				if ( ! current_user_can( 'manage_woocommerce' ) ) {
