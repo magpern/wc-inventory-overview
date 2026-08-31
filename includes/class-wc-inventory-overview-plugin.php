@@ -63,6 +63,7 @@ class WC_Inventory_Overview_Plugin {
 		add_action( 'admin_menu', array( $this, 'register_menu' ), 60 );
 		add_action( 'load-woocommerce_page_' . self::PAGE_SLUG, array( $this, 'on_load_inventory_profit_page' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		WC_Inventory_Overview_Plugin_Action_Links::register();
 	}
 
 	public function register_menu() {

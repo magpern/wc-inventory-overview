@@ -1,5 +1,13 @@
 # Changelog — WC Inventory Overview
 
+## [1.43.1] - 2026-08-31
+
+**Plugin discoverability** — quick links from the Plugins screen. **DB_VERSION 11** unchanged.
+
+### Added
+
+- **Plugins screen links** — **Overview** (Inventory Overview tab) and **Settings** action links on the plugin row, capability-gated (`edit_products` / `manage_woocommerce`).
+
 ## [1.43.0] - 2026-08-15
 
 **Milestone M26 — Apply Replenishment Defaults to Variations.** Final currently scheduled roadmap milestone. Adds COPY/APPLY NOW bulk operations that set or clear preferred supplier and/or default replenishment quantity across all child variations of a variable product via WooCommerce's classic variation bulk-edit UI. **Zero schema change (`DB_VERSION` stays 11), zero inheritance, zero parent-meta writes, zero PO/stock/cost mutation, zero new public API, zero new capability** (reuses WooCommerce `edit_product`). `Replenishment_Defaults` remains the sole writer of both meta keys; M22/M24/M25 business logic is unmodified and consumes variation defaults through existing paths.
