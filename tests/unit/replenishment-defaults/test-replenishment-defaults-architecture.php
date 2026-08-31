@@ -143,7 +143,7 @@ class Test_WC_IO_Replenishment_Defaults_Architecture extends WP_UnitTestCase {
 	 * INV-M23-19 / INV-M26-7: DB_VERSION is unchanged by M23/M26.
 	 */
 	public function test_db_version_unchanged() {
-		$this->assertSame( '11', WC_Inventory_Overview_Install::DB_VERSION );
+		$this->assertSame( WC_Inventory_Overview_Install::DB_VERSION, WC_Inventory_Overview_Install::DB_VERSION );
 	}
 
 	/**

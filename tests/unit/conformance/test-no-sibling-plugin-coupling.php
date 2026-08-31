@@ -46,6 +46,7 @@ class Test_WC_IO_No_Sibling_Plugin_Coupling extends WP_UnitTestCase {
 			'Automattic\\WooCommerce\\Utilities\\OrderUtil',
 			'Automattic\\WooCommerce\\Internal\\DataStores\\Orders\\OrdersTableDataStore',
 			'WC_Admin_Meta_Boxes',
+			'wc_get_logger',
 		);
 	}
 

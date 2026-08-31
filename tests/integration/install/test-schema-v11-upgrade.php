@@ -44,7 +44,7 @@ class Test_WC_IO_Schema_V11_Upgrade extends WP_UnitTestCase {
 
 		WC_Inventory_Overview_Install::maybe_upgrade();
 
-		$this->assertSame( '11', get_option( 'wc_io_db_version' ) );
+		$this->assertSame( WC_Inventory_Overview_Install::DB_VERSION, get_option( 'wc_io_db_version' ) );
 		$after_suppliers_columns = array_column( $wpdb->get_results( "SHOW COLUMNS FROM {$suppliers_table}" ), 'Field' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		$this->assertContains( 'merged_into_supplier_id', $after_suppliers_columns );
 

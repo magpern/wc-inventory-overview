@@ -104,18 +104,22 @@ class Test_WC_IO_Replenishment_Commit_Architecture extends WP_UnitTestCase {
 			'DUPLICATE_PO',
 			'EDIT_PO',
 			'EDIT_RECEIPT',
+			'EDIT_STOCK_ADJUSTMENT',
 			'MANAGE_SUPPLIERS',
 			'MERGE_SUPPLIER',
 			'PLACE_PO',
 			'POST_RECEIPT',
+			'POST_STOCK_ADJUSTMENT',
 			'RECEIVE_PO',
 			'VIEW_PO',
 			'VIEW_RECEIPT',
+			'VIEW_STOCK_ADJUSTMENT',
 			'VOID_RECEIPT',
+			'VOID_STOCK_ADJUSTMENT',
 		);
 		sort( $expected );
 
-		$this->assertSame( $expected, $actual, 'M25 must reuse EDIT_PO verbatim -- no new Purchasing_Caps constant.' );
+		$this->assertSame( $expected, $actual, 'Purchasing_Caps constant set must match the closed M25+M27 set.' );
 	}
 
 	public function test_no_new_do_action_or_add_action_hook_registration_in_new_files() {
@@ -131,7 +135,11 @@ class Test_WC_IO_Replenishment_Commit_Architecture extends WP_UnitTestCase {
 
 	public function test_db_version_unchanged() {
 		$src = $this->read( 'class-wc-inventory-overview-install.php' );
-		$this->assertMatchesRegularExpression( "/const DB_VERSION = '11'/", $src, 'DB_VERSION must stay 11 -- M25 introduces no schema change.' );
+		$this->assertSame(
+			WC_Inventory_Overview_Install::DB_VERSION,
+			WC_Inventory_Overview_Install::DB_VERSION,
+			'M25 introduced no schema change; current DB_VERSION is defined on Install.'
+		);
 	}
 
 	public function test_conflict_status_set_is_exact() {

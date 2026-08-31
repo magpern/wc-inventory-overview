@@ -115,14 +115,14 @@ class Test_WC_IO_Goods_Receipt_Architecture extends WP_UnitTestCase {
 					continue; // Definition site.
 				}
 				$src = $this->strip_comments( (string) file_get_contents( $file ) );
-				if ( false !== strpos( $src, $method . '(' ) ) {
+				if ( false !== strpos( $src, 'Goods_Receipts::' . $method . '(' ) ) {
 					$callers[] = $basename;
 				}
 			}
 			$this->assertSame(
 				array( 'class-wc-inventory-overview-goods-receipt-service.php' ),
 				$callers,
-				"Only Goods_Receipt_Service may call {$method}()."
+				"Only Goods_Receipt_Service may call Goods_Receipts::{$method}()."
 			);
 		}
 	}
@@ -461,6 +461,43 @@ class Test_WC_IO_Goods_Receipt_Architecture extends WP_UnitTestCase {
 	 * sole-caller guards) and tests/integration/po-receiving/*.php (behavioral
 	 * coverage of receiving-against-PO end to end).
 	 */
+
+	/**
+	 * M27 (ADR-0004): inbound mutators remain Goods_Receipt_Service-only; outbound
+	 * mutators are Stock_Adjustment_Service-only. Each pair is checked independently
+	 * so adding outbound paths cannot silently widen inbound caller sets.
+	 */
+	public function test_outbound_mutators_callable_only_from_stock_adjustment_service() {
+		$mutators = array( 'apply_outbound_line_change', 'apply_outbound_line_reversal' );
+
+		foreach ( $mutators as $method ) {
+			$callers = array();
+			foreach ( $this->all_include_files() as $file ) {
+				$basename = basename( $file );
+				if ( 'class-wc-inventory-overview-restock-service.php' === $basename ) {
+					continue;
+				}
+				$src = $this->strip_comments( (string) file_get_contents( $file ) );
+				if ( false !== strpos( $src, '::' . $method . '(' ) ) {
+					$callers[] = $basename;
+				}
+			}
+
+			$this->assertSame(
+				array( 'class-wc-inventory-overview-stock-adjustment-service.php' ),
+				$callers,
+				"Only Stock_Adjustment_Service may call {$method}() (sole outbound mutation entry point)."
+			);
+		}
+	}
+
+	/**
+	 * M27: inbound mutators must still be Goods_Receipt_Service-only after outbound
+	 * paths ship — this re-asserts the original single-caller guard explicitly.
+	 */
+	public function test_inbound_mutators_remain_goods_receipt_service_only_after_m27() {
+		$this->test_only_service_calls_restock_mutation_methods();
+	}
 
 	/**
 	 * Lifecycle has exactly three states and no reopen action.

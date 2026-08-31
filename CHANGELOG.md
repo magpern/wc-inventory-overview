@@ -1,5 +1,27 @@
 # Changelog — WC Inventory Overview
 
+## [1.44.0] - Unreleased
+
+**Milestone M27 — Personal Use Stock Adjustments.** First post-roadmap milestone. Adds audited outbound personal-use withdrawals with EUR weighted-average cost tracking, schema v12 Stock Adjustment documents, movement types `personal_use` / `personal_use_void`, and a full admin workflow on **Inventory & Profit → Stock Adjustments**. **No REST/CLI in M27.** Outbound stock+cost mutations are owned exclusively by `Stock_Adjustment_Service` → `Restock_Service` outbound mutators; inline Overview stock edit remains a separate unaudited path.
+
+### Added
+
+- **Schema v12** — `wc_io_stock_adjustments` / `wc_io_stock_adjustment_lines`; `DB_VERSION` 12; document numbering `SA-YYYY-NNNNN`.
+- **`WC_Inventory_Overview_Stock_Adjustment_Service`** — draft create/save/delete, post, void; `MAX_LINES = 100`; request tokens `sa_post` / `sa_void`; compensating snapshot restore on partial failure; internal hooks `wc_io_stock_adjustment_posted` / `wc_io_stock_adjustment_voided`.
+- **`Restock_Service` outbound mutators** — `read_inventory_value_at_post()`, `apply_outbound_line_change()`, `apply_outbound_line_reversal()` per plan §7.1 (prefer stored inventory value; 4dp value / 6dp average).
+- **Admin** — Stock Adjustments hub tab, list/detail/post-confirm/void-confirm, preview AJAX, Overview “Record personal use” prefill, Restock cross-link notice.
+- **Movements** — filter labels, CSV types, reference drill-down to adjustment detail.
+- **Purchasing caps** — `view/edit/post/void_stock_adjustment` (default `manage_woocommerce`).
+- **ADR-0004** — outbound stock adjustment ownership.
+
+### Documentation
+
+- `docs/milestones/m27-implementation-plan.md`, `docs/admin-guide-stock-adjustments.md` (§4.1 reconciliation), `docs/checklists/m27-release-readiness.md`, `docs/GITHUB_RELEASE_NOTES_1.44.0.md`.
+
+### Testing
+
+- Architecture guards, outbound WAC golden fixtures, service post/void failure matrix, admin PRG/nonce/preview tests, movements characterization extensions.
+
 ## [1.43.1] - 2026-08-31
 
 **Plugin discoverability** — quick links from the Plugins screen. **DB_VERSION 11** unchanged.
