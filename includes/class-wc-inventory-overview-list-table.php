@@ -245,11 +245,12 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 					<button type="button" class="button button-small wc-io-stock-save">' . esc_html__( 'Save', 'wc-inventory-overview' ) . '</button>
 					<button type="button" class="button button-small wc-io-stock-cancel">' . esc_html__( 'Cancel', 'wc-inventory-overview' ) . '</button>
 				</span>
-			</div>',
+			</div>%5$s',
 			(int) $id,
 			$value !== '' ? esc_html( $value ) : '<span class="wc-io-muted">' . esc_html__( 'Set…', 'wc-inventory-overview' ) . '</span>',
 			esc_attr( $value ),
-			esc_attr__( 'Edit stock quantity', 'wc-inventory-overview' )
+			esc_attr__( 'Edit stock quantity', 'wc-inventory-overview' ),
+			self::render_personal_use_action_link( $item )
 		);
 	}
 
@@ -501,6 +502,33 @@ class WC_Inventory_Overview_List_Table extends WP_List_Table {
 		$url = WC_Inventory_Overview_PO_Admin::reorder_prefill_url( $product_id, $variation_id );
 
 		return ' <a href="' . esc_url( $url ) . '" class="button button-small wc-io-reorder-action">' . esc_html__( 'Create Draft PO', 'wc-inventory-overview' ) . '</a>';
+	}
+
+	/**
+	 * M27: "Record personal use" quick-action for stock-managed simple/variation rows.
+	 *
+	 * @param WC_Product $item Product or variation.
+	 * @return string
+	 */
+	protected static function render_personal_use_action_link( WC_Product $item ): string {
+		if ( ! WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::EDIT_STOCK_ADJUSTMENT ) ) {
+			return '';
+		}
+		if ( ! $item->managing_stock() || $item->is_type( 'variable' ) ) {
+			return '';
+		}
+
+		if ( $item->is_type( 'variation' ) ) {
+			$product_id   = (int) $item->get_parent_id();
+			$variation_id = (int) $item->get_id();
+		} else {
+			$product_id   = (int) $item->get_id();
+			$variation_id = 0;
+		}
+
+		$url = WC_Inventory_Overview_Stock_Adjustment_Admin::prefill_url( $product_id, $variation_id );
+
+		return '<div class="wc-io-sa-overview-action"><a href="' . esc_url( $url ) . '" class="button button-small">' . esc_html__( 'Record personal use', 'wc-inventory-overview' ) . '</a></div>';
 	}
 
 	/**
