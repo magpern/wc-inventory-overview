@@ -25,7 +25,11 @@ class WC_Inventory_Overview_Movements {
 	public const TYPE_GOODS_RECEIPT      = 'goods_receipt';
 	public const TYPE_GOODS_RECEIPT_VOID = 'goods_receipt_void';
 
-	public const REFERENCE_TYPE_GOODS_RECEIPT = 'goods_receipt';
+	public const TYPE_PERSONAL_USE      = 'personal_use';
+	public const TYPE_PERSONAL_USE_VOID = 'personal_use_void';
+
+	public const REFERENCE_TYPE_GOODS_RECEIPT    = 'goods_receipt';
+	public const REFERENCE_TYPE_STOCK_ADJUSTMENT = 'stock_adjustment';
 
 	/**
 	 * Table name including prefix.
@@ -52,6 +56,8 @@ class WC_Inventory_Overview_Movements {
 			self::TYPE_REFUND             => __( 'Refund', 'wc-inventory-overview' ),
 			self::TYPE_GOODS_RECEIPT      => __( 'Goods receipt', 'wc-inventory-overview' ),
 			self::TYPE_GOODS_RECEIPT_VOID => __( 'Goods receipt void', 'wc-inventory-overview' ),
+			self::TYPE_PERSONAL_USE       => __( 'Personal use', 'wc-inventory-overview' ),
+			self::TYPE_PERSONAL_USE_VOID  => __( 'Personal use void', 'wc-inventory-overview' ),
 		);
 	}
 
@@ -87,6 +93,42 @@ class WC_Inventory_Overview_Movements {
 				'reference_type' => self::REFERENCE_TYPE_GOODS_RECEIPT,
 				'reference_id'   => isset( $r['reference_id'] ) ? (int) $r['reference_id'] : 0,
 				'supplier_id'    => isset( $r['supplier_id'] ) && (int) $r['supplier_id'] > 0 ? (int) $r['supplier_id'] : null,
+			)
+		);
+	}
+
+	/**
+	 * Insert a personal_use movement row (Stock_Adjustment_Service::post() only).
+	 *
+	 * @param array<string, mixed> $r Movement row.
+	 * @return bool True on success.
+	 */
+	public static function insert_personal_use( array $r ) {
+		return self::insert_purchase_like(
+			$r,
+			self::TYPE_PERSONAL_USE,
+			array(
+				'reference_type' => self::REFERENCE_TYPE_STOCK_ADJUSTMENT,
+				'reference_id'   => isset( $r['reference_id'] ) ? (int) $r['reference_id'] : 0,
+				'supplier_id'    => null,
+			)
+		);
+	}
+
+	/**
+	 * Insert a personal_use_void movement row (Stock_Adjustment_Service::void() only).
+	 *
+	 * @param array<string, mixed> $r Movement row.
+	 * @return bool True on success.
+	 */
+	public static function insert_personal_use_void( array $r ) {
+		return self::insert_purchase_like(
+			$r,
+			self::TYPE_PERSONAL_USE_VOID,
+			array(
+				'reference_type' => self::REFERENCE_TYPE_STOCK_ADJUSTMENT,
+				'reference_id'   => isset( $r['reference_id'] ) ? (int) $r['reference_id'] : 0,
+				'supplier_id'    => null,
 			)
 		);
 	}
