@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class WC_Inventory_Overview_Install {
 
-	const DB_VERSION = '11'; // Unchanged in M18/M19/M20/M21/M22/M23/M24/M25/M26.
+	const DB_VERSION = '12'; // M27: Stock Adjustments (personal use).
 
 	/**
 	 * Register activation hook target.
@@ -384,6 +384,56 @@ class WC_Inventory_Overview_Install {
 			KEY target_supplier_id (target_supplier_id)
 		) {$collate};";
 		dbDelta( $sql13 );
+
+		// M27: Stock Adjustments (schema v12).
+		$stock_adjustments = $wpdb->prefix . 'wc_io_stock_adjustments';
+		$sql14             = "CREATE TABLE {$stock_adjustments} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			adjustment_number varchar(32) NOT NULL,
+			adjustment_kind varchar(32) NOT NULL DEFAULT 'personal_use',
+			status varchar(20) NOT NULL DEFAULT 'draft',
+			note text NULL,
+			void_reason text NULL,
+			posted_at datetime NULL,
+			posted_by bigint(20) unsigned NULL,
+			voided_at datetime NULL,
+			voided_by bigint(20) unsigned NULL,
+			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			updated_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY adjustment_number (adjustment_number),
+			KEY status (status),
+			KEY created_at (created_at)
+		) {$collate};";
+		dbDelta( $sql14 );
+
+		$stock_adjustment_lines = $wpdb->prefix . 'wc_io_stock_adjustment_lines';
+		$sql15                  = "CREATE TABLE {$stock_adjustment_lines} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			adjustment_id bigint(20) unsigned NOT NULL,
+			line_index int NOT NULL DEFAULT 0,
+			product_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			variation_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			sku_snapshot varchar(100) NULL,
+			name_snapshot varchar(190) NULL,
+			qty decimal(19,4) NOT NULL DEFAULT 0,
+			unit_cost_at_post decimal(19,6) NULL,
+			value_removed decimal(19,4) NULL,
+			old_stock decimal(19,4) NULL,
+			new_stock decimal(19,4) NULL,
+			old_average_unit_cost decimal(19,6) NULL,
+			new_average_unit_cost decimal(19,6) NULL,
+			old_inventory_value decimal(19,4) NULL,
+			new_inventory_value decimal(19,4) NULL,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY adjustment_id (adjustment_id),
+			KEY product_id (product_id),
+			KEY variation_id (variation_id)
+		) {$collate};";
+		dbDelta( $sql15 );
 	}
 
 	/**
@@ -468,6 +518,14 @@ class WC_Inventory_Overview_Install {
 			}
 		}
 
+		$sa_table = $wpdb->prefix . 'wc_io_stock_adjustments';
+		if ( version_compare( $version, '12', '>=' ) && $sa_table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $sa_table ) ) ) ) {
+			$indexes = $wpdb->get_results( "SHOW INDEX FROM {$sa_table} WHERE Column_name='adjustment_number' AND Non_unique=0" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( empty( $indexes ) ) {
+				$missing[] = "Unique index missing on {$sa_table}.adjustment_number";
+			}
+		}
+
 		$payload = array(
 			'ok'         => empty( $missing ),
 			'version'    => $version,
@@ -500,6 +558,9 @@ class WC_Inventory_Overview_Install {
 	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns?:array<string,array<int,string>>}
 	 */
 	private static function expected_schema( $version ) {
+		if ( version_compare( (string) $version, '12', '>=' ) ) {
+			return self::expected_schema_v12();
+		}
 		if ( version_compare( (string) $version, '11', '>=' ) ) {
 			return self::expected_schema_v11();
 		}
@@ -787,6 +848,57 @@ class WC_Inventory_Overview_Install {
 		$base['tables'][] = 'wc_io_supplier_merges';
 
 		$base['columns']['suppliers'][] = 'merged_into_supplier_id';
+
+		return $base;
+	}
+
+	/**
+	 * Expected schema shape for DB version 12 (Stock Adjustments, M27).
+	 *
+	 * @return array{tables:array<int,string>,columns:array<string,array<int,string>>,forbidden_columns:array<string,array<int,string>>}
+	 */
+	private static function expected_schema_v12() {
+		$base = self::expected_schema_v11();
+
+		$base['tables'][] = 'wc_io_stock_adjustments';
+		$base['tables'][] = 'wc_io_stock_adjustment_lines';
+
+		$base['columns']['stock_adjustments'] = array(
+			'id',
+			'adjustment_number',
+			'adjustment_kind',
+			'status',
+			'note',
+			'void_reason',
+			'posted_at',
+			'posted_by',
+			'voided_at',
+			'voided_by',
+			'created_by',
+			'updated_by',
+			'created_at',
+			'updated_at',
+		);
+
+		$base['columns']['stock_adjustment_lines'] = array(
+			'id',
+			'adjustment_id',
+			'line_index',
+			'product_id',
+			'variation_id',
+			'sku_snapshot',
+			'name_snapshot',
+			'qty',
+			'unit_cost_at_post',
+			'value_removed',
+			'old_stock',
+			'new_stock',
+			'old_average_unit_cost',
+			'new_average_unit_cost',
+			'old_inventory_value',
+			'new_inventory_value',
+			'created_at',
+		);
 
 		return $base;
 	}

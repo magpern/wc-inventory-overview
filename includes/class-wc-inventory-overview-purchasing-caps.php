@@ -39,6 +39,11 @@ class WC_Inventory_Overview_Purchasing_Caps {
 	 */
 	const RECEIVE_PO = 'receive_po';
 
+	const VIEW_STOCK_ADJUSTMENT  = 'view_stock_adjustment';
+	const EDIT_STOCK_ADJUSTMENT  = 'edit_stock_adjustment';
+	const POST_STOCK_ADJUSTMENT  = 'post_stock_adjustment';
+	const VOID_STOCK_ADJUSTMENT  = 'void_stock_adjustment';
+
 	/**
 	 * Resolve the WordPress capability for a purchasing action key.
 	 *
@@ -61,6 +66,10 @@ class WC_Inventory_Overview_Purchasing_Caps {
 			self::VOID_RECEIPT     => 'manage_woocommerce',
 			self::DELETE_RECEIPT   => 'manage_woocommerce',
 			self::RECEIVE_PO       => 'manage_woocommerce',
+			self::VIEW_STOCK_ADJUSTMENT => 'manage_woocommerce',
+			self::EDIT_STOCK_ADJUSTMENT => 'manage_woocommerce',
+			self::POST_STOCK_ADJUSTMENT => 'manage_woocommerce',
+			self::VOID_STOCK_ADJUSTMENT => 'manage_woocommerce',
 		);
 
 		/**
