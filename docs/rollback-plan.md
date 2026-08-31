@@ -2,6 +2,17 @@
 
 ---
 
+## ⚠ M27 (v1.44.0): code rollback does not undo posted personal-use adjustments
+
+**M27 introduces schema v12** (`wc_io_stock_adjustments`, `wc_io_stock_adjustment_lines`) and a new outbound mutation path via `Stock_Adjustment_Service`.
+
+- **Code rollback to pre-M27** does not reverse stock/cost meta changes from posted personal-use adjustments or remove their movement rows. Void posted adjustments **before** rolling back code, or reconcile physical inventory manually.
+- **Schema tables remain** on code rollback (same precedent as M4/M17) — inert to older code.
+- **Compensation failure** (`wc_io_compensation_failed`): if posting partially applied WC meta and automatic restore failed, operator must reconcile product stock/cost meta against movement ledger evidence manually — document product IDs from the error/log.
+- **No tag/release rollback** replaces voiding individual mistaken postings.
+
+---
+
 ## ✓ M20 (v1.37.0, frozen/unreleased): safe code-only rollback, no data implications
 
 **M20 changed no schema and introduced no new mutation path.** It relocates the Inventory Overview and Restock/Cost Adjustment tabs' HTTP/admin glue from `Plugin` into two new controllers (`Overview_Controller`, `Restock_Controller`) — a pure code reorganization. Every mutation these tabs perform (bulk product-status/visibility/stock-status changes, inline stock edits, restock, cost adjustment) is byte-identical to pre-M20 behavior, still executed via the same unmodified `Restock_Service`/`Cost_Adjustment_Service` calls or inline `WC_Product` writes as before — only which class's method initiates them changed.
