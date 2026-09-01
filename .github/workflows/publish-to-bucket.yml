@@ -1,0 +1,76 @@
+# Builds the plugin package and uploads it to the private update server on every
+# release tag (also on a published GitHub Release, and on manual dispatch).
+#
+# Repo secrets: WPUS_URL (<server>/push.php), WPUS_TOKEN (bearer token).
+# Repo variable (optional): PLUGIN_SLUG (defaults to the repo name).
+
+name: Publish release package
+
+on:
+  push:
+    tags: ['v*']
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve slug and version
+        id: meta
+        run: |
+          slug="${{ vars.PLUGIN_SLUG }}"
+          [ -n "$slug" ] || slug="${GITHUB_REPOSITORY#*/}"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Stage and zip
+        id: zip
+        run: |
+          slug='${{ steps.meta.outputs.slug }}'
+          mkdir -p "dist/$slug"
+          rsync -a --delete \
+            --exclude '.git'          --exclude '.github' \
+            --exclude '.gitignore'    --exclude '.gitattributes' \
+            --exclude '.distignore'   --exclude 'dist' \
+            --exclude 'node_modules'  --exclude 'tests' \
+            --exclude 'phpunit*.xml*' --exclude 'phpcs.xml*' \
+            --exclude 'phpstan*'      --exclude '*.dist' \
+            --exclude 'composer.json' --exclude 'composer.lock' \
+            --exclude 'package.json'  --exclude 'package-lock.json' \
+            --exclude 'scripts'       --exclude 'docs' \
+            --exclude 'bin'           --exclude 'cli' \
+            --exclude 'builds'        --exclude 'build' \
+            --exclude 'README.md'     --exclude 'CHANGELOG.md' \
+            --exclude '.phpunit.result.cache' --exclude 'vendor/bin' \
+            --exclude '.claude'       --exclude '.cursor' \
+            --exclude '.phpcs-baseline.xml' --exclude '.phpcs-cache' \
+            --exclude 'Makefile'      --exclude '.editorconfig' \
+            --exclude 'infection*'    --exclude '.infection' \
+            --exclude '.wp-env.json'  --exclude 'composer.phar' \
+             \
+            ./ "dist/$slug/"
+          ( cd dist && zip -qr "$slug.zip" "$slug" )
+          echo "path=dist/$slug.zip" >> "$GITHUB_OUTPUT"
+          unzip -l "dist/$slug.zip"
+
+      - name: Upload to update server
+        run: |
+          curl --fail-with-body -sS \
+            -H "Authorization: Bearer ${{ secrets.WPUS_TOKEN }}" \
+            -F "package=@${{ steps.zip.outputs.path }}" \
+            "${{ secrets.WPUS_URL }}?slug=${{ steps.meta.outputs.slug }}"
+
+      - name: Verify it is live
+        env:
+          WPUS_URL: ${{ secrets.WPUS_URL }}
+          SLUG: ${{ steps.meta.outputs.slug }}
+        run: |
+          base="${WPUS_URL%/push.php}"
+          curl -sS "$base/?action=get_metadata&slug=$SLUG" | tee /dev/stderr | grep -q '"version"'

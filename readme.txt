@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.43.1
+Stable tag: 1.43.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,9 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.43.2 =
+* Automatic updates now come from a private update server via the bundled Plugin Update Checker library; the previous direct GitHub-release updater has been removed. Update checks are inert unless the PRIVATE_UPDATE_SERVER constant is defined.
 
 = 1.36.0 =
 * Milestones M18-M19 — Admin Controller Decomposition, Phases 1-2 (bundled feature train). Internal admin-architecture refactor: zero schema change (DB_VERSION unchanged, 11), zero new public API, zero new capability, zero merchant-facing behavior change.

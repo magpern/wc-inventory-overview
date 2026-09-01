@@ -1,5 +1,11 @@
 # Changelog — WC Inventory Overview
 
+## [1.43.2] - 2026-09-02
+
+### Changed
+
+- Self-updates now come from a private update server via the bundled Plugin Update Checker v5 library; the bespoke GitHub-release updater was removed. Inert unless `PRIVATE_UPDATE_SERVER` is defined in `wp-config.php`.
+
 ## [1.43.1] - 2026-08-31
 
 **Plugin discoverability** — quick links from the Plugins screen. **DB_VERSION 11** unchanged.

@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WC Inventory Overview
  * Description:       Operational inventory dashboard for WooCommerce products and variations (HPOS-compatible).
- * Version:           1.43.1
+ * Version:           1.43.2
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            WC Inventory Overview
@@ -15,7 +15,7 @@
 defined( 'ABSPATH' ) || exit;
 
 if ( ! defined( 'WC_INVENTORY_OVERVIEW_VERSION' ) ) {
-	define( 'WC_INVENTORY_OVERVIEW_VERSION', '1.43.1' );
+	define( 'WC_INVENTORY_OVERVIEW_VERSION', '1.43.2' );
 }
 
 if ( ! defined( 'WC_INVENTORY_OVERVIEW_FILE' ) ) {
@@ -73,15 +73,25 @@ register_activation_hook(
 );
 
 /**
- * GitHub Release updater (admin / cron only).
+ * Automatic updates via the private update server (admin / cron only). Define
+ * PRIVATE_UPDATE_SERVER (scheme + host, no trailing slash) in wp-config.php to
+ * enable; when it is not defined the plugin does not check for updates.
  */
 function wc_inventory_overview_init_github_updater() {
 	if ( ! is_admin() && ! ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) ) {
 		return;
 	}
 
-	require_once WC_INVENTORY_OVERVIEW_PATH . 'includes/class-github-updater.php';
-	WC_Inventory_Overview_Github_Updater::maybe_init();
+	if ( ! defined( 'PRIVATE_UPDATE_SERVER' ) || ! PRIVATE_UPDATE_SERVER ) {
+		return;
+	}
+
+	require_once WC_INVENTORY_OVERVIEW_PATH . 'lib/plugin-update-checker/plugin-update-checker.php';
+	\YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		rtrim( (string) PRIVATE_UPDATE_SERVER, '/' ) . '/?action=get_metadata&slug=wc-inventory-overview',
+		WC_INVENTORY_OVERVIEW_FILE,
+		'wc-inventory-overview'
+	);
 }
 add_action( 'plugins_loaded', 'wc_inventory_overview_init_github_updater', 9 );
 
