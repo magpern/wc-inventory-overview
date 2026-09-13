@@ -17,6 +17,7 @@
 - **WP-M27-2/3:** Outbound WAC mutators + `Stock_Adjustment_Service` post/void (`555b29b`)
 - **WP-M27-4/5:** Admin tab, preview AJAX, movements drill-down, Overview prefill (`99f293b`, `010a970`)
 - **WP-M27-6:** Tests, admin guide §4.1, release docs (this commit)
+- **Additive, non-M27:** Inventory & Profit hub gains linked nav-tabs to the existing Purchasing page (Purchase Orders / Receive Stock / Suppliers / Planning) (`30227ff`); unrelated pre-existing expected-delivery test-fixture date time-bomb fixed (`bb542f1`) — see below
 
 ### Mandatory plan sections verified
 
@@ -30,11 +31,11 @@
 ### Test gates (Docker PHPUnit)
 
 - [x] Focused M27 filter: `Test_WC_IO_Stock_Adjustment_`, `Test_WC_IO_Outbound_WAC_`
-- [ ] Full suite green (run before tag)
-- [ ] PHPCS / architecture guards green
-- [ ] `scripts/release-audit.sh --development`
+- [x] Full suite green (run before tag) — 2026-09-13/14: unit 572/572, default M1–M27 suite 1359/1359, integration `--exclude-group performance` 808/808. Found and fixed one pre-existing, unrelated test-content bug in the process: `tests/integration/expected-delivery/test-expected-delivery-{renderer,service}.php` hardcoded fixture dates (`2026-09-01`/`2026-09-15`) that had lapsed into the past, flipping 5 tests to see "Expected soon" instead of the literal date/week they asserted — a test time-bomb, not a production defect. Fixed via a `future_customer_safe_date()` helper (+180 days from now) in both files (`bb542f1`); production code untouched.
+- [x] PHPCS / architecture guards green — architecture-guard tests (part of the `unit` testsuite) pass. Note: full repo-wide WPCS style linting (`phpcs.xml.dist`) is **not** an actual CI gate for this repo (only `parallel-lint` runs in CI) and carries ~2,615 pre-existing style findings across 240 files, unrelated to M27; not a release blocker.
+- [x] `scripts/release-audit.sh --development` — passed, version 1.44.0. `--release` mode also passed (release notes present at `docs/GITHUB_RELEASE_NOTES_1.44.0.md`).
 
-## Release actions (not performed in M27 implementation)
+## Release actions
 
 - [ ] PR review + merge to `main`
 - [ ] Tag `v1.44.0` + GitHub Release ZIP
