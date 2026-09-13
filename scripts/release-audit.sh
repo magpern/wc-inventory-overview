@@ -64,7 +64,7 @@ HEADER_VERSION="$(grep -E '^\s*\*\s*Version:\s*' "${MAIN_FILE}" | head -n1 | sed
 [[ "${VERSION_CONST}" == "${HEADER_VERSION}" ]] || fail "Version mismatch"
 echo "    Version: ${VERSION_CONST}"
 
-[[ -f "${REPO_ROOT}/includes/class-github-updater.php" ]] || fail "Missing github updater"
+[[ -f "${REPO_ROOT}/lib/plugin-update-checker/plugin-update-checker.php" ]] || fail "Missing bundled plugin-update-checker"
 [[ -f "${REPO_ROOT}/.github/workflows/release.yml" ]] || fail "Missing release workflow"
 
 NOTES_FILE="${REPO_ROOT}/docs/GITHUB_RELEASE_NOTES_${VERSION_CONST}.md"

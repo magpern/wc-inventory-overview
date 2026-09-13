@@ -22,6 +22,20 @@
 
 - Architecture guards, outbound WAC golden fixtures, service post/void failure matrix, admin PRG/nonce/preview tests, movements characterization extensions.
 
+### Added (non-M27, additive)
+
+- **Inventory & Profit hub** — nav-tab-styled links to Purchasing's Purchase Orders, Receive Stock, and Suppliers tabs (`manage_woocommerce`-gated) and Planning (`VIEW_PO`-gated), alongside the hub's own tabs. Navigates to the existing `wc-io-purchasing` page; no change to Purchasing's own nonces, redirects, or capabilities. The separate `WooCommerce → Purchasing` menu entry is unchanged.
+
+### Fixed
+
+- **Test-content time-bomb** — `tests/integration/expected-delivery/test-expected-delivery-{renderer,service}.php` hardcoded fixture dates (`2026-09-01`/`2026-09-15`) had lapsed into the past, flipping 5 tests to see "Expected soon" instead of the literal date/week they asserted. Replaced with a relative `future_customer_safe_date()` helper; no production code affected.
+
+## [1.43.2] - 2026-09-02
+
+### Changed
+
+- Self-updates now come from a private update server via the bundled Plugin Update Checker v5 library; the bespoke GitHub-release updater was removed. Inert unless `PRIVATE_UPDATE_SERVER` is defined in `wp-config.php`.
+
 ## [1.43.1] - 2026-08-31
 
 **Plugin discoverability** — quick links from the Plugins screen. **DB_VERSION 11** unchanged.
@@ -46,7 +60,7 @@
 
 ### Notes
 
-- Level A freeze: `docs/checklists/m26-release-readiness.md`. **Released as `v1.43.0`.** **ROADMAP COMPLETE AFTER M26** — M27 is not started; former M27 remains unnumbered evidence-gated backlog only.
+- Level A freeze: `docs/checklists/m26-release-readiness.md`. **Released as `v1.43.0`.** **ROADMAP COMPLETE AFTER M26** — the first post-roadmap milestone, M27 (Personal Use Stock Adjustments), released as `v1.44.0` (see above).
 
 ## [1.42.0] - Unreleased
 
