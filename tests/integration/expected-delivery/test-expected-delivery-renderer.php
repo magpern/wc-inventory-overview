@@ -44,6 +44,18 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 	}
 
 	/**
+	 * A fixed calendar date always safely in the future relative to "now",
+	 * so fixtures asserting a literal customer-safe date/week never decay
+	 * into "overdue" as wall-clock time passes (previously a hardcoded
+	 * '2026-09-01' -- a test time-bomb once that date lapsed).
+	 *
+	 * @return string 'Y-m-d'.
+	 */
+	private function future_customer_safe_date(): string {
+		return gmdate( 'Y-m-d', strtotime( '+180 days' ) );
+	}
+
+	/**
 	 * Out-of-stock product with one open, customer-safe PO line.
 	 *
 	 * @param string $expected_date '2026-09-01' style.
@@ -113,7 +125,7 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 	}
 
 	public function test_customer_safe_exact_date_replaces_text() {
-		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'exact' );
+		$product = $this->create_out_of_stock_product_with_customer_safe_line( $this->future_customer_safe_date(), 'exact' );
 		$availability = array(
 			'availability' => 'Out of stock',
 			'class'        => 'out-of-stock',
@@ -121,13 +133,13 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 
 		$out = WC_Inventory_Overview_Expected_Delivery_Renderer::filter_availability( $availability, $product );
 
-		$expected_text = sprintf( 'Expected back around %s', date_i18n( get_option( 'date_format' ), strtotime( '2026-09-01' ) ) );
+		$expected_text = sprintf( 'Expected back around %s', date_i18n( get_option( 'date_format' ), strtotime( $this->future_customer_safe_date() ) ) );
 		$this->assertSame( $expected_text, $out['availability'] );
 		$this->assertSame( 'out-of-stock', $out['class'] );
 	}
 
 	public function test_customer_safe_estimated_date_replaces_text_with_week() {
-		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'estimated' );
+		$product = $this->create_out_of_stock_product_with_customer_safe_line( $this->future_customer_safe_date(), 'estimated' );
 		$availability = array(
 			'availability' => 'Out of stock',
 			'class'        => 'out-of-stock',
@@ -135,7 +147,7 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 
 		$out = WC_Inventory_Overview_Expected_Delivery_Renderer::filter_availability( $availability, $product );
 
-		$expected_text = sprintf( 'Expected during week %s', date_i18n( 'W', strtotime( '2026-09-01' ) ) );
+		$expected_text = sprintf( 'Expected during week %s', date_i18n( 'W', strtotime( $this->future_customer_safe_date() ) ) );
 		$this->assertSame( $expected_text, $out['availability'] );
 	}
 
@@ -171,7 +183,7 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 	}
 
 	public function test_empty_availability_text_is_untouched() {
-		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'exact' );
+		$product = $this->create_out_of_stock_product_with_customer_safe_line( $this->future_customer_safe_date(), 'exact' );
 		$availability = array(
 			'availability' => '',
 			'class'        => 'out-of-stock',
@@ -185,7 +197,7 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 	public function test_setting_disabled_leaves_output_untouched() {
 		update_option( WC_Inventory_Overview_Settings::OPTION_EXPECTED_DELIVERY_RENDERER_ENABLED, 'no' );
 
-		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'exact' );
+		$product = $this->create_out_of_stock_product_with_customer_safe_line( $this->future_customer_safe_date(), 'exact' );
 		$availability = array(
 			'availability' => 'Out of stock',
 			'class'        => 'out-of-stock',
@@ -197,7 +209,7 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 	}
 
 	public function test_opt_out_filter_leaves_output_untouched_and_issues_zero_queries() {
-		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'exact' );
+		$product = $this->create_out_of_stock_product_with_customer_safe_line( $this->future_customer_safe_date(), 'exact' );
 		$availability = array(
 			'availability' => 'Out of stock',
 			'class'        => 'out-of-stock',
@@ -224,7 +236,7 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 	}
 
 	public function test_expected_delivery_text_filter_overrides_the_string() {
-		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'exact' );
+		$product = $this->create_out_of_stock_product_with_customer_safe_line( $this->future_customer_safe_date(), 'exact' );
 		$availability = array(
 			'availability' => 'Out of stock',
 			'class'        => 'out-of-stock',
@@ -243,7 +255,7 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 	}
 
 	public function test_custom_availability_class_does_not_break_rendering() {
-		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'exact' );
+		$product = $this->create_out_of_stock_product_with_customer_safe_line( $this->future_customer_safe_date(), 'exact' );
 		$availability = array(
 			'availability' => 'Out of stock',
 			'class'        => 'my-theme-custom-class',
@@ -256,7 +268,7 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 	}
 
 	public function test_forced_in_stock_class_is_respected_as_override_escape_hatch() {
-		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'exact' );
+		$product = $this->create_out_of_stock_product_with_customer_safe_line( $this->future_customer_safe_date(), 'exact' );
 		$availability = array(
 			'availability' => 'Out of stock',
 			'class'        => 'in-stock', // Third party forced the class.
@@ -279,7 +291,7 @@ class Test_WC_IO_Expected_Delivery_Renderer extends WC_Inventory_Overview_Test_C
 	 * is a behaviorally equivalent and fully reversible stand-in.
 	 */
 	public function test_filter_is_inactive_on_admin_non_ajax_and_active_under_ajax() {
-		$product = $this->create_out_of_stock_product_with_customer_safe_line( '2026-09-01', 'exact' );
+		$product = $this->create_out_of_stock_product_with_customer_safe_line( $this->future_customer_safe_date(), 'exact' );
 		$availability = array(
 			'availability' => 'Out of stock',
 			'class'        => 'out-of-stock',

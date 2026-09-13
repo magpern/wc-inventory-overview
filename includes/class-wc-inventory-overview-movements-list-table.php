@@ -361,7 +361,21 @@ class WC_Inventory_Overview_Movements_List_Table extends WP_List_Table {
 		$labels = WC_Inventory_Overview_Movements::movement_type_labels();
 		$slug   = isset( $item->movement_type ) ? (string) $item->movement_type : '';
 		$label  = $labels[ $slug ] ?? $slug;
-		return esc_html( $label );
+		$html   = esc_html( $label );
+
+		$ref_type = isset( $item->reference_type ) ? (string) $item->reference_type : '';
+		$ref_id   = isset( $item->reference_id ) ? (int) $item->reference_id : 0;
+		if ( WC_Inventory_Overview_Movements::REFERENCE_TYPE_STOCK_ADJUSTMENT === $ref_type && $ref_id > 0
+			&& WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::VIEW_STOCK_ADJUSTMENT ) ) {
+			$url = WC_Inventory_Overview_Stock_Adjustment_Admin::view_url( $ref_id );
+			$html .= '<div class="wc-io-mv-ref-link"><a href="' . esc_url( $url ) . '">' . esc_html__( 'View adjustment', 'wc-inventory-overview' ) . '</a></div>';
+		} elseif ( WC_Inventory_Overview_Movements::REFERENCE_TYPE_GOODS_RECEIPT === $ref_type && $ref_id > 0
+			&& WC_Inventory_Overview_Purchasing_Caps::current_user_can( WC_Inventory_Overview_Purchasing_Caps::VIEW_RECEIPT ) ) {
+			$url = WC_Inventory_Overview_Goods_Receipt_Admin::detail_url( $ref_id );
+			$html .= '<div class="wc-io-mv-ref-link"><a href="' . esc_url( $url ) . '">' . esc_html__( 'View receipt', 'wc-inventory-overview' ) . '</a></div>';
+		}
+
+		return $html;
 	}
 
 	/**

@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.43.2
+Stable tag: 1.44.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,11 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.44.0 =
+* Milestone M27 — Personal Use Stock Adjustments (first post-roadmap milestone). Schema change (v11 -> v12): new `wc_io_stock_adjustments` / `wc_io_stock_adjustment_lines` tables.
+* Audited outbound personal-use stock withdrawals at EUR weighted-average cost, with post/void lifecycle, on a new Inventory & Profit -> Stock Adjustments tab.
+* Inventory & Profit hub also gains nav-tab-styled links to Purchasing's Purchase Orders, Receive Stock, Suppliers, and Planning tabs, alongside the hub's own tabs.
 
 = 1.43.2 =
 * Automatic updates now come from a private update server via the bundled Plugin Update Checker library; the previous direct GitHub-release updater has been removed. Update checks are inert unless the PRIVATE_UPDATE_SERVER constant is defined.

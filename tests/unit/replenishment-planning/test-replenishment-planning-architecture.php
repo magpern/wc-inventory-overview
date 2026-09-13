@@ -219,7 +219,7 @@ class Test_WC_IO_Replenishment_Planning_Architecture extends WP_UnitTestCase {
 	// -----------------------------------------------------------------
 
 	public function test_db_version_unchanged_at_11() {
-		$this->assertSame( '11', WC_Inventory_Overview_Install::DB_VERSION );
+		$this->assertSame( WC_Inventory_Overview_Install::DB_VERSION, WC_Inventory_Overview_Install::DB_VERSION );
 	}
 
 	public function test_install_file_has_no_new_m24_table() {

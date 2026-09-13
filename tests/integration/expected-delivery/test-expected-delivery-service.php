@@ -41,6 +41,18 @@ class Test_WC_IO_Expected_Delivery_Service extends WC_Inventory_Overview_Test_Ca
 	}
 
 	/**
+	 * A fixed calendar date always safely in the future relative to "now",
+	 * so fixtures asserting a literal customer-safe date never decay into
+	 * "overdue" as wall-clock time passes (previously hardcoded
+	 * '2026-09-01'/'2026-09-15' -- a test time-bomb once those dates lapsed).
+	 *
+	 * @return string 'Y-m-d'.
+	 */
+	private function future_customer_safe_date(): string {
+		return gmdate( 'Y-m-d', strtotime( '+180 days' ) );
+	}
+
+	/**
 	 * @param WC_Product_Variable $parent Variable product.
 	 * @return int[]
 	 */
@@ -111,7 +123,7 @@ class Test_WC_IO_Expected_Delivery_Service extends WC_Inventory_Overview_Test_Ca
 
 		$po = $this->create_purchase_order(
 			array(
-				'expected_date'       => '2026-09-01',
+				'expected_date'       => $this->future_customer_safe_date(),
 				'expected_confidence' => 'exact',
 			)
 		);
@@ -127,7 +139,7 @@ class Test_WC_IO_Expected_Delivery_Service extends WC_Inventory_Overview_Test_Ca
 		$result = WC_Inventory_Overview_Expected_Delivery_Service::get_for_product( $product );
 
 		$this->assertSame( WC_Inventory_Overview_Expected_Delivery_Result_Interface::STATE_EXPECTED_DATE, $result->state() );
-		$this->assertSame( '2026-09-01', $result->expected_date() );
+		$this->assertSame( $this->future_customer_safe_date(), $result->expected_date() );
 		$this->assertSame( 'exact', $result->confidence() );
 		$this->assertFalse( $result->available_now() );
 		$this->assertSame( WC_Inventory_Overview_Expected_Delivery_Service::API_VERSION, $result->api_version() );
@@ -142,7 +154,7 @@ class Test_WC_IO_Expected_Delivery_Service extends WC_Inventory_Overview_Test_Ca
 
 		$po = $this->create_purchase_order(
 			array(
-				'expected_date'       => '2026-09-15',
+				'expected_date'       => $this->future_customer_safe_date(),
 				'expected_confidence' => 'estimated',
 			)
 		);
@@ -159,7 +171,7 @@ class Test_WC_IO_Expected_Delivery_Service extends WC_Inventory_Overview_Test_Ca
 		$result = WC_Inventory_Overview_Expected_Delivery_Service::get_for_product( $variation_id );
 
 		$this->assertSame( WC_Inventory_Overview_Expected_Delivery_Result_Interface::STATE_EXPECTED_DATE, $result->state() );
-		$this->assertSame( '2026-09-15', $result->expected_date() );
+		$this->assertSame( $this->future_customer_safe_date(), $result->expected_date() );
 		$this->assertSame( 'estimated', $result->confidence() );
 	}
 
@@ -178,7 +190,7 @@ class Test_WC_IO_Expected_Delivery_Service extends WC_Inventory_Overview_Test_Ca
 
 		$po = $this->create_purchase_order(
 			array(
-				'expected_date'       => '2026-09-01',
+				'expected_date'       => $this->future_customer_safe_date(),
 				'expected_confidence' => 'exact',
 			)
 		);
@@ -219,7 +231,7 @@ class Test_WC_IO_Expected_Delivery_Service extends WC_Inventory_Overview_Test_Ca
 
 		$po = $this->create_purchase_order(
 			array(
-				'expected_date'       => '2026-09-01',
+				'expected_date'       => $this->future_customer_safe_date(),
 				'expected_confidence' => 'exact',
 			)
 		);
@@ -270,7 +282,7 @@ class Test_WC_IO_Expected_Delivery_Service extends WC_Inventory_Overview_Test_Ca
 
 		$po = $this->create_purchase_order(
 			array(
-				'expected_date'       => '2026-09-01',
+				'expected_date'       => $this->future_customer_safe_date(),
 				'expected_confidence' => 'exact',
 			)
 		);

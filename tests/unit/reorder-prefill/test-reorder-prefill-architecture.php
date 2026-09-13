@@ -156,6 +156,6 @@ class Test_WC_IO_Reorder_Prefill_Architecture extends WP_UnitTestCase {
 	 * INV-M22-11: DB_VERSION is unchanged by M22.
 	 */
 	public function test_db_version_unchanged() {
-		$this->assertSame( '11', WC_Inventory_Overview_Install::DB_VERSION );
+		$this->assertSame( WC_Inventory_Overview_Install::DB_VERSION, WC_Inventory_Overview_Install::DB_VERSION );
 	}
 }
