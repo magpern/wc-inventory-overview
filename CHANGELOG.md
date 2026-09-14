@@ -1,5 +1,11 @@
 # Changelog — WC Inventory Overview
 
+## [1.44.2] - 2026-09-14
+
+### Fixed
+
+- **Goods Receipt line editor "Add line" / "Remove" buttons** — `assets/po-admin.js` (shared by the PO and Goods Receipt admin screens) only wired up the PO-namespaced line-repeater selectors (`#wc-io-po-add-line`, `#tmpl-wc-io-po-line-row`, `.wc-io-po-remove-line`). The Goods Receipt line editor renders its own separately-namespaced markup (`#wc-io-gr-add-line`, `#tmpl-wc-io-gr-line-row`, `.wc-io-gr-remove-line`, field names `wc_io_gr_line_<field>[INDEX]`) that nothing ever handled — Add line and Remove were dead buttons on every Goods Receipt screen. No schema change, no other behavior change.
+
 ## [1.44.1] - 2026-09-14
 
 ### Fixed

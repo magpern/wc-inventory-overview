@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.44.1
+Stable tag: 1.44.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,9 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.44.2 =
+* Fixed dead "Add line" / "Remove" buttons on the Goods Receipt admin screen (New/Quick Receive Without PO and Receive Against PO). The shared po-admin.js only wired up the Purchase Order line-repeater selectors; the Goods Receipt line editor's own selectors were never handled.
 
 = 1.44.1 =
 * Purchase Order save request-token TTL raised from 10 to 30 minutes (Purchasing -> Purchase Orders -> New/Edit PO). Long-lived PO forms with many lines were hitting "This form has already been submitted or expired" on Save.
