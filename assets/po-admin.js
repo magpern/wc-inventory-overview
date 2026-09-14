@@ -1,5 +1,7 @@
 /**
- * Purchase Order admin line repeater (M2-D).
+ * Purchase Order admin line repeater (M2-D), also enqueued on the Goods
+ * Receipt admin screen (M4) for its own, separately-namespaced line
+ * repeater (`wc-io-gr-*`).
  */
 ( function( $ ) {
 	'use strict';
@@ -215,5 +217,43 @@
 			$( this ).closest( 'tr' ).remove();
 			reindexLines();
 		} );
+
+		// Goods Receipt line repeater (M4). Field names are
+		// `wc_io_gr_line_<field>[INDEX]` -- a single trailing index bracket,
+		// unlike the PO repeater's `lines[INDEX][field]`.
+		$( '#wc-io-gr-add-line' ).on( 'click', function( e ) {
+			e.preventDefault();
+			var tmpl = $( '#tmpl-wc-io-gr-line-row' ).html();
+			if ( ! tmpl ) {
+				return;
+			}
+			var $row = $( tmpl );
+			$( '#wc-io-gr-lines tbody' ).append( $row );
+			reindexGrLines();
+			initProductSearch( $row );
+		} );
+
+		$( document ).on( 'click', '.wc-io-gr-remove-line', function( e ) {
+			e.preventDefault();
+			var $rows = $( '#wc-io-gr-lines tbody tr.wc-io-gr-line-row' );
+			if ( $rows.length <= 1 ) {
+				$rows.find( ':input' ).val( '' ).trigger( 'change' );
+				return;
+			}
+			$( this ).closest( 'tr' ).remove();
+			reindexGrLines();
+		} );
 	} );
+
+	function reindexGrLines() {
+		$( '#wc-io-gr-lines tbody tr.wc-io-gr-line-row' ).each( function( index ) {
+			$( this ).find( ':input[name]' ).each( function() {
+				var name = $( this ).attr( 'name' );
+				if ( ! name ) {
+					return;
+				}
+				$( this ).attr( 'name', name.replace( /\[(?:\d+|__INDEX__)\]$/, '[' + index + ']' ) );
+			} );
+		} );
+	}
 }( jQuery ) );
