@@ -1,6 +1,12 @@
 # Changelog — WC Inventory Overview
 
-## [1.44.0] - Unreleased
+## [1.44.1] - 2026-09-14
+
+### Fixed
+
+- **PO save request-token TTL** — raised from 10 to 30 minutes (`WC_Inventory_Overview_PO_Request_Token::TTL`). New/edit Purchase Order forms with several lines and supplier lookups could legitimately take longer than 10 minutes to fill in, causing the one-shot token to expire and Save to fail with "This form has already been submitted or expired." No schema change, no other behavior change.
+
+## [1.44.0] - 2026-09-14
 
 **Milestone M27 — Personal Use Stock Adjustments.** First post-roadmap milestone. Adds audited outbound personal-use withdrawals with EUR weighted-average cost tracking, schema v12 Stock Adjustment documents, movement types `personal_use` / `personal_use_void`, and a full admin workflow on **Inventory & Profit → Stock Adjustments**. **No REST/CLI in M27.** Outbound stock+cost mutations are owned exclusively by `Stock_Adjustment_Service` → `Restock_Service` outbound mutators; inline Overview stock edit remains a separate unaudited path.
 

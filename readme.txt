@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.44.0
+Stable tag: 1.44.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,9 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.44.1 =
+* Purchase Order save request-token TTL raised from 10 to 30 minutes (Purchasing -> Purchase Orders -> New/Edit PO). Long-lived PO forms with many lines were hitting "This form has already been submitted or expired" on Save.
 
 = 1.44.0 =
 * Milestone M27 — Personal Use Stock Adjustments (first post-roadmap milestone). Schema change (v11 -> v12): new `wc_io_stock_adjustments` / `wc_io_stock_adjustment_lines` tables.
