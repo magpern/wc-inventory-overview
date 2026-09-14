@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 class WC_Inventory_Overview_PO_Request_Token {
 
 	const TRANSIENT_PREFIX = 'wc_io_po_rt_';
-	const TTL              = 600;
+	const TTL              = 1800;
 
 	/**
 	 * Issue a new token for the current user and optional context.
