@@ -303,7 +303,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 		if ( $can_commit ) {
 			$fields = WC_Inventory_Overview_Replenishment_Commit_Admin::form_fields();
 			?>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="wc-io-replen-commit-form">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="wc-io-replen-commit-form" novalidate="novalidate">
 				<input type="hidden" name="action" value="wc_io_replenishment_commit" />
 				<input type="hidden" name="<?php echo esc_attr( $fields['token_field'] ); ?>" value="<?php echo esc_attr( $fields['token'] ); ?>" />
 				<?php wp_nonce_field( $fields['nonce_action'], $fields['nonce_field'] ); ?>
@@ -360,7 +360,7 @@ class WC_Inventory_Overview_Purchasing_Page {
 				echo '<td>' . esc_html( (string) wc_stock_amount( $line['position'] ) ) . '</td>';
 				echo '<td>' . esc_html( (string) wc_stock_amount( $line['threshold'] ) ) . '</td>';
 				if ( $can_commit ) {
-					echo '<td><input type="number" class="wc-io-replen-qty" min="0" step="0.0001" name="items[' . esc_attr( (string) $line_index ) . '][qty]" value="' . esc_attr( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '" /></td>';
+					echo '<td><input type="number" class="wc-io-replen-qty" min="0" step="1" name="items[' . esc_attr( (string) $line_index ) . '][qty]" value="' . esc_attr( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '" /></td>';
 				} else {
 					echo '<td>' . esc_html( (string) wc_stock_amount( $line['qty_suggested'] ) ) . '</td>';
 				}

@@ -500,7 +500,7 @@ class WC_Inventory_Overview_Product_Replenishment_Admin {
 		</p>
 		<p class="form-field <?php echo esc_attr( $field_id_qty ); ?>_field">
 			<label for="<?php echo esc_attr( $field_id_qty ); ?>"><?php esc_html_e( 'Default replenishment quantity', 'wc-inventory-overview' ); ?></label>
-			<input type="number" step="0.0001" min="0" class="short" id="<?php echo esc_attr( $field_id_qty ); ?>" name="<?php echo esc_attr( $field_name_qty ); ?>" value="<?php echo esc_attr( $qty_value ); ?>" />
+			<input type="number" step="1" min="0" class="short wc-io-replen-default-qty" id="<?php echo esc_attr( $field_id_qty ); ?>" name="<?php echo esc_attr( $field_name_qty ); ?>" value="<?php echo esc_attr( $qty_value ); ?>" />
 			<span class="description"><?php echo esc_html( __( 'Prefills the quantity on the "Create Draft PO" quick action. Leave blank to use the ordinary default.', 'wc-inventory-overview' ) . ' ' . $scope_note ); ?></span>
 		</p>
 		<?php

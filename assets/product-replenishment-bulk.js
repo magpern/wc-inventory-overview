@@ -176,6 +176,22 @@
 		} );
 	}
 
+	// The "Default replenishment quantity" field (product Inventory tab and
+	// variation panel) uses step="1" so its native spinner increments by
+	// whole units, but the quantity itself may still be entered as a
+	// decimal (e.g. 3.5). The 'invalid' event does not bubble, so a
+	// capture-phase document listener is the only way to intercept it
+	// regardless of whether the field exists at load time or is added
+	// later by WooCommerce's own AJAX-loaded variation panel. Canceling
+	// the event's default action stops the browser from blocking this
+	// (WooCommerce-owned) form's submission over a step mismatch, without
+	// touching validation for any other field on the page.
+	document.addEventListener( 'invalid', function( e ) {
+		if ( e.target && e.target.classList && e.target.classList.contains( 'wc-io-replen-default-qty' ) ) {
+			e.preventDefault();
+		}
+	}, true );
+
 	$( function() {
 		var $select = $( 'select.variation_actions' );
 		if ( ! $select.length ) {

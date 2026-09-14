@@ -321,7 +321,7 @@ class WC_Inventory_Overview_PO_Admin {
 
 		<?php if ( $can_edit ) : ?>
 			<?php self::render_reorder_prefill_notices( $prefill['notices'] ); ?>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wc-io-po-form" id="wc-io-po-form">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wc-io-po-form" id="wc-io-po-form" novalidate="novalidate">
 				<input type="hidden" name="action" value="wc_io_po_save" />
 				<input type="hidden" name="po_id" value="<?php echo esc_attr( (string) $po_id ); ?>" />
 				<input type="hidden" name="wc_io_po_request_token" value="<?php echo esc_attr( WC_Inventory_Overview_PO_Request_Token::issue( 'save' ) ); ?>" />
@@ -650,7 +650,7 @@ class WC_Inventory_Overview_PO_Admin {
 			</td>
 			<td>
 				<?php if ( $editable ) : ?>
-					<input type="number" step="0.0001" min="0" name="lines[<?php echo esc_attr( (string) $index ); ?>][qty_ordered]" value="<?php echo esc_attr( (string) ( $line['qty_ordered'] ?? '1' ) ); ?>" required />
+					<input type="number" step="1" min="0" name="lines[<?php echo esc_attr( (string) $index ); ?>][qty_ordered]" value="<?php echo esc_attr( (string) ( $line['qty_ordered'] ?? '1' ) ); ?>" required />
 				<?php else : ?>
 					<?php echo esc_html( (string) ( $line['qty_ordered'] ?? '0' ) ); ?>
 				<?php endif; ?>

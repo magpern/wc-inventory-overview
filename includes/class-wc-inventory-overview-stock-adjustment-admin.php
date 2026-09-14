@@ -233,7 +233,7 @@ class WC_Inventory_Overview_Stock_Adjustment_Admin {
 		<?php endif; ?>
 
 		<?php if ( $can_edit ) : ?>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wc-io-sa-form" id="wc-io-sa-form">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wc-io-sa-form" id="wc-io-sa-form" novalidate="novalidate">
 				<input type="hidden" name="action" value="wc_io_sa_save" />
 				<input type="hidden" name="sa_id" value="<?php echo esc_attr( (string) $id ); ?>" />
 				<input type="hidden" name="wc_io_sa_request_token" value="<?php echo esc_attr( WC_Inventory_Overview_PO_Request_Token::issue( 'sa_save' ) ); ?>" />
@@ -398,7 +398,7 @@ class WC_Inventory_Overview_Stock_Adjustment_Admin {
 			</td>
 			<td>
 				<?php if ( $editable ) : ?>
-					<input type="number" step="0.0001" min="0.0001" class="small-text wc-io-sa-qty" name="wc_io_sa_line_qty[<?php echo esc_attr( (string) $index ); ?>]" value="<?php echo esc_attr( (string) ( $line['qty'] ?? '' ) ); ?>" />
+					<input type="number" step="1" min="0" class="small-text wc-io-sa-qty" name="wc_io_sa_line_qty[<?php echo esc_attr( (string) $index ); ?>]" value="<?php echo esc_attr( (string) ( $line['qty'] ?? '' ) ); ?>" />
 				<?php else : ?>
 					<?php echo esc_html( wc_format_decimal( (float) ( $line['qty'] ?? 0 ), 4 ) ); ?>
 				<?php endif; ?>
