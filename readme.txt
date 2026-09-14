@@ -4,7 +4,7 @@ Tags: woocommerce, inventory, stock, costing, dashboard
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.44.2
+Stable tag: 1.44.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,9 @@ WC Inventory Overview provides admin dashboards for inventory movements, costing
 3. Open the inventory screens under WooCommerce admin.
 
 == Changelog ==
+
+= 1.44.3 =
+* Fixed quantity number inputs (Purchase Order lines, Goods Receipt lines, Stock Adjustment lines, Replenishment Planning, product/variation default replenishment quantity) using a 0.0001 spinner step. The up/down arrows now step by 1; decimal quantities like 3.5 can still be typed directly.
 
 = 1.44.2 =
 * Fixed dead "Add line" / "Remove" buttons on the Goods Receipt admin screen (New/Quick Receive Without PO and Receive Against PO). The shared po-admin.js only wired up the Purchase Order line-repeater selectors; the Goods Receipt line editor's own selectors were never handled.

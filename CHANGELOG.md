@@ -1,5 +1,11 @@
 # Changelog — WC Inventory Overview
 
+## [1.44.3] - 2026-09-14
+
+### Fixed
+
+- **Quantity spinner step** — every "Qty"/"Quantity" number input (PO lines, Goods Receipt lines, Stock Adjustment lines, Replenishment Planning, product/variation default replenishment quantity) used `step="0.0001"`, so the native up/down spinner incremented by 0.0001 instead of a whole unit. Changed to `step="1"`. Decimal quantities (e.g. 3.5) remain fully enterable and submittable: plugin-owned forms (PO, Goods Receipt, Stock Adjustment, Replenishment Planning commit) gained `novalidate`, since they're fully re-validated server-side anyway; the product/variation default-qty field (inside WooCommerce's own product-edit form) is handled via a scoped capture-phase `invalid`-event listener in `product-replenishment-bulk.js` instead, so no other field on that shared form loses native validation. No PHP validation changed — qty is parsed as a float server-side regardless of the HTML step attribute. No schema change, no other behavior change.
+
 ## [1.44.2] - 2026-09-14
 
 ### Fixed
